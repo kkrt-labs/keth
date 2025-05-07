@@ -55,7 +55,7 @@ func init{
             assert block.value.header.value.excess_blob_gas = excess_blob_gas;
         }
 
-        validate_header{keccak_ptr=keccak_ptr}(block.value.header, parent_header);
+        validate_header(block.value.header, parent_header);
 
         with_attr error_message("InvalidBlock") {
             assert block.value.ommers.value.len = 0;
@@ -75,7 +75,7 @@ func init{
         let (logs: Log*) = alloc();
         tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
 
-        process_system_tx{keccak_ptr=keccak_ptr, state=state}(
+        process_system_tx{state=state}(
             block, chain.value.chain_id, excess_blob_gas, block_hashes
         );
 
@@ -86,9 +86,7 @@ func init{
         let header_commitment = Header__hash__(block.value.header);
 
         // Commit to the following body.cairo program
-        let body_commitment = body_commitments{
-            keccak_ptr=keccak_ptr,
-        }(
+        let body_commitment = body_commitments(
             header_commitment,
             block.value.transactions,
             state,
@@ -102,9 +100,9 @@ func init{
         );
 
         // Commit to the teardown program
-        let teardown_commitment = teardown_commitments{
-            keccak_ptr=keccak_ptr,
-        }(header_commitment, withdrawals_trie, block.value.withdrawals);
+        let teardown_commitment = teardown_commitments(
+            header_commitment, withdrawals_trie, block.value.withdrawals
+        );
 
         assert [output_ptr] = body_commitment.value.low;
         assert [output_ptr + 1] = body_commitment.value.high;

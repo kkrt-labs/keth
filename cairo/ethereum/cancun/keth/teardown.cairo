@@ -90,64 +90,50 @@ func teardown{
     // Fill-in the program inputs through the hints.
     %{ teardown_inputs %}
 
+    // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
+    // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
+    // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
+    tempvar main_trie_data = MappingAddressAccount(
+        new MappingAddressAccountStruct(
+            dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
+            dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
+            parent_dict=cast(0, MappingAddressAccountStruct*),
+        ),
+    );
+    tempvar main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=state.value._main_trie.value.secured,
+            default=state.value._main_trie.value.default,
+            _data=main_trie_data,
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=main_trie,
+            _storage_tries=state.value._storage_tries,
+            created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
+
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
 
     with keccak_ptr {
-        // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
-        // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
-        // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
-        tempvar main_trie_data = MappingAddressAccount(
-            new MappingAddressAccountStruct(
-                dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
-                dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
-                parent_dict=cast(0, MappingAddressAccountStruct*),
-            ),
-        );
-        tempvar main_trie = TrieAddressOptionalAccount(
-            new TrieAddressOptionalAccountStruct(
-                secured=state.value._main_trie.value.secured,
-                default=state.value._main_trie.value.default,
-                _data=main_trie_data,
-            ),
-        );
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=main_trie,
-                _storage_tries=state.value._storage_tries,
-                created_accounts=state.value.created_accounts,
-                original_storage_tries=state.value.original_storage_tries,
-            ),
-        );
-
-        // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
-        // implementation.
-        let (keccak_ptr) = alloc();
-        let keccak_ptr_start = keccak_ptr;
 
         // Commit to the same inputs as the init.cairo's outputs.
         let header = block.value.header;
         let header_commitment = Header__hash__(header);
-        let teardown_commitment = teardown_commitments{
-            range_check_ptr=range_check_ptr,
-            bitwise_ptr=bitwise_ptr,
-            keccak_ptr=keccak_ptr,
-            poseidon_ptr=poseidon_ptr,
-        }(header_commitment, withdrawals_trie, block.value.withdrawals);
+        let teardown_commitment = teardown_commitments(header_commitment, withdrawals_trie, block.value.withdrawals);
 
         assert [output_ptr] = teardown_commitment.value.low;
         assert [output_ptr + 1] = teardown_commitment.value.high;
         let output_ptr = output_ptr + 2;
 
         // Commit to the same inputs as the body.cairo's outputs.
-        let body_commitment = body_commitments{
-            range_check_ptr=range_check_ptr,
-            bitwise_ptr=bitwise_ptr,
-            keccak_ptr=keccak_ptr,
-            poseidon_ptr=poseidon_ptr,
-        }(
+        let body_commitment = body_commitments(
             header_commitment,
             block_transactions,
             state,
@@ -249,7 +235,7 @@ func teardown{
         let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
             pre_state_root_bytes
         );
-        let (account_diff, storage_diff) = compute_diff_entrypoint{keccak_ptr=keccak_ptr}(
+        let (account_diff, storage_diff) = compute_diff_entrypoint(
             node_store=node_store,
             address_preimages=address_preimages,
             storage_key_preimages=storage_key_preimages,

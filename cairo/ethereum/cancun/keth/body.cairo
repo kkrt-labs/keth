@@ -41,54 +41,54 @@ func body{
 }() {
     alloc_locals;
 
+    // Program inputs
+    local block_header: Header;
+    local block_transactions: TupleUnionBytesLegacyTransaction;
+    local state: State;
+    local transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction;
+    local receipts_trie: TrieBytesOptionalUnionBytesReceipt;
+    local block_logs: TupleLog;
+    local block_hashes: ListHash32;
+    local gas_available: Uint;
+    local chain_id: U64;
+    local blob_gas_used: Uint;
+    local excess_blob_gas: U64;
+    local start_index: felt;
+    local len: felt;
+    %{ body_inputs %}
+
+    // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
+    // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
+    // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
+    tempvar main_trie_data = MappingAddressAccount(
+        new MappingAddressAccountStruct(
+            dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
+            dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
+            parent_dict=cast(0, MappingAddressAccountStruct*),
+        ),
+    );
+    tempvar main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=state.value._main_trie.value.secured,
+            default=state.value._main_trie.value.default,
+            _data=main_trie_data,
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=main_trie,
+            _storage_tries=state.value._storage_tries,
+            created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
+
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
 
     with keccak_ptr {
-        // Program inputs
-        local block_header: Header;
-        local block_transactions: TupleUnionBytesLegacyTransaction;
-        local state: State;
-        local transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction;
-        local receipts_trie: TrieBytesOptionalUnionBytesReceipt;
-        local block_logs: TupleLog;
-        local block_hashes: ListHash32;
-        local gas_available: Uint;
-        local chain_id: U64;
-        local blob_gas_used: Uint;
-        local excess_blob_gas: U64;
-        local start_index: felt;
-        local len: felt;
-        %{ body_inputs %}
-
-        // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
-        // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
-        // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
-        tempvar main_trie_data = MappingAddressAccount(
-            new MappingAddressAccountStruct(
-                dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
-                dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
-                parent_dict=cast(0, MappingAddressAccountStruct*),
-            ),
-        );
-        tempvar main_trie = TrieAddressOptionalAccount(
-            new TrieAddressOptionalAccountStruct(
-                secured=state.value._main_trie.value.secured,
-                default=state.value._main_trie.value.default,
-                _data=main_trie_data,
-            ),
-        );
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=main_trie,
-                _storage_tries=state.value._storage_tries,
-                created_accounts=state.value.created_accounts,
-                original_storage_tries=state.value.original_storage_tries,
-            ),
-        );
-
         // Input Commitments
         let header_commitment = Header__hash__(block_header);
         let initial_args_commitment = body_commitments(
