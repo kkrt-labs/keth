@@ -41,11 +41,6 @@ func body{
 }() {
     alloc_locals;
 
-    // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
-    // implementation.
-    let (keccak_ptr) = alloc();
-    let keccak_ptr_start = keccak_ptr;
-
     // Program inputs
     local block_header: Header;
     local block_transactions: TupleUnionBytesLegacyTransaction;
@@ -88,63 +83,70 @@ func body{
         ),
     );
 
-    // Input Commitments
-    let header_commitment = Header__hash__(block_header);
-    let initial_args_commitment = body_commitments(
-        header_commitment,
-        block_transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain_id,
-        excess_blob_gas,
-    );
+    // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
+    // implementation.
+    let (keccak_ptr) = alloc();
+    let keccak_ptr_start = keccak_ptr;
 
-    // Execution
-    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
-        state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
-    }(
-        index=start_index,
-        len=start_index + len,
-        transactions=block_transactions,
-        gas_available=gas_available,
-        chain_id=chain_id,
-        base_fee_per_gas=block_header.value.base_fee_per_gas,
-        excess_blob_gas=excess_blob_gas,
-        block_logs=block_logs,
-        block_hashes=block_hashes,
-        coinbase=block_header.value.coinbase,
-        block_number=block_header.value.number,
-        block_gas_limit=block_header.value.gas_limit,
-        block_time=block_header.value.timestamp,
-        prev_randao=block_header.value.prev_randao,
-        blob_gas_used=blob_gas_used,
-    );
-    finalize_state{state=state}();
+    with keccak_ptr {
+        // Input Commitments
+        let header_commitment = Header__hash__(block_header);
+        let initial_args_commitment = body_commitments(
+            header_commitment,
+            block_transactions,
+            state,
+            transactions_trie,
+            receipts_trie,
+            block_logs,
+            block_hashes,
+            gas_available,
+            chain_id,
+            excess_blob_gas,
+        );
 
-    // Output Commitments
-    let post_exec_commitment = body_commitments(
-        header_commitment,
-        block_transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain_id,
-        excess_blob_gas,
-    );
+        // Execution
+        let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
+            state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
+        }(
+            index=start_index,
+            len=start_index + len,
+            transactions=block_transactions,
+            gas_available=gas_available,
+            chain_id=chain_id,
+            base_fee_per_gas=block_header.value.base_fee_per_gas,
+            excess_blob_gas=excess_blob_gas,
+            block_logs=block_logs,
+            block_hashes=block_hashes,
+            coinbase=block_header.value.coinbase,
+            block_number=block_header.value.number,
+            block_gas_limit=block_header.value.gas_limit,
+            block_time=block_header.value.timestamp,
+            prev_randao=block_header.value.prev_randao,
+            blob_gas_used=blob_gas_used,
+        );
+        finalize_state{state=state}();
 
-    assert [output_ptr] = initial_args_commitment.value.low;
-    assert [output_ptr + 1] = initial_args_commitment.value.high;
-    assert [output_ptr + 2] = post_exec_commitment.value.low;
-    assert [output_ptr + 3] = post_exec_commitment.value.high;
-    assert [output_ptr + 4] = start_index;
-    assert [output_ptr + 5] = len;
+        // Output Commitments
+        let post_exec_commitment = body_commitments(
+            header_commitment,
+            block_transactions,
+            state,
+            transactions_trie,
+            receipts_trie,
+            block_logs,
+            block_hashes,
+            gas_available,
+            chain_id,
+            excess_blob_gas,
+        );
+
+        assert [output_ptr] = initial_args_commitment.value.low;
+        assert [output_ptr + 1] = initial_args_commitment.value.high;
+        assert [output_ptr + 2] = post_exec_commitment.value.low;
+        assert [output_ptr + 3] = post_exec_commitment.value.high;
+        assert [output_ptr + 4] = start_index;
+        assert [output_ptr + 5] = len;
+    }
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
     let output_ptr = output_ptr + 6;

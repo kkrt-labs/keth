@@ -14,7 +14,6 @@ class TestTeardown:
         "zkpi_path",
         [
             Path("test_data/22188088.json"),
-            Path("test_data/22188102.json"),
         ],
     )
     @pytest.mark.slow

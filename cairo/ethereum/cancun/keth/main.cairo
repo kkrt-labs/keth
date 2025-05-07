@@ -59,43 +59,44 @@ func main{
     // implementation.
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
-    state_transition{chain=chain, keccak_ptr=keccak_ptr}(block);
+    with keccak_ptr {
+        state_transition{chain=chain}(block);
+        // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
+        let pre_state_root = parent_header.value.state_root;
+        let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);
+        let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
+            pre_state_root_bytes
+        );
+        let (account_diff, storage_diff) = compute_diff_entrypoint(
+            node_store=node_store,
+            address_preimages=address_preimages,
+            storage_key_preimages=storage_key_preimages,
+            left=pre_state_root_node,
+            right=post_state_root,
+        );
 
-    // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
-    let pre_state_root = parent_header.value.state_root;
-    let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);
-    let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
-        pre_state_root_bytes
-    );
-    let (account_diff, storage_diff) = compute_diff_entrypoint{keccak_ptr=keccak_ptr}(
-        node_store=node_store,
-        address_preimages=address_preimages,
-        storage_key_preimages=storage_key_preimages,
-        left=pre_state_root_node,
-        right=post_state_root,
-    );
+        // # Compute commitments for the state diffs and the trie diffs.
+        let account_diff = sort_account_diff(account_diff);
+        let storage_diff = sort_storage_diff(storage_diff);
 
-    // # Compute commitments for the state diffs and the trie diffs.
-    let account_diff = sort_account_diff(account_diff);
-    let storage_diff = sort_storage_diff(storage_diff);
+        let trie_account_diff_commitment = hash_account_diff_segment(account_diff);
+        let trie_storage_diff_commitment = hash_storage_diff_segment(storage_diff);
 
-    let trie_account_diff_commitment = hash_account_diff_segment(account_diff);
-    let trie_storage_diff_commitment = hash_storage_diff_segment(storage_diff);
+        let state_account_diff_commitment = hash_state_account_diff(chain.value.state);
+        let state_storage_diff_commitment = hash_state_storage_diff(chain.value.state);
 
-    let state_account_diff_commitment = hash_state_account_diff(chain.value.state);
-    let state_storage_diff_commitment = hash_state_storage_diff(chain.value.state);
+        with_attr error_message("STF and Trie diffs are not equal") {
+            assert state_account_diff_commitment = trie_account_diff_commitment;
+            assert state_storage_diff_commitment = trie_storage_diff_commitment;
+        }
 
-    with_attr error_message("STF and Trie diffs are not equal") {
-        assert state_account_diff_commitment = trie_account_diff_commitment;
-        assert state_storage_diff_commitment = trie_storage_diff_commitment;
+        assert [output_ptr] = pre_state_root.value.low;
+        assert [output_ptr + 1] = pre_state_root.value.high;
+        assert [output_ptr + 2] = state_account_diff_commitment;
+        assert [output_ptr + 3] = state_storage_diff_commitment;
+        assert [output_ptr + 4] = trie_account_diff_commitment;
+        assert [output_ptr + 5] = trie_storage_diff_commitment;
     }
-
-    assert [output_ptr] = pre_state_root.value.low;
-    assert [output_ptr + 1] = pre_state_root.value.high;
-    assert [output_ptr + 2] = state_account_diff_commitment;
-    assert [output_ptr + 3] = state_storage_diff_commitment;
-    assert [output_ptr + 4] = trie_account_diff_commitment;
-    assert [output_ptr + 5] = trie_storage_diff_commitment;
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
     let output_ptr = output_ptr + 6;
