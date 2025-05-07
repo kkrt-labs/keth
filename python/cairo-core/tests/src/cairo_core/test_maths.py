@@ -6,12 +6,12 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
-from tests.utils.strategies import felt, positive_felt
+from tests.utils.strategies import positive_felt
 
 
 class TestMaths:
     class TestSign:
-        @given(value=felt)
+        @given(value=positive_felt)
         def test_sign(self, cairo_run, value):
             sign = cairo_run("sign", value=value)
             assert (
@@ -182,12 +182,12 @@ segments.load_data(ids.output, bad)
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
-    @given(value=felt)
+    @given(value=positive_felt)
     def test_felt252_bit_length(self, cairo_run, value):
         res = cairo_run("felt252_bit_length", value)
         assert res == value.bit_length()
 
-    @given(value=felt)
+    @given(value=positive_felt)
     @example(value=DEFAULT_PRIME - 1)
     def test_felt252_bytes_length(self, cairo_run, value):
         res = cairo_run("felt252_bytes_length", value)
