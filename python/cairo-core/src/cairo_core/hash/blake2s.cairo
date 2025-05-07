@@ -48,7 +48,7 @@ func blake2s_truncated{range_check_ptr}(data: felt*, n_bytes: felt) -> felt {
     // Truncate hash - convert value to felt, by taking the 248 least significant bits.
     // Meaning we only take the lower 3 bytes of the final word.
     let (high_h, high_l) = unsigned_div_rem(output[7], 2 ** 24);
-    // final_world_l is the lower 27 bits of the final word
+    // final_world_l is the lower 24 bits of the final word
     tempvar res_felt = 2 ** 224 * high_l + output[6] * 2 ** 192 + output[5] * 2 ** 160 + output[
         4
     ] * 2 ** 128 + output[3] * 2 ** 96 + output[2] * 2 ** 64 + output[1] * 2 ** 32 + output[0];
