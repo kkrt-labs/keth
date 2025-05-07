@@ -6,7 +6,7 @@ from mpt.trie_diff import StateDiff
 from utils.fixture_loader import load_zkpi_fixture
 
 pytestmark = pytest.mark.cairo_file(
-    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_main.cairo"
+    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_e2e.cairo"
 )
 
 

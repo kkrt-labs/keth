@@ -6,7 +6,7 @@ from ethereum_types.numeric import U64
 from utils.fixture_loader import load_body_input
 
 pytestmark = pytest.mark.cairo_file(
-    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_body.cairo"
+    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_e2e.cairo"
 )
 
 
