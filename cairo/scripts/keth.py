@@ -368,10 +368,17 @@ def e2e(
             zkpi_path = data_dir / f"{block_number}.json"
 
             # Add chunk parameters for body step
-            if step == Step.BODY:
-                program_input = load_body_input(zkpi_path, start_index, chunk_size)
-            else:
-                program_input = load_zkpi_fixture(zkpi_path)
+            match step:
+                case Step.BODY:
+                    program_input = load_body_input(
+                        zkpi_path=zkpi_path,
+                        start_index=start_index,
+                        chunk_size=chunk_size,
+                    )
+                case Step.TEARDOWN:
+                    program_input = load_teardown_input(zkpi_path)
+                case _:
+                    program_input = load_zkpi_fixture(zkpi_path)
 
             run_end_to_end(
                 "main",
