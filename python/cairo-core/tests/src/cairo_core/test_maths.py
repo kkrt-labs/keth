@@ -6,7 +6,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
-from cairo_addons.testing.strategies import felt
+from tests.utils.strategies import felt, positive_felt
 
 
 class TestMaths:
@@ -362,20 +362,27 @@ segments.load_data(dst_ptr, words)
         ), cairo_error(message=expected_error_msg):
             cairo_run("test__felt252_to_bytes4_le", value=value, num_words=num_words)
 
-    @given(
-        data=st.lists(
-            st.integers(min_value=0, max_value=2**248 - 1), min_size=0, max_size=31
-        ),
-    )
-    def test_felt252_array_to_bytes4_array(self, cairo_run, data):
+    @given(input_felt=positive_felt)
+    def test_felt252_to_bytes4_full(self, cairo_run, input_felt):
+        res = cairo_run("felt252_to_bytes4_full", value=input_felt, dst=[])
+        expected = []
+        expected_bytes = input_felt.to_bytes(32, "little")
+        for i in range(0, len(expected_bytes), 4):
+            expected.append(int.from_bytes(expected_bytes[i : i + 4], "little"))
+        assert res == expected
+
+    @given(input_felt=st.lists(positive_felt, min_size=0, max_size=31))
+    def test_felt252_array_to_bytes4_array(self, cairo_run, input_felt):
         res_len, res = cairo_run(
-            "felt252_array_to_bytes4_array", data_len=len(data), data=data
+            "felt252_array_to_bytes4_array",
+            input_felt_len=len(input_felt),
+            input_felt=input_felt,
         )
 
         expected = []
 
         num_words = 8  # always 8 words per felt252
-        for value in data:
+        for value in input_felt:
             truncated_value = value & ((1 << (num_words * 32)) - 1)
             expected_bytes = truncated_value.to_bytes(num_words * 4, "little")
             expected_words = [

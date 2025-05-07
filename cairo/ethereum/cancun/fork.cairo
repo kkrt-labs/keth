@@ -1370,7 +1370,7 @@ func state_transition{
         assert block.value.header.value.excess_blob_gas = excess_blob_gas;
     }
 
-    validate_header(block.value.header, parent_header);
+    validate_header{keccak_ptr=keccak_ptr}(block.value.header, parent_header);
 
     with_attr error_message("InvalidBlock") {
         assert block.value.ommers.value.len = 0;
@@ -1378,7 +1378,7 @@ func state_transition{
 
     let state = chain.value.state;
     let block_hashes = get_last_256_block_hashes(chain);
-    let output = apply_body{state=state}(
+    let output = apply_body{keccak_ptr=keccak_ptr, state=state}(
         block_hashes,
         block.value.header.value.coinbase,
         block.value.header.value.number,
