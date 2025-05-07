@@ -753,6 +753,9 @@ pub fn run_end_to_end(
     serde_cairo: bool,
     verify: bool,
 ) -> PyResult<()> {
+    #[cfg(feature = "dhat-heap")]
+    let _profiler = dhat::Profiler::new_heap();
+
     // Initialize logging
     setup_logging().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to setup logging: {}", e))

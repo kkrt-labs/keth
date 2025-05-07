@@ -30,6 +30,9 @@ fn get_keth_proof_config() -> ProverParameters {
 /// Python binding to generate a proof from prover inputs
 #[pyfunction]
 pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool) -> PyResult<()> {
+    #[cfg(feature = "dhat-heap")]
+    let _profiler = dhat::Profiler::new_heap();
+
     let _ = setup_logging();
     let prover_input = prover_input_from_vm_output(&prover_input_path).map_err(to_pyerr)?;
     prove_with_stwo(prover_input, proof_path, serde_cairo, false).map_err(to_pyerr)

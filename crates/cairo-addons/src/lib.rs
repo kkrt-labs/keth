@@ -10,6 +10,10 @@ use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
 };
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
 mod stwo_bindings;
 mod vm;
 
