@@ -40,7 +40,7 @@ func blake2s{range_check_ptr}(data: felt*, n_bytes: felt) -> (res: Uint256) {
     return (res=Uint256(low=res_low, high=res_high));
 }
 
-// A truncated version of blake2s that returns a 251-bit hash.
+// A truncated version of blake2s that returns a 248-bit hash.
 // Expects the same input as the function above.
 func blake2s_truncated{range_check_ptr}(data: felt*, n_bytes: felt) -> felt {
     let (blake2s_ptr) = alloc();
