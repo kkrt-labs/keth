@@ -692,9 +692,7 @@ func felt252_to_bytes4_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         jmp loop_felt252_to_bytes4_le;
 
     end_felt252_to_bytes4_le:
-        // current_acc holds the final accumulated value.
-        // current_range_check_ptr holds the ptr after all loop checks.
-        let range_check_ptr = [ap - 7]; // Update main range_check_ptr
+        let range_check_ptr = [ap - 7];
         let current_acc = [ap - 5];
         let current_word_idx = [ap - 6];
 
