@@ -59,7 +59,8 @@ func main{
     // implementation.
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
-    state_transition{chain=chain, keccak_ptr=keccak_ptr}(block);
+    with keccak_ptr {
+        state_transition{chain=chain}(block);
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
     let pre_state_root = parent_header.value.state_root;
@@ -96,6 +97,7 @@ func main{
     assert [output_ptr + 3] = state_storage_diff_commitment;
     assert [output_ptr + 4] = trie_account_diff_commitment;
     assert [output_ptr + 5] = trie_storage_diff_commitment;
+    }
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
     let output_ptr = output_ptr + 6;

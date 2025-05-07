@@ -13,7 +13,7 @@ from ethereum.cancun.trie import (
     TrieBytesOptionalUnionBytesWithdrawal,
 )
 
-from ethereum.cancun.state import State, state_root
+from ethereum.cancun.state import State
 
 from ethereum.cancun.blocks import (
     TupleWithdrawal,
@@ -32,6 +32,8 @@ from ethereum.cancun.fork_types import (
 
 from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
 
+from mpt.hash_diff import hash_state_account_diff, hash_state_storage_diff
+
 func body_commitments{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
@@ -48,7 +50,14 @@ func body_commitments{
 ) -> Hash32 {
     alloc_locals;
     // Commit to the state
-    let state_commitment = state_root(state, 'blake2s');
+    let state_account_diff = hash_state_account_diff(state);
+    let state_storage_diff = hash_state_storage_diff(state);
+
+    let (state_commitment_inputs) = alloc();
+    let start = state_commitment_inputs;
+    blake2s_add_felt{data=state_commitment_inputs}(state_account_diff, bigend=0);
+    blake2s_add_felt{data=state_commitment_inputs}(state_storage_diff, bigend=0);
+    let (state_commitment) = blake2s(data=start, n_bytes=64);
 
     // Commit to the transaction and receipt tries
     // Squash the receipts and transactions dicts once they're no longer being modified.
@@ -84,7 +93,7 @@ func body_commitments{
     // simply included in the ultimate_hash in the order they appear in the function signature
     let (init_commitment_buffer) = alloc();
     let start = init_commitment_buffer;
-    blake2s_add_uint256{data=init_commitment_buffer}([state_commitment.value]);
+    blake2s_add_uint256{data=init_commitment_buffer}(state_commitment);
     blake2s_add_uint256{data=init_commitment_buffer}([tx_trie_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([receipt_trie_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([transactions_commitment.value]);

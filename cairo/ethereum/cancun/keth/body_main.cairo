@@ -9,7 +9,6 @@ from starkware.cairo.common.cairo_builtins import (
     HashBuiltin,
 )
 from ethereum.cancun.keth.body import body
-
 func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
