@@ -55,62 +55,9 @@ func init{
         chain.value.blocks.value.len - 1
     ].value.header;
 
-        validate_header{keccak_ptr=keccak_ptr}(block.value.header, parent_header);
-
-        with_attr error_message("InvalidBlock") {
-            assert block.value.ommers.value.len = 0;
-        }
-
-        let state = chain.value.state;
-        let block_hashes = get_last_256_block_hashes(chain);
-
-        let fp_and_pc = get_fp_and_pc();
-        local __fp__: felt* = fp_and_pc.fp_val;
-
-        tempvar blob_gas_used = Uint(0);
-        let gas_available = block.value.header.value.gas_limit;
-
-        let (transactions_trie, receipts_trie, withdrawals_trie) = init_tries();
-
-        let (logs: Log*) = alloc();
-        tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
-
-        process_system_tx{keccak_ptr=keccak_ptr, state=state}(
-            block, chain.value.chain_id, excess_blob_gas, block_hashes
-        );
-
-        // Finalize the state, getting unique keys for main and storage tries
-        finalize_state{state=state}();
-
-        // Commit to the header
-        let header_commitment = Header__hash__(block.value.header);
-
-        // Commit to the following body.cairo program
-        let body_commitment = body_commitments{
-            keccak_ptr=keccak_ptr,
-        }(
-            header_commitment,
-            block.value.transactions,
-            state,
-            transactions_trie,
-            receipts_trie,
-            block_logs,
-            block_hashes,
-            gas_available,
-            chain.value.chain_id,
-            excess_blob_gas,
-        );
-
-        // Commit to the teardown program
-        let teardown_commitment = teardown_commitments{
-            keccak_ptr=keccak_ptr,
-        }(header_commitment, withdrawals_trie, block.value.withdrawals);
-
-        assert [output_ptr] = body_commitment.value.low;
-        assert [output_ptr + 1] = body_commitment.value.high;
-
-        assert [output_ptr + 2] = teardown_commitment.value.low;
-        assert [output_ptr + 3] = teardown_commitment.value.high;
+    let excess_blob_gas = calculate_excess_blob_gas(parent_header);
+    with_attr error_message("InvalidBlock") {
+        assert block.value.header.value.excess_blob_gas = excess_blob_gas;
     }
 
     validate_header(block.value.header, parent_header);

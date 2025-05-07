@@ -62,31 +62,31 @@ func body{
     local len: felt;
     %{ body_inputs %}
 
-        // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
-        // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
-        // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
-        tempvar main_trie_data = MappingAddressAccount(
-            new MappingAddressAccountStruct(
-                dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
-                dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
-                parent_dict=cast(0, MappingAddressAccountStruct*),
-            ),
-        );
-        tempvar main_trie = TrieAddressOptionalAccount(
-            new TrieAddressOptionalAccountStruct(
-                secured=state.value._main_trie.value.secured,
-                default=state.value._main_trie.value.default,
-                _data=main_trie_data,
-            ),
-        );
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=main_trie,
-                _storage_tries=state.value._storage_tries,
-                created_accounts=state.value.created_accounts,
-                original_storage_tries=state.value.original_storage_tries,
-            ),
-        );
+    // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
+    // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
+    // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
+    tempvar main_trie_data = MappingAddressAccount(
+        new MappingAddressAccountStruct(
+            dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
+            dict_ptr=state.value._main_trie.value._data.value.dict_ptr,
+            parent_dict=cast(0, MappingAddressAccountStruct*),
+        ),
+    );
+    tempvar main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=state.value._main_trie.value.secured,
+            default=state.value._main_trie.value.default,
+            _data=main_trie_data,
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=main_trie,
+            _storage_tries=state.value._storage_tries,
+            created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
 
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
@@ -109,49 +109,48 @@ func body{
         excess_blob_gas,
     );
 
-        // Execution
-        let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
-            state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
-        }(
-            index=start_index,
-            len=start_index + len,
-            transactions=block_transactions,
-            gas_available=gas_available,
-            chain_id=chain_id,
-            base_fee_per_gas=block_header.value.base_fee_per_gas,
-            excess_blob_gas=excess_blob_gas,
-            block_logs=block_logs,
-            block_hashes=block_hashes,
-            coinbase=block_header.value.coinbase,
-            block_number=block_header.value.number,
-            block_gas_limit=block_header.value.gas_limit,
-            block_time=block_header.value.timestamp,
-            prev_randao=block_header.value.prev_randao,
-            blob_gas_used=blob_gas_used,
-        );
-        finalize_state{state=state}();
+    // Execution
+    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
+        state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
+    }(
+        index=start_index,
+        len=start_index + len,
+        transactions=block_transactions,
+        gas_available=gas_available,
+        chain_id=chain_id,
+        base_fee_per_gas=block_header.value.base_fee_per_gas,
+        excess_blob_gas=excess_blob_gas,
+        block_logs=block_logs,
+        block_hashes=block_hashes,
+        coinbase=block_header.value.coinbase,
+        block_number=block_header.value.number,
+        block_gas_limit=block_header.value.gas_limit,
+        block_time=block_header.value.timestamp,
+        prev_randao=block_header.value.prev_randao,
+        blob_gas_used=blob_gas_used,
+    );
+    finalize_state{state=state}();
 
-        // Output Commitments
-        let post_exec_commitment = body_commitments(
-            header_commitment,
-            block_transactions,
-            state,
-            transactions_trie,
-            receipts_trie,
-            block_logs,
-            block_hashes,
-            gas_available,
-            chain_id,
-            excess_blob_gas,
-        );
+    // Output Commitments
+    let post_exec_commitment = body_commitments(
+        header_commitment,
+        block_transactions,
+        state,
+        transactions_trie,
+        receipts_trie,
+        block_logs,
+        block_hashes,
+        gas_available,
+        chain_id,
+        excess_blob_gas,
+    );
 
-        assert [output_ptr] = initial_args_commitment.value.low;
-        assert [output_ptr + 1] = initial_args_commitment.value.high;
-        assert [output_ptr + 2] = post_exec_commitment.value.low;
-        assert [output_ptr + 3] = post_exec_commitment.value.high;
-        assert [output_ptr + 4] = start_index;
-        assert [output_ptr + 5] = len;
-    }
+    assert [output_ptr] = initial_args_commitment.value.low;
+    assert [output_ptr + 1] = initial_args_commitment.value.high;
+    assert [output_ptr + 2] = post_exec_commitment.value.low;
+    assert [output_ptr + 3] = post_exec_commitment.value.high;
+    assert [output_ptr + 4] = start_index;
+    assert [output_ptr + 5] = len;
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
     let keccak_ptr = builtin_keccak_ptr;
