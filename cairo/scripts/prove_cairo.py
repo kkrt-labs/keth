@@ -27,7 +27,7 @@ logger = logging.getLogger("prove_cairo")
 console = Console()
 
 app = typer.Typer(
-    help="Prove Cairo - Run and prove arbitrary Cairo programs",
+    help="Prove Cairo - Run and prove arbitrary Cairo programs. Set LOG_FORMAT=[plain|json] to control Rust log output.",
     no_args_is_help=True,
 )
 

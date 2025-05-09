@@ -3,6 +3,7 @@ use super::{
     to_pyerr,
 };
 use crate::{
+    setup_logging,
     stwo_bindings::prove_with_stwo,
     vm::{
         layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, program::PyProgram,
@@ -42,7 +43,6 @@ use std::{
     rc::Rc,
 };
 use stwo_cairo_adapter::adapter::adapt_finished_runner;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
@@ -681,10 +681,9 @@ pub fn generate_trace(
     output_trace_components: bool,
     pi_json: bool,
 ) -> PyResult<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .init();
+    setup_logging().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to setup logging: {}", e))
+    })?;
 
     let (program, exec_scopes, cairo_run_config) =
         prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
@@ -754,10 +753,10 @@ pub fn run_end_to_end(
     serde_cairo: bool,
     verify: bool,
 ) -> PyResult<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .init();
+    // Initialize logging
+    setup_logging().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to setup logging: {}", e))
+    })?;
 
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
     let _run_span_guard = run_span.enter();

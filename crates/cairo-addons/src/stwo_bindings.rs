@@ -1,6 +1,6 @@
 use std::{io::Write, path::PathBuf};
 
-use crate::vm::to_pyerr;
+use crate::{setup_logging, vm::to_pyerr};
 use cairo_air::{verifier::verify_cairo, CairoProof, PreProcessedTraceVariant};
 use pyo3::{
     prelude::*,
@@ -15,7 +15,6 @@ use stwo_cairo_prover::{
 };
 use stwo_cairo_serialize::CairoSerialize;
 use stwo_cairo_utils::file_utils::create_file;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 /// Returns the proof config for the Keth proof
 /// Because none of our programs use pedersen, we can use the CanonicalWithoutPedersen variant
@@ -31,10 +30,7 @@ fn get_keth_proof_config() -> ProverParameters {
 /// Python binding to generate a proof from prover inputs
 #[pyfunction]
 pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool) -> PyResult<()> {
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .try_init();
+    let _ = setup_logging();
     let prover_input = prover_input_from_vm_output(&prover_input_path).map_err(to_pyerr)?;
     prove_with_stwo(prover_input, proof_path, serde_cairo, false).map_err(to_pyerr)
 }
@@ -42,10 +38,7 @@ pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool)
 /// Python binding to verify a proof
 #[pyfunction]
 pub fn verify(proof_path: PathBuf) -> PyResult<()> {
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .try_init();
+    let _ = setup_logging();
     let proof_str = std::fs::read_to_string(&proof_path)?;
     let proof: CairoProof<Blake2sMerkleHasher> =
         sonic_rs::from_str(&proof_str).map_err(to_pyerr)?;
