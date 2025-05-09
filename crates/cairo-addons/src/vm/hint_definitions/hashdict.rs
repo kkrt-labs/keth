@@ -22,10 +22,10 @@ use cairo_vm::{
     },
     Felt252,
 };
+use num_bigint::BigUint;
 use num_traits::Zero;
-use starknet_crypto::poseidon_hash_many;
 
-use crate::vm::hints::Hint;
+use crate::vm::{hash::blake2s_hash_many, hints::Hint};
 
 pub const HINTS: &[fn() -> Hint] = &[
     hashdict_read,
@@ -400,8 +400,10 @@ fn compute_hash_key(dict_key: &DictKey, key_len: usize) -> Felt252 {
     if key_len != 1 {
         match dict_key {
             DictKey::Compound(values) => {
-                let ints: Vec<Felt252> = values.iter().map(|v| v.get_int().unwrap()).collect();
-                poseidon_hash_many(&ints)
+                let ints: Vec<BigUint> =
+                    values.iter().map(|v| v.get_int().unwrap().to_biguint()).collect();
+                let hash = blake2s_hash_many(ints);
+                Felt252::from(hash)
             }
             DictKey::Simple(_) => panic!("Unreachable"),
         }

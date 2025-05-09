@@ -179,7 +179,7 @@ namespace StateImpl {
     }
 }
 
-func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func get_account_optional{range_check_ptr, state: State}(
     address: Address
 ) -> OptionalAccount {
     let trie = state.value._main_trie;
@@ -253,7 +253,7 @@ func get_account_code{
 // If the account does not exist, returns the empty account.
 // @dev: The account returned by this function contains the right `codehash`, but the `code` field is lazily loaded.
 // Accesses to the `code` field __MUST__ be done using `get_account_code`.
-func get_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> Account {
+func get_account{range_check_ptr, state: State}(address: Address) -> Account {
     let account = get_account_optional{state=state}(address);
 
     if (cast(account.value, felt) == 0) {
@@ -265,7 +265,7 @@ func get_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address)
     return res;
 }
 
-func set_account{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func set_account{range_check_ptr, state: State}(
     address: Address, account: OptionalAccount
 ) {
     let trie = state.value._main_trie;
@@ -319,7 +319,7 @@ func process_withdrawal{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: 
     return ();
 }
 
-func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func get_storage{range_check_ptr, state: State}(
     address: Address, key: Bytes32
 ) -> U256 {
     alloc_locals;
@@ -359,7 +359,7 @@ func destroy_account{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: Sta
     return ();
 }
 
-func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+func increment_nonce{range_check_ptr, state: State}(address: Address) {
     alloc_locals;
     let account = get_account(address);
     // This increment is safe since
@@ -378,7 +378,7 @@ func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     set_account(address, new_account);
     return ();
 }
-func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func set_storage{range_check_ptr, state: State}(
     address: Address, key: Bytes32, value: U256
 ) {
     alloc_locals;
@@ -393,9 +393,7 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         raise('AssertionError');
     }
     let storage_trie = state.value._storage_tries;
-    trie_set_TrieTupleAddressBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(
-        address, key, value
-    );
+    trie_set_TrieTupleAddressBytes32U256{trie=storage_trie}(address, key, value);
 
     // From EELS <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/state.py#L318>:
     // if trie._data == {}:
@@ -454,7 +452,7 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
 // @dev The implementation of this function requires iterating over all storage keys present in the state,
 // which is quite inefficient. This function should not be called outside of the unlikely case explained in
 // `process_create_message`.
-func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+func destroy_storage{range_check_ptr, state: State}(
     address: Address
 ) {
     alloc_locals;
@@ -497,7 +495,7 @@ func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: Sta
         dict_ptr_start=dict_ptr_start, dict_ptr=dict_ptr, storage_keys=storage_keys
     }(address);
 
-    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(storage_keys, 0);
+    _destroy_storage_keys{storage_tries_ptr=dict_ptr}(storage_keys, 0);
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(
@@ -532,7 +530,7 @@ func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: Sta
 //      However, this is only called when an empty account has storage, which is an unlikely event
 //      see eip-158, eip-161.
 func _get_storage_keys_for_address{
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr,
     dict_ptr_start: DictAccess*,
     dict_ptr: DictAccess*,
     storage_keys: ListTupleAddressBytes32,
@@ -564,7 +562,7 @@ func _get_storage_keys_for_address{
     }(address);
 }
 
-func _destroy_storage_keys{poseidon_ptr: PoseidonBuiltin*, storage_tries_ptr: DictAccess*}(
+func _destroy_storage_keys{range_check_ptr, storage_tries_ptr: DictAccess*}(
     keys: ListTupleAddressBytes32, index: felt
 ) {
     if (index == keys.value.len) {
@@ -579,12 +577,10 @@ func _destroy_storage_keys{poseidon_ptr: PoseidonBuiltin*, storage_tries_ptr: Di
     assert key[2] = current_key.value.bytes32.value.high;
     hashdict_write{dict_ptr=storage_tries_ptr}(key_len, key, 0);
 
-    return _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=storage_tries_ptr}(
-        keys, index + 1
-    );
+    return _destroy_storage_keys{storage_tries_ptr=storage_tries_ptr}(keys, index + 1);
 }
 
-func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: TransientStorage}(
+func get_transient_storage{range_check_ptr, transient_storage: TransientStorage}(
     address: Address, key: Bytes32
 ) -> U256 {
     alloc_locals;
@@ -603,7 +599,7 @@ func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     return value;
 }
 
-func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: TransientStorage}(
+func set_transient_storage{range_check_ptr, transient_storage: TransientStorage}(
     address: Address, key: Bytes32, value: U256
 ) {
     alloc_locals;
@@ -611,9 +607,7 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     local __fp__: felt* = fp_and_pc.fp_val;
 
     let new_transient_storage_tries = transient_storage.value._tries;
-    trie_set_TrieTupleAddressBytes32U256{
-        poseidon_ptr=poseidon_ptr, trie=new_transient_storage_tries
-    }(address, key, value);
+    trie_set_TrieTupleAddressBytes32U256{trie=new_transient_storage_tries}(address, key, value);
 
     // Trie is not deleted if empty
     // From EELS https://github.com/ethereum/execution-specs/blob/5c82ed6ac3eb992c7d87320a3e771b5e852a06df/src/ethereum/cancun/state.py#L697:
@@ -626,7 +620,7 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     return ();
 }
 
-func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+func account_exists{range_check_ptr, state: State}(address: Address) -> bool {
     let account = get_account_optional(address);
 
     if (cast(account.value, felt) == 0) {
@@ -637,9 +631,7 @@ func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addre
     return result;
 }
 
-func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
-    address: Address
-) -> bool {
+func account_has_code_or_nonce{range_check_ptr, state: State}(address: Address) -> bool {
     alloc_locals;
 
     let account = get_account(address);
@@ -679,7 +671,7 @@ func get_storage_keys_for_address{dict_ptr: DictAccess*}(
     return res;
 }
 
-func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+func account_has_storage{range_check_ptr, state: State}(address: Address) -> bool {
     alloc_locals;
 
     let (empty_root_ptr_) = get_label_location(EMPTY_ROOT_KECCAK);
@@ -694,7 +686,7 @@ func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: 
     return res;
 }
 
-func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+func is_account_empty{range_check_ptr, state: State}(address: Address) -> bool {
     // Get the account at the address
     let account = get_account(address);
     let (empty_hash_ptr) = get_label_location(EMPTY_HASH_KECCAK);
@@ -730,7 +722,7 @@ func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
     return res;
 }
 
-func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+func mark_account_created{range_check_ptr, state: State}(address: Address) {
     alloc_locals;
 
     let created_accounts = state.value.created_accounts;
@@ -739,7 +731,7 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
     local __fp__: felt* = fp_and_pc.fp_val;
 
     let set_dict_ptr = cast(created_accounts.value.dict_ptr, DictAccess*);
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=set_dict_ptr}(1, &address.value, 1);
+    hashdict_write{dict_ptr=set_dict_ptr}(1, &address.value, 1);
 
     // Rebind state
     tempvar new_created_account = SetAddress(
@@ -763,7 +755,7 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
 // @notice Returns whether the account exists and is empty.
 // @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
 //      emptiness of storage does not matter here. See eip-158.
-func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func account_exists_and_is_empty{range_check_ptr, state: State}(
     address: Address
 ) -> bool {
     alloc_locals;
@@ -780,7 +772,7 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
 // @notice Returns whether the account is alive.
 // @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
 //      emptiness of storage does not matter here. See eip-158.
-func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+func is_account_alive{range_check_ptr, state: State}(address: Address) -> bool {
     alloc_locals;
     let account = get_account_optional(address);
     if (cast(account.value, felt) == 0) {
@@ -1079,7 +1071,7 @@ func set_code{
     return ();
 }
 
-func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func set_account_balance{range_check_ptr, state: State}(
     address: Address, amount: U256
 ) {
     let account = get_account(address);
@@ -1098,7 +1090,7 @@ func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
     return ();
 }
 
-func touch_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+func touch_account{range_check_ptr, state: State}(address: Address) {
     let _account_exists = account_exists(address);
     if (_account_exists.value != 0) {
         return ();
@@ -1366,7 +1358,7 @@ func build_storage_trie_for_address{
     let trie = mapping_address_trie_bytes32_u256_read{mapping=map_addr_storage}(address);
 
     // Modify storage trie for address
-    trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=trie}(key, value);
+    trie_set_TrieBytes32U256{trie=trie}(key, value);
 
     // Update the mapping address -> trie
     mapping_address_trie_bytes32_u256_write{mapping=map_addr_storage}(address, trie);

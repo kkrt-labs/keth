@@ -471,20 +471,20 @@ func process_transaction{
         }(access_lists, access_lists.value.len, 0);
         tempvar keccak_ptr = keccak_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar preaccessed_addresses = preaccessed_addresses;
         tempvar preaccessed_storage_keys = preaccessed_storage_keys;
     } else {
         tempvar keccak_ptr = keccak_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar preaccessed_addresses = preaccessed_addresses;
         tempvar preaccessed_storage_keys = preaccessed_storage_keys;
     }
 
     let keccak_ptr = cast([ap - 5], felt*);
     let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let range_check_ptr = [ap-3];
     let preaccessed_addresses = SetAddress(cast([ap - 2], SetAddressStruct*));
     let preaccessed_storage_keys = SetTupleAddressBytes32(
         cast([ap - 1], SetTupleAddressBytes32Struct*)
@@ -586,7 +586,7 @@ func process_transaction{
 // @notice Deletes an account from the state.
 // @dev This function does not delete the associated storage.
 // @param accounts_to_delete - The set of accounts to delete. For performance reasons, this should be squashed before calling this function.
-func process_account_deletions{poseidon_ptr: PoseidonBuiltin*, state: State}(
+func process_account_deletions{range_check_ptr, state: State}(
     accounts_to_delete: SetAddress
 ) {
     alloc_locals;
@@ -652,13 +652,13 @@ func process_storage_deletions{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, 
             new_storage_value,
         );
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
     let state = State(cast([ap - 2], StateStruct*));
-    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+    let range_check_ptr = [ap-1];
 
     tempvar next_iter = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
@@ -674,7 +674,7 @@ func process_storage_deletions{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, 
 
 // Recursive function to process access list entries
 func process_access_list{
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr,
     preaccessed_addresses: SetAddress,
     preaccessed_storage_keys: SetTupleAddressBytes32,
 }(access_list_data: TupleAccessList, len: felt, index: felt) {
@@ -691,7 +691,7 @@ func process_access_list{
 
     // Add address to preaccessed addresses
     let addresses_dict_ptr = cast(preaccessed_addresses.value.dict_ptr, DictAccess*);
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=addresses_dict_ptr}(1, &address.value, 1);
+    hashdict_write{dict_ptr=addresses_dict_ptr}(1, &address.value, 1);
 
     // Update preaccessed_addresses with addresses_dict_ptr
     tempvar preaccessed_addresses = SetAddress(
@@ -702,8 +702,7 @@ func process_access_list{
     );
 
     // Process storage keys for this address
-    process_storage_keys{
-        poseidon_ptr=poseidon_ptr, preaccessed_storage_keys=preaccessed_storage_keys
+    process_storage_keys{preaccessed_storage_keys=preaccessed_storage_keys
     }(entry.value.storage_keys, entry.value.storage_keys.value.len, 0, address);
 
     // Process next entry
@@ -711,8 +710,7 @@ func process_access_list{
 }
 
 // Recursive function to process storage keys
-func process_storage_keys{
-    poseidon_ptr: PoseidonBuiltin*, preaccessed_storage_keys: SetTupleAddressBytes32
+func process_storage_keys{range_check_ptr, preaccessed_storage_keys: SetTupleAddressBytes32
 }(storage_keys_data: TupleBytes32, len: felt, index: felt, address: Address) {
     alloc_locals;
 
@@ -731,7 +729,7 @@ func process_storage_keys{
     assert keys[1] = key.value.low;
     assert keys[2] = key.value.high;
 
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_keys_dict_ptr}(3, keys, 1);
+    hashdict_write{dict_ptr=storage_keys_dict_ptr}(3, keys, 1);
 
     // Update preaccessed_process_storage_keys with new dict_ptr
     tempvar preaccessed_storage_keys = SetTupleAddressBytes32(
@@ -1338,7 +1336,7 @@ func _process_withdrawals_inner{
 
     let cond = account_exists_and_is_empty(withdrawal.value.address);
     if (cond.value != 0) {
-        destroy_account{poseidon_ptr=poseidon_ptr, state=state}(withdrawal.value.address);
+        destroy_account{state=state}(withdrawal.value.address);
         tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar state = state;
@@ -1372,7 +1370,7 @@ func state_transition{
         assert block.value.header.value.excess_blob_gas = excess_blob_gas;
     }
 
-    validate_header(block.value.header, parent_header);
+    validate_header{keccak_ptr=keccak_ptr}(block.value.header, parent_header);
 
     with_attr error_message("InvalidBlock") {
         assert block.value.ommers.value.len = 0;
@@ -1380,7 +1378,7 @@ func state_transition{
 
     let state = chain.value.state;
     let block_hashes = get_last_256_block_hashes(chain);
-    let output = apply_body{state=state}(
+    let output = apply_body{keccak_ptr=keccak_ptr, state=state}(
         block_hashes,
         block.value.header.value.coinbase,
         block.value.header.value.number,

@@ -25,6 +25,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     felt252_to_bytes_be,
     value_len_mod_two,
     is_positive_hint,
+    felt252_to_bytes4_le,
 ];
 
 pub fn felt252_to_bytes_le() -> Hint {
@@ -225,6 +226,39 @@ pub fn felt252_to_bits_rev() -> Hint {
 
             // Write the bits to memory starting at dst_ptr
             vm.segments.load_data(dst_ptr, &bits)?;
+            Ok(())
+        },
+    )
+}
+
+pub fn felt252_to_bytes4_le() -> Hint {
+    Hint::new(
+        String::from("felt252_to_bytes4_le"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let num_words_felt = get_integer_from_var_name("num_words", vm, ids_data, ap_tracking)?;
+            let dst_ptr = get_ptr_from_var_name("output", vm, ids_data, ap_tracking)?;
+
+            let num_words: usize = num_words_felt
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(num_words_felt)))?;
+
+            let value_biguint = value.to_biguint();
+            let mut output_felts: Vec<MaybeRelocatable> = Vec::with_capacity(num_words);
+            let mask_32_bit = BigUint::from(0xFFFFFFFFu32);
+
+            for i in 0..num_words {
+                let shifted_val = value_biguint.clone() >> (i * 32);
+                let word_biguint = shifted_val & mask_32_bit.clone();
+                output_felts.push(MaybeRelocatable::Int(Felt252::from(word_biguint)));
+            }
+
+            vm.segments.write_arg(dst_ptr, &output_felts)?;
             Ok(())
         },
     )

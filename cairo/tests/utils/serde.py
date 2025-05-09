@@ -87,7 +87,7 @@ from cairo_addons.rust_bindings.vm import (
     MemorySegmentManager as RustMemorySegmentManager,
 )
 from cairo_addons.rust_bindings.vm import (
-    poseidon_hash_many,
+    blake2s_hash_many,
 )
 from cairo_addons.testing.compiler import get_main_path
 from tests.utils.args_gen import (
@@ -641,7 +641,7 @@ class Serde:
                     Bytes32,
                     Bytes256,
                 ]:
-                    hashed_key = poseidon_hash_many(key)
+                    hashed_key = blake2s_hash_many(key)
                     preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
 
                     value = dict_segment_data.get(
@@ -655,7 +655,7 @@ class Serde:
                         serialized_dict[preimage] = value
 
                 elif python_key_type == U256:
-                    hashed_key = poseidon_hash_many(key)
+                    hashed_key = blake2s_hash_many(key)
                     preimage = sum(felt * 2 ** (128 * i) for i, felt in enumerate(key))
                     value = dict_segment_data.get(
                         hashed_key, serialized_original.get(preimage)
@@ -664,8 +664,7 @@ class Serde:
                         serialized_dict[preimage] = value
 
                 elif python_key_type == Bytes:
-                    hashed_key = poseidon_hash_many(key) if len(key) != 1 else key[0]
-                    # hashed_key = poseidon_hash_many(key)
+                    hashed_key = blake2s_hash_many(key) if len(key) != 1 else key[0]
                     preimage = bytes(list(key))
                     value = dict_segment_data.get(
                         hashed_key, serialized_original.get(preimage)
@@ -676,7 +675,7 @@ class Serde:
                 elif get_origin(python_key_type) is tuple:
                     # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
                     # Where the key is the hashed tuple.]
-                    hashed_key = poseidon_hash_many(key)
+                    hashed_key = blake2s_hash_many(key)
                     preimage_address = key[0].to_bytes(20, "little")
                     preimage_bytes32 = b"".join(
                         felt.to_bytes(16, "little") for felt in key[1:]

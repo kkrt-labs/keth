@@ -8,7 +8,7 @@ from cairo_addons.hints.decorator import register_hint
 
 @register_hint
 def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
-    from cairo_addons.rust_bindings.vm import poseidon_hash_many
+    from cairo_addons.rust_bindings.vm import blake2s_hash_many
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
@@ -20,7 +20,7 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     else:
         ids.value = dict_tracker.data.default_factory()
 
-    hashed_key = poseidon_hash_many(preimage) if len(preimage) != 1 else preimage[0]
+    hashed_key = blake2s_hash_many(preimage) if len(preimage) != 1 else preimage[0]
     dict_manager.preimages[hashed_key] = preimage
 
 
@@ -42,7 +42,7 @@ def hashdict_read_from_key(
 
 @register_hint
 def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
-    from cairo_addons.rust_bindings.vm import poseidon_hash_many
+    from cairo_addons.rust_bindings.vm import blake2s_hash_many
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
@@ -54,7 +54,7 @@ def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict)
         ids.dict_ptr.prev_value = dict_tracker.data.default_factory()
     dict_tracker.data[preimage] = ids.new_value
 
-    hashed_key = poseidon_hash_many(preimage) if len(preimage) != 1 else preimage[0]
+    hashed_key = blake2s_hash_many(preimage) if len(preimage) != 1 else preimage[0]
     dict_manager.preimages[hashed_key] = preimage
 
 

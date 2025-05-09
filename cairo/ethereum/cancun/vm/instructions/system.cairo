@@ -1049,7 +1049,7 @@ func generic_create{
     }
 
     let account_has_code_or_nonce_ = account_has_code_or_nonce{state=state}(contract_address);
-    let account_has_storage_ = account_has_storage{poseidon_ptr=poseidon_ptr, state=state}(
+    let account_has_storage_ = account_has_storage{state=state}(
         contract_address
     );
     if (account_has_code_or_nonce_.value + account_has_storage_.value != 0) {
@@ -1474,13 +1474,14 @@ func selfdestruct{
         EvmImpl.set_accounts_to_delete(accounts_to_delete);
         tempvar evm = evm;
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar evm = evm;
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
     let evm = Evm(cast([ap - 3], EvmStruct*));
+    let range_check_ptr = [ap - 1];
 
     // Mark beneficiary as touched if empty
     let is_empty = account_exists_and_is_empty{state=state}(beneficiary);
@@ -1490,12 +1491,13 @@ func selfdestruct{
         EvmImpl.set_touched_accounts(touched_accounts);
         tempvar evm = evm;
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar evm = evm;
         tempvar state = state;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
+    let range_check_ptr = [ap - 1];
 
     // Stop execution
     EvmImpl.set_running(bool(0));

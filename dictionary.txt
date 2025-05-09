@@ -319,3 +319,4 @@ typer
 syscall
 scarb
 bootloaders
+tempvar

@@ -66,15 +66,15 @@ func sload{
         if (is_present == 0) {
             // If the entry is not in the accessed storage keys, add it
             hashdict_write(3, serialized_keys, 1);
-            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check_ptr = range_check_ptr;
             tempvar dict_ptr = dict_ptr;
         } else {
-            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check_ptr = range_check_ptr;
             tempvar dict_ptr = dict_ptr;
         }
     }
 
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
     let dict_ptr = cast([ap - 1], DictAccess*);
 
     let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);
@@ -171,16 +171,16 @@ func sstore{
         if (is_present == 0) {
             hashdict_write(3, serialized_keys, 1);
             tempvar gas_cost = GasConstants.GAS_COLD_SLOAD;
-            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check_ptr = range_check_ptr;
             tempvar dict_ptr = dict_ptr;
         } else {
             tempvar gas_cost = 0;
-            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check_ptr = range_check_ptr;
             tempvar dict_ptr = dict_ptr;
         }
     }
     let gas_cost = [ap - 3];
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
     let dict_ptr = cast([ap - 1], DictAccess*);
 
     let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);

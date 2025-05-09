@@ -1,6 +1,5 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
@@ -80,6 +79,7 @@ from legacy.utils.dict import default_dict_finalize
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
+from cairo_core.hash.blake2s import blake2s_hash_many
 
 struct LeafNodeStruct {
     rest_of_key: Bytes,
@@ -721,7 +721,7 @@ func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressByt
 }
 
 func trie_get_TrieAddressOptionalAccount{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
+    range_check_ptr, trie: TrieAddressOptionalAccount
 }(key: Address) -> OptionalAccount {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -750,7 +750,7 @@ func trie_get_TrieAddressOptionalAccount{
 }
 
 func trie_get_TrieTupleAddressBytes32U256{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieTupleAddressBytes32U256
+    range_check_ptr, trie: TrieTupleAddressBytes32U256
 }(address: Address, key: Bytes32) -> U256 {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -780,7 +780,7 @@ func trie_get_TrieTupleAddressBytes32U256{
     return res;
 }
 
-func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+func trie_get_TrieBytes32U256{range_check_ptr, trie: TrieBytes32U256}(
     key: Bytes32
 ) -> U256 {
     alloc_locals;
@@ -811,7 +811,7 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
 }
 
 func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes) -> OptionalUnionBytesLegacyTransaction {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -841,7 +841,7 @@ func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
 }
 
 func trie_get_TrieBytesOptionalUnionBytesReceipt{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesReceipt
 }(key: Bytes) -> OptionalUnionBytesReceipt {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -869,7 +869,7 @@ func trie_get_TrieBytesOptionalUnionBytesReceipt{
 }
 
 func trie_get_TrieBytesOptionalUnionBytesWithdrawal{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesWithdrawal
 }(key: Bytes) -> OptionalUnionBytesWithdrawal {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -897,7 +897,7 @@ func trie_get_TrieBytesOptionalUnionBytesWithdrawal{
 }
 
 func trie_set_TrieAddressOptionalAccount{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
+    range_check_ptr, trie: TrieAddressOptionalAccount
 }(key: Address, value: OptionalAccount) {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
@@ -920,7 +920,7 @@ func trie_set_TrieAddressOptionalAccount{
 }
 
 func trie_set_TrieTupleAddressBytes32U256{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieTupleAddressBytes32U256
+    range_check_ptr, trie: TrieTupleAddressBytes32U256
 }(address: Address, key: Bytes32, value: U256) {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
@@ -948,7 +948,7 @@ func trie_set_TrieTupleAddressBytes32U256{
     return ();
 }
 
-func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+func trie_set_TrieBytes32U256{range_check_ptr, trie: TrieBytes32U256}(
     key: Bytes32, value: U256
 ) {
     alloc_locals;
@@ -978,7 +978,7 @@ func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     return ();
 }
 func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes, value: OptionalUnionBytesLegacyTransaction) {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -1001,7 +1001,7 @@ func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
 }
 
 func trie_set_TrieBytesOptionalUnionBytesReceipt{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesReceipt
 }(key: Bytes, value: OptionalUnionBytesReceipt) {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -1025,7 +1025,7 @@ func trie_set_TrieBytesOptionalUnionBytesReceipt{
 }
 
 func trie_set_TrieBytesOptionalUnionBytesWithdrawal{
-    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
+    range_check_ptr, trie: TrieBytesOptionalUnionBytesWithdrawal
 }(key: Bytes, value: OptionalUnionBytesWithdrawal) {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
@@ -1869,7 +1869,7 @@ func _search_common_prefix_length{
     return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
 }
 
-func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
+func _get_branch_for_nibble_at_level_inner{range_check_ptr}(
     dict_ptr: BytesBytesDictAccess*,
     dict_ptr_stop: BytesBytesDictAccess*,
     branch_ptr: BytesBytesDictAccess*,
@@ -1948,7 +1948,7 @@ func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
 // * A tuple containing:
 //   * The filtered mapping containing only key-value pairs where key[level] == nibble
 //   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
-func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
+func _get_branch_for_nibble_at_level{range_check_ptr}(
     obj: MappingBytesBytes, nibble: felt, level: felt
 ) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
@@ -1987,7 +1987,7 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
 //
 // * A tuple containing:
 //   * A tuple of 16 mappings, one for each possible nibble value
-func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level: Uint) -> (
+func _get_branches{range_check_ptr}(obj: MappingBytesBytes, level: Uint) -> (
     TupleMappingBytesBytes, Bytes
 ) {
     alloc_locals;
@@ -2146,7 +2146,7 @@ func _squash_branches{range_check_ptr}(branches: TupleMappingBytesBytes) {
 // The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
 // @param key - The key to get the preimage for. Either a hashed or non-hashed key - but it must be a felt.
 // @param dict_ptr_stop - The pointer to the end of the dict segment, the one registered in the tracker.
-func _get_bytes_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
+func _get_bytes_preimage_for_key{range_check_ptr}(
     key: felt, dict_ptr_stop: DictAccess*
 ) -> Bytes {
     alloc_locals;
@@ -2166,7 +2166,7 @@ func _get_bytes_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
         return res;
     }
 
-    let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
+    let (preimage_hash) = blake2s_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
         assert preimage_hash = key;
     }
@@ -2179,7 +2179,7 @@ func _get_bytes_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
 // The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
 // @param key - The key to get the preimage for. Either a hashed or non-hashed key - but it must be a felt.
 // @param dict_ptr_stop - The pointer to the end of the dict segment, the one registered in the tracker.
-func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
+func _get_bytes32_preimage_for_key{range_check_ptr}(
     key: felt, dict_ptr_stop: DictAccess*
 ) -> Bytes32 {
     alloc_locals;
@@ -2189,7 +2189,7 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     local preimage_len;
     %{ get_preimage_for_key %}
 
-    let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
+    let (preimage_hash) = blake2s_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
         assert preimage_hash = key;
     }
@@ -2198,7 +2198,7 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     return res;
 }
 
-func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
+func get_tuple_address_bytes32_preimage_for_key{range_check_ptr}(
     key: felt, dict_ptr_stop: DictAccess*
 ) -> TupleAddressBytes32 {
     alloc_locals;
@@ -2208,7 +2208,7 @@ func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     local preimage_len;
     %{ get_preimage_for_key %}
 
-    let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
+    let (preimage_hash) = blake2s_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
         assert preimage_hash = key;
     }

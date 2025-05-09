@@ -12,10 +12,10 @@ from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from keth_types.types import EMPTY_TRIE_HASH
 
-from cairo_addons.rust_bindings.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import blake2s_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
+from keth_types.types import EMPTY_TRIE_HASH
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
@@ -135,17 +135,17 @@ class StateDiff:
         for address, (storage_trie) in self._storage_tries.items():
             for key, (pre, post) in storage_trie.items():
                 key = int_to_uint256(int.from_bytes(key, "little"))
-                key_hashed = poseidon_hash_many(
+                key_hashed = blake2s_hash_many(
                     (int.from_bytes(address, "little"), *key)
                 )
                 storage_diffs.append(StorageDiffEntry(key_hashed, pre, post))
         storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
 
-        account_diff_hashes = [diff.hash_poseidon() for diff in account_diffs]
-        storage_diff_hashes = [diff.hash_poseidon() for diff in storage_diffs]
+        account_diff_hashes = [diff.hash_cairo() for diff in account_diffs]
+        storage_diff_hashes = [diff.hash_cairo() for diff in storage_diffs]
 
-        account_diff_commitment = poseidon_hash_many(account_diff_hashes)
-        storage_diff_commitment = poseidon_hash_many(storage_diff_hashes)
+        account_diff_commitment = blake2s_hash_many(account_diff_hashes)
+        storage_diff_commitment = blake2s_hash_many(storage_diff_hashes)
 
         return account_diff_commitment, storage_diff_commitment
 

@@ -483,7 +483,7 @@ func process_message_call{
     if (cast(message.value.target.value.address, felt) == 0) {
         let state = env.value.state;
         let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
-        let has_storage = account_has_storage{poseidon_ptr=poseidon_ptr, state=state}(
+        let has_storage = account_has_storage{state=state}(
             message.value.current_target
         );
         EnvImpl.set_state{env=env}(state);
@@ -523,7 +523,7 @@ func process_message_call{
         if (is_empty.value != FALSE) {
             // Add to touched accounts
             let dict_ptr = cast(evm.value.touched_accounts.value.dict_ptr, DictAccess*);
-            hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=dict_ptr}(
+            hashdict_write{dict_ptr=dict_ptr}(
                 1, message.value.target.value.address, 1
             );
             tempvar new_touched_accounts = SetAddress(
