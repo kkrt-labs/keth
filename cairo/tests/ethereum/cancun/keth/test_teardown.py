@@ -5,7 +5,7 @@ import pytest
 from utils.fixture_loader import load_teardown_input
 
 pytestmark = pytest.mark.cairo_file(
-    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_teardown.cairo"
+    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_e2e.cairo"
 )
 
 
