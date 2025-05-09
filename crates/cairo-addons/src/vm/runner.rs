@@ -43,7 +43,6 @@ use std::{
     rc::Rc,
 };
 use stwo_cairo_adapter::adapter::adapt_finished_runner;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
