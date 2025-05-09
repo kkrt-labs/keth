@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module"]                   # add dhat-heap to enable heap profiling
 module-name = "cairo_addons.rust_bindings"
 python-packages = ["cairo_addons"]
 python-source = "src"

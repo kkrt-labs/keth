@@ -18,6 +18,7 @@ pyo3 = { version = "0.23.3", features = [
   "num-bigint",
   "experimental-inspect",
 ] }
+dhat = "0.3"
 cairo-vm = { workspace = true }
 stwo-cairo-adapter = { workspace = true }
 stwo_cairo_prover = { workspace = true }
@@ -58,3 +59,7 @@ pyo3-build-config = "0.23.3" # Should match pyo3 version
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
+dhat-heap = []                                              # heap-profiling with dhat
+
+[profile.release]
+debug = true # dhat needs debug symbols
