@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from ethereum.cancun.fork import state_transition
 from ethereum.exceptions import InvalidBlock
+from ethereum_types.numeric import U64
 
 from utils.fixture_loader import (
     load_body_input,
@@ -113,3 +114,75 @@ class TestE2E:
         # glue init to the teardown
         assert init_teardown_commitment_low == teardown_init_commitment_low
         assert init_teardown_commitment_high == teardown_init_commitment_high
+
+
+class TestInit:
+    @pytest.mark.parametrize(
+        "zkpi_path",
+        [Path("test_data/22188088.json")],
+    )
+    @pytest.mark.slow
+    def test_init(self, cairo_run, zkpi_path, program_input):
+        [
+            body_commitment_low,
+            body_commitment_high,
+            teardown_commitment_low,
+            teardown_commitment_high,
+        ] = cairo_run("test_init", verify_squashed_dicts=True, **program_input)
+
+        assert body_commitment_low
+        assert body_commitment_high
+        assert teardown_commitment_low
+        assert teardown_commitment_high
+
+
+class TestBody:
+    @pytest.mark.parametrize(
+        "zkpi_path",
+        [Path("test_data/22188088.json")],
+    )
+    @pytest.mark.slow
+    def test_body(self, cairo_run, zkpi_path):
+        # Run all transactions of the body
+        body_input = load_body_input(
+            zkpi_path=zkpi_path, start_index=0, chunk_size=int(U64.MAX_VALUE)
+        )
+        (
+            initial_args_commitment_low,
+            initial_args_commitment_high,
+            post_exec_commitment_low,
+            post_exec_commitment_high,
+            start_index,
+            len_,
+        ) = cairo_run("test_body", verify_squashed_dicts=True, **body_input)
+
+        assert initial_args_commitment_low
+        assert initial_args_commitment_high
+        assert post_exec_commitment_low
+        assert post_exec_commitment_high
+        assert start_index == 0
+        assert len_ == min(int(U64.MAX_VALUE), len(body_input["block_transactions"]))
+
+
+class TestTeardown:
+    @pytest.mark.parametrize(
+        "zkpi_path",
+        [
+            Path("test_data/22188088.json"),
+        ],
+    )
+    @pytest.mark.slow
+    def test_teardown(self, cairo_run, zkpi_path):
+        # Run all transactions of the body
+        teardown_input = load_teardown_input(zkpi_path)
+        (
+            teardown_commitment_low,
+            teardown_commitment_high,
+            body_commitment_low,
+            body_commitment_high,
+        ) = cairo_run("test_teardown", verify_squashed_dicts=True, **teardown_input)
+
+        assert teardown_commitment_low
+        assert teardown_commitment_high
+        assert body_commitment_low
+        assert body_commitment_high
