@@ -5,7 +5,7 @@ description = "Custom Types for Keth and patches for Ethereum EELS library"
 readme = "README.md"
 authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = ["ethereum"]
+dependencies = ["ethereum-execution"]
 
 [build-system]
 requires = ["hatchling"]
@@ -21,4 +21,4 @@ known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc", "mpt"]
 
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes-prague" }

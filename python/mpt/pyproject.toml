@@ -5,7 +5,7 @@ description = "Ethereum Merkle Patricia"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "ethereum",
+  "ethereum-execution",
   "eth-rpc",
   "cairo-addons",
   "cairo-core",
@@ -35,7 +35,7 @@ dev-dependencies = [
   "cairo-lang>=0.13.0",
   "hypothesis>=6.124.3",
   "jupyter>=1.1.1",
-  "ethereum",
+  "ethereum-execution",
 ]
 
 [tool.isort]
@@ -53,6 +53,6 @@ known_first_party = [
 ]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes-prague" }
 cairo-addons = { workspace = true }
 cairo-core = { workspace = true }
