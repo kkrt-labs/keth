@@ -255,6 +255,46 @@ func get_s(tx: Transaction) -> U256 {
     }
 }
 
+func get_to(tx: Transaction) -> To {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.to;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.to;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.to;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        let bytes20_value = tx.value.blob_transaction.value.to;
+        tempvar to = To(value=new ToStruct(bytes0=cast(0, Bytes0*), address=new bytes20_value));
+        return to;
+    }
+    with_attr error_message("InvalidTransaction") {
+        jmp raise.raise_label;
+    }
+}
+
+func get_data(tx: Transaction) -> Bytes {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.data;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.data;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.data;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.data;
+    }
+    with_attr error_message("InvalidTransaction") {
+        jmp raise.raise_label;
+    }
+}
+
 func get_max_fee_per_gas(tx: Transaction) -> Uint {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.FEE_MARKET) {

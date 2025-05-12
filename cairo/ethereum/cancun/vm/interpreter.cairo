@@ -21,7 +21,7 @@ from ethereum.cancun.fork_types import (
 
 from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
-from ethereum.cancun.vm.env_impl import Environment, EnvImpl
+from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
 
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
 from ethereum.exceptions import EthereumException
@@ -54,7 +54,6 @@ from ethereum.cancun.state import (
     set_code,
     State,
     StateStruct,
-    touch_account,
 )
 
 from ethereum.cancun.vm.evm_impl import EvmImpl
