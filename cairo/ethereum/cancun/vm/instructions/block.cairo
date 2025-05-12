@@ -9,6 +9,7 @@ from ethereum.cancun.blocks import TupleLog, TupleLogStruct
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
+from ethereum.cancun.vm.env_impl import BlockEnvironment
 from ethereum.utils.numeric import U256_from_be_bytes32
 from legacy.utils.bytes import felt_to_bytes20_little
 from legacy.utils.utils import Helpers
@@ -45,7 +46,8 @@ func block_hash{
 
     // OPERATION
     with stack {
-        let err = Internals.blockhash(evm, block_number);
+        // Pass evm.message.block_env to Internals.blockhash if it needs env fields
+        let err = Internals.blockhash(evm.value.message.value.block_env, block_number);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -80,9 +82,9 @@ func coinbase{
     }
 
     // OPERATION
-    let coinbase = evm.value.env.value.coinbase;
+    let coinbase_addr = evm.value.message.value.block_env.value.coinbase;
     let (coinbase_bytes: felt*) = alloc();
-    felt_to_bytes20_little(coinbase_bytes, coinbase.value);
+    felt_to_bytes20_little(coinbase_bytes, coinbase_addr.value);
     let coinbase_uint256 = Helpers.bytes_to_uint256(20, coinbase_bytes);
 
     with stack {
@@ -122,7 +124,7 @@ func timestamp{
 
     // OPERATION
     with stack {
-        let err = push(evm.value.env.value.time);
+        let err = push(evm.value.message.value.block_env.value.time);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -158,7 +160,7 @@ func number{
 
     // OPERATION
     with stack {
-        let err = push(U256(new U256Struct(evm.value.env.value.number.value, 0)));
+        let err = push(U256(new U256Struct(evm.value.message.value.block_env.value.number.value, 0)));
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -193,7 +195,7 @@ func prev_randao{
     }
 
     // OPERATION
-    let prev_randao_uint256 = U256_from_be_bytes32(evm.value.env.value.prev_randao);
+    let prev_randao_uint256 = U256_from_be_bytes32(evm.value.message.value.block_env.value.prev_randao);
     with stack {
         let err = push(prev_randao_uint256);
         if (cast(err, felt) != 0) {
@@ -231,7 +233,7 @@ func gas_limit{
 
     // OPERATION
     with stack {
-        let err = push(U256(new U256Struct(evm.value.env.value.gas_limit.value, 0)));
+        let err = push(U256(new U256Struct(evm.value.message.value.block_env.value.block_gas_limit.value, 0)));
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -267,7 +269,7 @@ func chain_id{
 
     // OPERATION
     with stack {
-        let err = push(U256(new U256Struct(evm.value.env.value.chain_id.value, 0)));
+        let err = push(U256(new U256Struct(evm.value.message.value.block_env.value.chain_id.value, 0)));
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -282,7 +284,7 @@ func chain_id{
 
 namespace Internals {
     func blockhash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, stack: Stack}(
-        evm: Evm, block_number: U256
+        block_env: BlockEnvironment, block_number: U256
     ) -> EthereumException* {
         alloc_locals;
         if (block_number.value.high != 0) {
@@ -296,10 +298,11 @@ namespace Internals {
             return ok;
         }
 
-        let lower_bound_unsafe = evm.value.env.value.number.value - 256;
+        let lower_bound_unsafe = block_env.value.number.value - 256;
+
         tempvar lower_bound = is_nn(lower_bound_unsafe) * lower_bound_unsafe;
         let in_range = is_in_range(
-            block_number.value.low, lower_bound, evm.value.env.value.number.value
+            block_number.value.low, lower_bound, block_env.value.number.value
         );
 
         if (in_range == FALSE) {
@@ -313,11 +316,12 @@ namespace Internals {
             return ok;
         }
 
-        let index_from_end = evm.value.env.value.block_hashes.value.len -
-            evm.value.env.value.number.value + block_number.value.low;
-        let block_hashes = evm.value.env.value.block_hashes.value.data[index_from_end];
+        let index_from_start = block_env.value.block_hashes.value.len - (block_env.value.number.value - block_number.value.low);
+
+
+        let block_hash_at_index = block_env.value.block_hashes.value.data[index_from_start];
         with stack {
-            let hash_u256 = U256_from_be_bytes32(block_hashes);
+            let hash_u256 = U256_from_be_bytes32(block_hash_at_index);
             let err = push(hash_u256);
             if (cast(err, felt) != 0) {
                 return err;
