@@ -1,73 +1,102 @@
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.registers import get_fp_and_pc
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Receipt, Withdrawal
+from ethereum.cancun.fork_types import (
+    SetAddress,
+    SetAddressStruct,
+    SetAddressDictAccess,
+    SetTupleAddressBytes32,
+    SetTupleAddressBytes32Struct,
+    SetTupleAddressBytes32DictAccess,
+    Address,
+    VersionedHash,
+    ListHash32,
+)
+from ethereum_types.numeric import Uint, bool, SetUint, U256, U64
+from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes, OptionalBytes, Bytes0, Bytes32
+from ethereum.cancun.vm.stack import Stack
+from ethereum.cancun.vm.memory import Memory
 from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.fork_types import Address, ListHash32, TupleVersionedHash
-from ethereum_types.numeric import Uint, U256, U64
-from ethereum_types.bytes import Bytes32
+from ethereum.cancun.fork_types import OptionalAddress, TupleVersionedHash
+from ethereum.cancun.transactions_types import To, LegacyTransaction
+from ethereum.cancun.trie import TrieBytesOptionalUnionBytesLegacyTransaction, TrieBytesOptionalUnionBytesReceipt, TrieBytesOptionalUnionBytesWithdrawal
+from ethereum.crypto.hash import Hash32
 
-struct EnvironmentStruct {
-    caller: Address,
+
+
+// Define BlockEnvironment
+struct BlockEnvironmentStruct {
+    chain_id: U64,
+    state: State,
+    block_gas_limit: Uint,
     block_hashes: ListHash32,
-    origin: Address,
     coinbase: Address,
     number: Uint,
     base_fee_per_gas: Uint,
-    gas_limit: Uint,
-    gas_price: Uint,
     time: U256,
     prev_randao: Bytes32,
-    state: State,
-    chain_id: U64,
     excess_blob_gas: U64,
-    blob_versioned_hashes: TupleVersionedHash,
+    parent_beacon_block_root: Hash32,
+}
+
+struct BlockEnvironment {
+    value: BlockEnvironmentStruct*,
+}
+
+// Define TransactionEnvironment
+struct TransactionEnvironmentStruct {
+    origin: Address,
+    gas_price: Uint,
+    gas: Uint,
+    access_list_addresses: SetAddress,
+    access_list_storage_keys: SetTupleAddressBytes32,
     transient_storage: TransientStorage,
+    blob_versioned_hashes: TupleVersionedHash,
+    index_in_block: Uint,
+    tx_hash: Hash32,
 }
 
-struct Environment {
-    value: EnvironmentStruct*,
+struct TransactionEnvironment {
+    value: TransactionEnvironmentStruct*,
 }
 
-// In a specific file to avoid circular imports
-namespace EnvImpl {
-    func set_state{env: Environment}(new_state: State) {
-        tempvar env = Environment(
-            new EnvironmentStruct(
-                caller=env.value.caller,
-                block_hashes=env.value.block_hashes,
-                origin=env.value.origin,
-                coinbase=env.value.coinbase,
-                number=env.value.number,
-                base_fee_per_gas=env.value.base_fee_per_gas,
-                gas_limit=env.value.gas_limit,
-                gas_price=env.value.gas_price,
-                time=env.value.time,
-                prev_randao=env.value.prev_randao,
+
+namespace BlockEnvImpl {
+    func set_state{block_env: BlockEnvironment}(new_state: State) {
+        tempvar block_env = BlockEnvironment(
+            new BlockEnvironmentStruct(
+                chain_id=block_env.value.chain_id,
                 state=new_state,
-                chain_id=env.value.chain_id,
-                excess_blob_gas=env.value.excess_blob_gas,
-                blob_versioned_hashes=env.value.blob_versioned_hashes,
-                transient_storage=env.value.transient_storage,
+                block_gas_limit=block_env.value.block_gas_limit,
+                block_hashes=block_env.value.block_hashes,
+                coinbase=block_env.value.coinbase,
+                number=block_env.value.number,
+                base_fee_per_gas=block_env.value.base_fee_per_gas,
+                time=block_env.value.time,
+                prev_randao=block_env.value.prev_randao,
+                excess_blob_gas=block_env.value.excess_blob_gas,
+                parent_beacon_block_root=block_env.value.parent_beacon_block_root,
             ),
         );
         return ();
     }
+}
 
-    func set_transient_storage{env: Environment}(new_transient_storage: TransientStorage) {
-        tempvar env = Environment(
-            new EnvironmentStruct(
-                caller=env.value.caller,
-                block_hashes=env.value.block_hashes,
-                origin=env.value.origin,
-                coinbase=env.value.coinbase,
-                number=env.value.number,
-                base_fee_per_gas=env.value.base_fee_per_gas,
-                gas_limit=env.value.gas_limit,
-                gas_price=env.value.gas_price,
-                time=env.value.time,
-                prev_randao=env.value.prev_randao,
-                state=env.value.state,
-                chain_id=env.value.chain_id,
-                excess_blob_gas=env.value.excess_blob_gas,
-                blob_versioned_hashes=env.value.blob_versioned_hashes,
+namespace TransactionEnvImpl {
+    func set_transient_storage{tx_env: TransactionEnvironment}(new_transient_storage: TransientStorage) {
+        tempvar tx_env = TransactionEnvironment(
+            new TransactionEnvironmentStruct(
+                origin=tx_env.value.origin,
+                gas_price=tx_env.value.gas_price,
+                gas=tx_env.value.gas,
+                access_list_addresses=tx_env.value.access_list_addresses,
+                access_list_storage_keys=tx_env.value.access_list_storage_keys,
                 transient_storage=new_transient_storage,
+                blob_versioned_hashes=tx_env.value.blob_versioned_hashes,
+                index_in_block=tx_env.value.index_in_block,
+                tx_hash=tx_env.value.tx_hash,
             ),
         );
         return ();
