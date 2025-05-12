@@ -1,6 +1,9 @@
 import pytest
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm import Environment, Message
+from ethereum.cancun.vm import (  # TODO: adapt the tests to new types
+    BlockEnvironment,
+    Message,
+)
 from ethereum.cancun.vm.interpreter import (
     execute_code,
     process_create_message,
@@ -50,7 +53,7 @@ class TestInterpreter:
         env=block_environment_lite,
     )
     @pytest.mark.slow
-    def test_execute_code(self, cairo_run, message: Message, env: Environment):
+    def test_execute_code(self, cairo_run, message: Message, env: BlockEnvironment):
         try:
             evm_cairo = cairo_run("execute_code", message, env)
         except Exception as e:
@@ -66,7 +69,7 @@ class TestInterpreter:
         env=block_environment_lite,
     )
     @pytest.mark.slow
-    def test_process_message(self, cairo_run, message: Message, env: Environment):
+    def test_process_message(self, cairo_run, message: Message, env: BlockEnvironment):
         try:
             evm_cairo = cairo_run("process_message", message, env)
         except Exception as e:
@@ -82,7 +85,7 @@ class TestInterpreter:
         env=block_environment_lite,
     )
     def test_process_create_message(
-        self, cairo_run, message: Message, env: Environment
+        self, cairo_run, message: Message, env: BlockEnvironment
     ):
         try:
             evm_cairo = cairo_run("process_create_message", message, env)
@@ -99,7 +102,9 @@ class TestInterpreter:
         message=message_without_precompile,
     )
     @pytest.mark.slow
-    def test_process_message_call(self, cairo_run, env: Environment, message: Message):
+    def test_process_message_call(
+        self, cairo_run, env: BlockEnvironment, message: Message
+    ):
         # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
         # This only applies to the entrypoint of a transaction.
         env.state._snapshots = []

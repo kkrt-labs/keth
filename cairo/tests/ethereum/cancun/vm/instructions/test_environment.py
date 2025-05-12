@@ -1,6 +1,6 @@
 from ethereum.cancun.fork_types import VersionedHash
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import Environment, Evm
+from ethereum.cancun.vm import BlockEnvironment, Evm
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -45,8 +45,8 @@ from tests.utils.strategies import (
     memory_lite,
 )
 
-environment_empty_state = st.builds(
-    Environment,
+block_environment_empty_state = st.builds(
+    BlockEnvironment,  # TODO: adapt it to new type
     caller=...,
     block_hashes=st.builds(list, st.just([])),
     origin=...,
@@ -70,7 +70,7 @@ message_empty_except_calldata = MessageBuilder().with_data(code).build()
 
 
 evm_environment_strategy = (
-    EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
+    EvmBuilder().with_gas_left().with_env(block_environment_empty_state).build()
 )
 
 
@@ -259,7 +259,7 @@ class TestEnvironmentInstructions:
         evm=EvmBuilder()
         .with_memory()
         .with_gas_left()
-        .with_env(environment_empty_state)
+        .with_env(block_environment_empty_state)
         .with_return_data()
         .with_capped_values_stack()
         .build()
