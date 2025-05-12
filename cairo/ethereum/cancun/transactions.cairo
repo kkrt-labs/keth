@@ -42,6 +42,7 @@ from ethereum_rlp.rlp import (
     decode_to_access_list_transaction,
     decode_to_fee_market_transaction,
     decode_to_blob_transaction,
+    encode_legacy_transaction,
 )
 from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
@@ -420,6 +421,30 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return res;
     }
     with_attr error_message("TransactionTypeError") {
+        jmp raise.raise_label;
+    }
+}
+
+// TODO: validate this is correct with a test
+func get_transaction_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    tx_encoded: UnionBytesLegacyTransaction
+) -> Hash32 {
+    alloc_locals;
+
+    if (cast(tx_encoded.value.bytes.value, felt) != 0) {
+        // This is a typed transaction, already RLP encoded with its type prefix
+        let hash = keccak256(tx_encoded.value.bytes);
+        return hash;
+    }
+
+    if (cast(tx_encoded.value.legacy_transaction.value, felt) != 0) {
+        // This is a legacy transaction, RLP encode it without chain ID for hashing
+        let encoded_legacy_tx = encode_legacy_transaction(tx_encoded.value.legacy_transaction);
+        let hash = keccak256(encoded_legacy_tx);
+        return hash;
+    }
+
+    with_attr error_message("get_transaction_hash: Invalid input type") {
         jmp raise.raise_label;
     }
 }
