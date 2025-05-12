@@ -1,5 +1,7 @@
 from typing import Callable
 
+from starkware.cairo.lang.vm.memory_dict import MemoryDict
+from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.vm_consts import VmConsts
 
 from cairo_addons.hints.decorator import register_hint
@@ -104,3 +106,40 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     ids.block_output = gen_arg(BlockOutput, program_input["block_output"])
     ids.start_index = program_input["start_index"]
     ids.len = program_input["len"]
+
+
+@register_hint
+def aggregator_inputs(
+    ids: VmConsts,
+    program_input: dict,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+):
+    # Python hint to load data from program_input
+    # Assuming program_input is a dict as described in the design doc:
+
+    # Extract data from the program_input hint variable
+    keth_outputs_list = program_input["keth_segment_outputs"]
+    keth_hashes = program_input["keth_segment_program_hashes"]
+    num_body_chunks = program_input["n_body_chunks"]
+
+    # Assign hints to Cairo local variables
+    ids.n_body_chunks = num_body_chunks
+    ids.init_program_hash = keth_hashes["init"]
+    ids.body_program_hash = keth_hashes["body"]
+    ids.teardown_program_hash = keth_hashes["teardown"]
+
+    # Allocate memory for the serialized outputs and get pointers
+    ids.serialized_init_output = segments.gen_arg(keth_outputs_list[0])
+
+    # Allocate memory for the array of pointers to body outputs
+    body_output_pointers = segments.add()
+    # Allocate memory for each body output and store its pointer
+    for i in range(num_body_chunks):
+        body_output_ptr = segments.gen_arg(keth_outputs_list[i + 1])
+        memory[body_output_pointers + i] = body_output_ptr
+    ids.serialized_body_outputs = body_output_pointers
+
+    ids.serialized_teardown_output = segments.gen_arg(
+        keth_outputs_list[num_body_chunks + 1]
+    )
