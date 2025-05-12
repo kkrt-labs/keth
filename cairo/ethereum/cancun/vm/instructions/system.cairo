@@ -6,7 +6,7 @@ from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import incorporate_child_on_error, incorporate_child_on_success
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, EvmImpl, Message, MessageStruct
-from ethereum.cancun.vm.env_impl import EnvImpl
+from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
 from ethereum.cancun.utils.address import to_address
 from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
@@ -123,13 +123,13 @@ func generic_call{
     let calldata = memory_read_bytes{memory=memory}(memory_input_start_position, memory_input_size);
     EvmImpl.set_memory(memory);
 
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let account = get_account{state=state}(code_address);
     let account_code = get_account_code{state=state}(code_address, account);
 
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
 
@@ -160,6 +160,8 @@ func generic_call{
     tempvar maybe_address = OptionalAddress(&code_address);
     tempvar child_message = Message(
         new MessageStruct(
+            block_env=block_env,
+            tx_env=evm.value.message.value.tx_env,
             caller=caller,
             target=To(new ToStruct(cast(0, Bytes0*), &to)),
             current_target=to,
@@ -187,7 +189,7 @@ func generic_call{
     [ap] = add_mod_ptr, ap++;
     [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
-    [ap] = env.value, ap++;
+    [ap] = block_env.value, ap++;
 
     call abs process_message_label;
 
@@ -202,14 +204,17 @@ func generic_call{
     tempvar child_evm = Evm(child_evm_);
 
     // The previous operations have mutated the `env` passed to the function, which
-    // is now located in child_evm.value.env. Notably, we must rebind env.state and env.transient_storage
+    // is now located in child_evm.value.message.value.block_env and child_evm.value.message.value.tx_env.
+    // Notably, we must rebind env.state and env.transient_storage
     // to their new mutated values. The reset is handled on a per-case basis in incorporate_child.
-    let updated_state = child_evm.value.env.value.state;
-    let updated_transient_storage = child_evm.value.env.value.transient_storage;
-    let old_env = evm.value.env;
-    EnvImpl.set_state{env=old_env}(updated_state);
-    EnvImpl.set_transient_storage{env=old_env}(updated_transient_storage);
-    EvmImpl.set_env{evm=evm}(old_env);
+    let updated_state = child_evm.value.message.value.block_env.value.state;
+    let updated_transient_storage = child_evm.value.message.value.tx_env.value.transient_storage;
+    let old_block_env = evm.value.message.value.block_env;
+    let old_tx_env = evm.value.message.value.tx_env;
+    BlockEnvImpl.set_state{block_env=old_block_env}(updated_state);
+    TransactionEnvImpl.set_transient_storage{tx_env=old_tx_env}(updated_transient_storage);
+    EvmImpl.set_block_env{evm=evm}(old_block_env);
+    EvmImpl.set_tx_env{evm=evm}(old_tx_env);
 
     if (cast(child_evm.value.error, felt) != 0) {
         incorporate_child_on_error(child_evm);
@@ -358,8 +363,8 @@ func call_{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let _is_account_alive = is_account_alive{state=state}(to);
     let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
     let is_account_alive_or_value_zero = _is_account_alive.value + is_value_zero.value;
@@ -380,8 +385,9 @@ func call_{
     );
     let err = charge_gas(Uint(message_call_gas.value.cost.value + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        let block_env = evm.value.message.value.block_env;
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_stack(stack);
         return err;
     }
@@ -390,8 +396,9 @@ func call_{
     );
     if (value_non_zero_and_is_static != 0) {
         EvmImpl.set_stack(stack);
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        let block_env = evm.value.message.value.block_env;
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -402,8 +409,8 @@ func call_{
 
     let sender_address = evm.value.message.value.current_target;
     let sender = get_account{state=state}(sender_address);
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
     let sender_balance = sender.value.balance;
     let sender_has_enough_balance = U256_le(value, sender_balance);
     if (sender_has_enough_balance.value == 0) {
@@ -550,13 +557,13 @@ func callcode{
     expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
 
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let sender_address = evm.value.message.value.current_target;
     let sender = get_account{state=state}(sender_address);
     let sender_balance = sender.value.balance;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     let sender_has_enough_balance = U256_le(value, sender_balance);
     if (sender_has_enough_balance.value == 0) {
@@ -1022,8 +1029,8 @@ func generic_create{
     tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
     EvmImpl.set_return_data(empty_data_bytes);
 
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let sender_address = evm.value.message.value.current_target;
     let sender = get_account{state=state}(sender_address);
 
@@ -1038,8 +1045,8 @@ func generic_create{
         tempvar zero = U256(new U256Struct(0, 0));
         let stack = evm.value.stack;
         let err = push{stack=stack}(zero);
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
             return err;
@@ -1057,8 +1064,8 @@ func generic_create{
         tempvar zero = U256(new U256Struct(0, 0));
         let stack = evm.value.stack;
         let err = push{stack=stack}(zero);
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
             return err;
@@ -1068,8 +1075,8 @@ func generic_create{
     }
 
     increment_nonce{state=state}(evm.value.message.value.current_target);
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     // Fork the accessed_addresses dict segment
     local new_dict_ptr: DictAccess*;
@@ -1098,6 +1105,8 @@ func generic_create{
     tempvar to = To(new ToStruct(new Bytes0(0), cast(0, Address*)));
     tempvar child_message = Message(
         new MessageStruct(
+            block_env=block_env,
+            tx_env=evm.value.message.value.tx_env,
             caller=evm.value.message.value.current_target,
             target=to,
             current_target=contract_address,
@@ -1124,8 +1133,9 @@ func generic_create{
     [ap] = add_mod_ptr, ap++;
     [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
-    [ap] = env.value, ap++;
+    [ap] = block_env.value, ap++;
 
+    //TODO: update call stack once migrated signature. same process message.
     call abs process_create_message_label;
 
     let range_check_ptr = [ap - 8];
@@ -1141,12 +1151,14 @@ func generic_create{
     // The previous operations have mutated the `env` passed to the function, which
     // is now located in child_evm.value.env. Notably, we must rebind env.state and env.transient_storage
     // to their new mutated values. The reset is handled on a per-case basis in incorporate_child.
-    let updated_state = child_evm.value.env.value.state;
-    let updated_transient_storage = child_evm.value.env.value.transient_storage;
-    let old_env = evm.value.env;
-    EnvImpl.set_state{env=old_env}(updated_state);
-    EnvImpl.set_transient_storage{env=old_env}(updated_transient_storage);
-    EvmImpl.set_env{evm=evm}(old_env);
+    let updated_state = child_evm.value.message.value.block_env.value.state;
+    let updated_transient_storage = child_evm.value.message.value.tx_env.value.transient_storage;
+    let old_block_env = evm.value.message.value.block_env;
+    let old_tx_env = evm.value.message.value.tx_env;
+    BlockEnvImpl.set_state{block_env=old_block_env}(updated_state);
+    TransactionEnvImpl.set_transient_storage{tx_env=old_tx_env}(updated_transient_storage);
+    EvmImpl.set_block_env{evm=evm}(old_block_env);
+    EvmImpl.set_tx_env{evm=evm}(old_tx_env);
 
     if (cast(child_evm.value.error, felt) != 0) {
         incorporate_child_on_error(child_evm);
@@ -1242,12 +1254,12 @@ func create{
     expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
 
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let current_target = evm.value.message.value.current_target;
     let sender = get_account{state=state}(current_target);
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
     let contract_address = compute_contract_address(current_target, sender.value.nonce);
 
     let err = generic_create(
@@ -1413,8 +1425,8 @@ func selfdestruct{
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
     // Check if beneficiary account is alive and originator has balance
-    let env = evm.value.env;
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let originator = evm.value.message.value.current_target;
     let originator_account = get_account{state=state}(originator);
     let originator_balance = originator_account.value.balance;
@@ -1434,16 +1446,16 @@ func selfdestruct{
 
     let err = charge_gas(final_gas_cost);
     if (cast(err, felt) != 0) {
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_stack(stack);
         return err;
     }
 
     // OPERATION
     if (evm.value.message.value.is_static.value != 0) {
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
@@ -1452,7 +1464,7 @@ func selfdestruct{
     move_ether{state=state}(originator, beneficiary, originator_balance);
 
     // Register account for deletion if created in same transaction
-    let created_accounts = env.value.state.value.created_accounts;
+    let created_accounts = state.value.created_accounts;
     let is_created = set_address_contains{set=created_accounts}(originator);
     tempvar state = State(
         new StateStruct(
@@ -1483,26 +1495,10 @@ func selfdestruct{
     let evm = Evm(cast([ap - 3], EvmStruct*));
     let range_check_ptr = [ap - 1];
 
-    // Mark beneficiary as touched if empty
-    let is_empty = account_exists_and_is_empty{state=state}(beneficiary);
-    if (is_empty.value != 0) {
-        let touched_accounts = evm.value.touched_accounts;
-        set_address_add{set_address=touched_accounts}(beneficiary);
-        EvmImpl.set_touched_accounts(touched_accounts);
-        tempvar evm = evm;
-        tempvar state = state;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar evm = evm;
-        tempvar state = state;
-        tempvar range_check_ptr = range_check_ptr;
-    }
-    let range_check_ptr = [ap - 1];
-
     // Stop execution
     EvmImpl.set_running(bool(0));
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
     EvmImpl.set_stack(stack);
 
     let ok = cast(0, EthereumException*);
