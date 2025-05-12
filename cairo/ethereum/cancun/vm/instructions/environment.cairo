@@ -13,7 +13,7 @@ from ethereum_types.others import (
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
 from ethereum.cancun.fork_types import Account__eq__, EMPTY_ACCOUNT, OptionalAccount
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
-from ethereum.cancun.vm.env_impl import EnvImpl
+from ethereum.cancun.vm.env_impl import BlockEnvImpl, TransactionEnvImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError, OutOfBoundsRead
 from ethereum.cancun.vm.gas import (
@@ -108,11 +108,11 @@ func balance{
 
     // OPERATION
     // Get the account from state
-    let state = evm.value.env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let account = get_account{state=state}(address);
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     with stack {
         let err = push(account.value.balance);
@@ -150,7 +150,7 @@ func origin{
 
     // OPERATION
     with stack {
-        let origin_u256 = U256_from_be_bytes20(evm.value.env.value.origin);
+        let origin_u256 = U256_from_be_bytes20(evm.value.message.value.tx_env.value.origin);
 
         let err = push(origin_u256);
         if (cast(err, felt) != 0) {
@@ -300,8 +300,8 @@ func gasprice{
     // OPERATION
     with stack {
         // gas price is a u64
-        tempvar gas_price = U256(new U256Struct(evm.value.env.value.gas_price.value, 0));
-        let err = push(gas_price);
+        tempvar gas_price_val = U256(new U256Struct(evm.value.message.value.tx_env.value.gas_price.value, 0));
+        let err = push(gas_price_val);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -458,11 +458,11 @@ func self_balance{
     }
 
     // OPERATION
-    let state = evm.value.env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let account = get_account{state=state}(evm.value.message.value.current_target);
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     with stack {
         let err = push(account.value.balance);
@@ -502,8 +502,8 @@ func base_fee{
     // OPERATION
     with stack {
         // base fee is a u64
-        tempvar base_fee = U256(new U256Struct(evm.value.env.value.base_fee_per_gas.value, 0));
-        let err = push(base_fee);
+        tempvar base_fee_val = U256(new U256Struct(evm.value.message.value.block_env.value.base_fee_per_gas.value, 0));
+        let err = push(base_fee_val);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
             return err;
@@ -546,7 +546,7 @@ func blob_hash{
         return err;
     }
 
-    let blob_hashes = evm.value.env.value.blob_versioned_hashes;
+    let blob_hashes = evm.value.message.value.tx_env.value.blob_versioned_hashes;
 
     // If index is within bounds, get the hash at that index
     // Otherwise return zero bytes
@@ -684,12 +684,12 @@ func extcodesize{
 
     // OPERATION
     // Get the account from state
-    let state = evm.value.env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let account = get_account{state=state}(address);
     let account_code = get_account_code{state=state}(address, account);
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     // Get code size and push to stack
     tempvar code_size_u256 = U256(new U256Struct(account_code.value.len, 0));
@@ -779,12 +779,12 @@ func extcodecopy{
 
     // OPERATION
     // Get the account code from state
-    let state = evm.value.env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let account = get_account{state=state}(address);
     let account_code = get_account_code{state=state}(address, account);
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     let memory = evm.value.memory;
     with memory {
@@ -839,11 +839,11 @@ func extcodehash{
 
     // OPERATION
     // Get the account from state
-    let state = evm.value.env.value.state;
+    let state = evm.value.message.value.block_env.value.state;
     let account = get_account{state=state}(address);
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    let block_env = evm.value.message.value.block_env;
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
@@ -902,7 +902,7 @@ func blob_base_fee{
         return err;
     }
 
-    let _blob_base_fee = calculate_blob_gas_price(evm.value.env.value.excess_blob_gas);
+    let _blob_base_fee = calculate_blob_gas_price(evm.value.message.value.block_env.value.excess_blob_gas);
 
     // Result saturated to fit in 128 bits
     tempvar blob_base_fee = U256(new U256Struct(_blob_base_fee.value, 0));
