@@ -1,6 +1,6 @@
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
-from ethereum.cancun.vm.env_impl import EnvImpl
+from ethereum.cancun.vm.env_impl import BlockEnvImpl, TransactionEnvImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
@@ -94,14 +94,15 @@ func sload{
     }
 
     // OPERATION
-    let state = evm.value.env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     with state, stack {
         let value = get_storage(evm.value.message.value.current_target, key_bytes32);
 
         // Rebind state, env, stack, and accessed_storage_keys since it's the last time they are used
-        let env = evm.value.env;
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        let block_env = evm.value.message.value.block_env;
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
 
         // Push cannot fail with StackOverflowError, 1 element was popped
         push(value);
@@ -149,7 +150,7 @@ func sstore{
 
     // Get storage values
     let key_bytes32 = U256_to_be_bytes(key);
-    let state = evm.value.env.value.state;
+    let state = evm.value.message.value.block_env.value.state;
     let current_target = evm.value.message.value.current_target;
     with state {
         let original_value = get_storage_original(current_target, key_bytes32);
@@ -227,9 +228,9 @@ func sstore{
     let err = charge_gas(Uint(gas_cost));
     if (cast(err, felt) != 0) {
         // Update EVM state
-        let env = evm.value.env;
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        let block_env = evm.value.message.value.block_env;
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
         EvmImpl.set_refund_counter(refund_counter);
         EvmImpl.set_stack(stack);
@@ -238,9 +239,9 @@ func sstore{
     // Check static call
     if (evm.value.message.value.is_static.value != 0) {
         // Update EVM state
-        let env = evm.value.env;
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
+        let block_env = evm.value.message.value.block_env;
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env(block_env);
         EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
         EvmImpl.set_refund_counter(refund_counter);
         EvmImpl.set_stack(stack);
@@ -254,9 +255,9 @@ func sstore{
     }
 
     // Update EVM state
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
+    let block_env = evm.value.message.value.block_env;
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    EvmImpl.set_block_env(block_env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     EvmImpl.set_refund_counter(refund_counter);
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
@@ -345,7 +346,8 @@ func tload{
     }
 
     // OPERATION
-    let transient_storage = evm.value.env.value.transient_storage;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     let key_bytes32 = U256_to_be_bytes(key);
     let value = get_transient_storage{transient_storage=transient_storage}(
         evm.value.message.value.current_target, key_bytes32
@@ -354,9 +356,10 @@ func tload{
     push{stack=stack}(value);
 
     // PROGRAM COUNTER
-    let env = evm.value.env;
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    EvmImpl.set_env(env);
+    // Transient storage is part of tx_env, which is part of message
+    let tx_env = evm.value.message.value.tx_env;
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_tx_env(tx_env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
@@ -404,16 +407,17 @@ func tstore{
     }
 
     // OPERATION
-    let transient_storage = evm.value.env.value.transient_storage;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     let key_bytes32 = U256_to_be_bytes(key);
     set_transient_storage{transient_storage=transient_storage}(
         evm.value.message.value.current_target, key_bytes32, new_value
     );
 
     // PROGRAM COUNTER
-    let env = evm.value.env;
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    EvmImpl.set_env(env);
+    let tx_env = evm.value.message.value.tx_env;
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_tx_env(tx_env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
