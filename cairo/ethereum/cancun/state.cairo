@@ -301,6 +301,13 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     let recipient_account = get_account(recipient_address);
     let new_recipient_account_balance = U256_add(recipient_account.value.balance, amount);
     set_account_balance(recipient_address, new_recipient_account_balance);
+
+    // If recipient account is now empty, destroy it.
+    let is_recipient_empty = account_exists_and_is_empty(recipient_address);
+    if (is_recipient_empty.value != 0) {
+        destroy_account(recipient_address);
+        return();
+    }
     return ();
 }
 
@@ -1090,57 +1097,6 @@ func set_account_balance{range_check_ptr, state: State}(
     return ();
 }
 
-func touch_account{range_check_ptr, state: State}(address: Address) {
-    let _account_exists = account_exists(address);
-    if (_account_exists.value != 0) {
-        return ();
-    }
-
-    let _empty_account = EMPTY_ACCOUNT();
-    let empty_account = OptionalAccount(_empty_account.value);
-    set_account(address, empty_account);
-    return ();
-}
-
-// @notice Destroys all empty accounts in the touched_accounts set.
-// @dev This typically only applies to accounts that were created pre eip-158, eip-161,
-// in which the storage is set (account exists in state) but is empty.
-func destroy_touched_empty_accounts{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
-    touched_accounts: SetAddress
-) -> () {
-    alloc_locals;
-
-    // if current == end, return
-    let current = touched_accounts.value.dict_ptr_start;
-    let end = touched_accounts.value.dict_ptr;
-    if (current == end) {
-        return ();
-    }
-
-    let address = [current].key;
-
-    // Check if current account exists and is empty, destroy if so
-    let is_empty = account_exists_and_is_empty(address);
-    if (is_empty.value != 0) {
-        destroy_account(address);
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar state = state;
-    } else {
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar state = state;
-    }
-
-    // Recurse with updated touched_accounts
-    tempvar next_iter = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(current + DictAccess.SIZE, SetAddressDictAccess*),
-            dict_ptr=cast(end, SetAddressDictAccess*),
-        ),
-    );
-    return destroy_touched_empty_accounts(next_iter);
-}
 
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
     let (default_value) = get_label_location(U256_ZERO);
