@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import environment_lite
+from tests.utils.strategies import block_environment_lite
 
 # TODO: enable execution of these precompiles
 unimplemented_precompiles = [
@@ -47,7 +47,7 @@ message_without_precompile = (
 class TestInterpreter:
     @given(
         message=message_without_precompile,
-        env=environment_lite,
+        env=block_environment_lite,
     )
     @pytest.mark.slow
     def test_execute_code(self, cairo_run, message: Message, env: Environment):
@@ -63,7 +63,7 @@ class TestInterpreter:
 
     @given(
         message=message_without_precompile,
-        env=environment_lite,
+        env=block_environment_lite,
     )
     @pytest.mark.slow
     def test_process_message(self, cairo_run, message: Message, env: Environment):
@@ -79,7 +79,7 @@ class TestInterpreter:
 
     @given(
         message=message_without_precompile,
-        env=environment_lite,
+        env=block_environment_lite,
     )
     def test_process_create_message(
         self, cairo_run, message: Message, env: Environment
@@ -95,7 +95,7 @@ class TestInterpreter:
         assert evm_python == evm_cairo
 
     @given(
-        env=environment_lite,
+        env=block_environment_lite,
         message=message_without_precompile,
     )
     @pytest.mark.slow

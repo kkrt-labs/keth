@@ -19,7 +19,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.cancun.fork_types import Account, Address, VersionedHash
-from ethereum.cancun.state import State, TransientStorage, set_account
+from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -36,7 +36,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import Trie, root
 from ethereum.cancun.utils.address import to_address
-from ethereum.cancun.vm import Environment
+from ethereum.cancun.vm import BlockEnvironment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
@@ -227,39 +227,18 @@ def get_blob_tx_with_tx_sender_in_state():
         created_accounts=set(),
     )
     set_account(state, sender, sender_account)
-    env = Environment(
-        caller=sender,
+    env = BlockEnvironment(
+        chain_id=chain_id,
+        state=state,
+        block_gas_limit=Uint(int("0x1000000", 16)),
         block_hashes=[],
-        origin=sender,
         coinbase=address_zero,
         number=Uint(0),
-        gas_limit=Uint(int("0x1000000", 16)),
-        gas_price=Uint(0),
+        base_fee_per_gas=Uint(int("0x100000", 16)),
         time=U256(0),
         prev_randao=Bytes32(b"\x00" * 32),
-        state=state,
-        chain_id=chain_id,
-        traces=[],
-        base_fee_per_gas=Uint(int("0x100000", 16)),
         excess_blob_gas=U64(0),
-        blob_versioned_hashes=(
-            VersionedHash(
-                bytes.fromhex(
-                    "012349ab976176f8e442ddf213adf04de969a2e698b5fe2b630d96563eacd977"
-                )
-            ),
-            VersionedHash(
-                bytes.fromhex(
-                    "01b24f1b540c49ce5af19385c1e9b512a34f2d19115d21386ba90c9da85ae85c"
-                )
-            ),
-            VersionedHash(
-                bytes.fromhex(
-                    "01247acd4e3b79241271ff98e449e7c4db539c92f08a89166192d8b79346cd4b"
-                )
-            ),
-        ),
-        transient_storage=TransientStorage(),
+        parent_beacon_block_root=Bytes32(b"\x00" * 32),
     )
 
     return tx, env, chain_id
@@ -413,7 +392,7 @@ def tx_with_sender_in_state(
     ),
     account_strategy=account_strategy,
 ):
-    env = draw(st.from_type(Environment))
+    env = draw(st.from_type(BlockEnvironment))
     if env.gas_price < env.base_fee_per_gas:
         env.gas_price = draw(
             st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
@@ -577,7 +556,7 @@ class TestFork:
 
     @given(data=tx_with_sender_in_state())
     def test_process_transaction(
-        self, cairo_run, data: Tuple[Transaction, Environment, U64]
+        self, cairo_run, data: Tuple[Transaction, BlockEnvironment, U64]
     ):
         # The Cairo Runner will raise if an exception is in the return values OR if
         # an assert expression fails (e.g. InvalidBlock)

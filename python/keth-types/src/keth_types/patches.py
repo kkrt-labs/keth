@@ -52,7 +52,7 @@ from ethereum_types.numeric import FixedUnsigned, Uint
 from keth_types.types import (
     EMPTY_ACCOUNT,
     Account,
-    Environment,
+    BlockEnvironment,
     Evm,
     Message,
     MessageCallOutput,
@@ -83,7 +83,7 @@ PATCHES: Dict[str, Dict[str, Any]] = {
     ethereum.cancun.vm: {
         "Evm": Evm,
         "Message": Message,
-        "Environment": Environment,
+        "BlockEnvironment": BlockEnvironment,
     },
     ethereum.cancun.trie: {
         "Node": Node,

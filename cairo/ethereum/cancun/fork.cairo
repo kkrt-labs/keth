@@ -484,7 +484,7 @@ func process_transaction{
 
     let keccak_ptr = cast([ap - 5], felt*);
     let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let range_check_ptr = [ap-3];
+    let range_check_ptr = [ap - 3];
     let preaccessed_addresses = SetAddress(cast([ap - 2], SetAddressStruct*));
     let preaccessed_storage_keys = SetTupleAddressBytes32(
         cast([ap - 1], SetTupleAddressBytes32Struct*)
@@ -586,9 +586,7 @@ func process_transaction{
 // @notice Deletes an account from the state.
 // @dev This function does not delete the associated storage.
 // @param accounts_to_delete - The set of accounts to delete. For performance reasons, this should be squashed before calling this function.
-func process_account_deletions{range_check_ptr, state: State}(
-    accounts_to_delete: SetAddress
-) {
+func process_account_deletions{range_check_ptr, state: State}(accounts_to_delete: SetAddress) {
     alloc_locals;
 
     let current = accounts_to_delete.value.dict_ptr_start;
@@ -658,7 +656,7 @@ func process_storage_deletions{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, 
         tempvar range_check_ptr = range_check_ptr;
     }
     let state = State(cast([ap - 2], StateStruct*));
-    let range_check_ptr = [ap-1];
+    let range_check_ptr = [ap - 1];
 
     tempvar next_iter = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
@@ -702,16 +700,18 @@ func process_access_list{
     );
 
     // Process storage keys for this address
-    process_storage_keys{preaccessed_storage_keys=preaccessed_storage_keys
-    }(entry.value.storage_keys, entry.value.storage_keys.value.len, 0, address);
+    process_storage_keys{preaccessed_storage_keys=preaccessed_storage_keys}(
+        entry.value.storage_keys, entry.value.storage_keys.value.len, 0, address
+    );
 
     // Process next entry
     return process_access_list(access_list_data, len, index + 1);
 }
 
 // Recursive function to process storage keys
-func process_storage_keys{range_check_ptr, preaccessed_storage_keys: SetTupleAddressBytes32
-}(storage_keys_data: TupleBytes32, len: felt, index: felt, address: Address) {
+func process_storage_keys{range_check_ptr, preaccessed_storage_keys: SetTupleAddressBytes32}(
+    storage_keys_data: TupleBytes32, len: felt, index: felt, address: Address
+) {
     alloc_locals;
 
     // Base case: end of list

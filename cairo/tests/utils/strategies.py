@@ -39,7 +39,7 @@ from ethereum.cancun.trie import (
     encode_internal_node,
 )
 from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.vm import Environment, Evm, Message
+from ethereum.cancun.vm import BlockEnvironment, Evm, Message
 from ethereum.crypto.alt_bn128 import (
     BNF,
     BNF2,
@@ -394,32 +394,26 @@ transient_storage = st.sets(
 )
 
 # Fork
-environment_lite = st.integers(
+block_environment_lite = st.integers(
     min_value=0, max_value=2**64 - 1
 ).flatmap(  # Generate block number first
     lambda number: st.builds(
-        Environment,
-        caller=address,
+        BlockEnvironment,
+        chain_id=uint64,
+        state=st.from_type(State),
+        block_gas_limit=uint,
         block_hashes=st.lists(
             st.sampled_from(BLOCK_HASHES_LIST),
             min_size=min(number, 256),  # number or 256 if number is greater
             max_size=min(number, 256),
         ),
-        origin=address,
         coinbase=address,
         number=st.just(Uint(number)),  # Use the same number
         base_fee_per_gas=uint,
-        gas_limit=uint,
-        gas_price=uint,
         time=uint256,
         prev_randao=bytes32,
-        state=st.from_type(State),
-        chain_id=uint64,
         excess_blob_gas=excess_blob_gas,
-        blob_versioned_hashes=st.lists(
-            st.from_type(VersionedHash), min_size=0, max_size=5
-        ).map(tuple),
-        transient_storage=transient_storage,
+        parent_beacon_block_root=bytes32,
     )
 )
 
@@ -467,7 +461,6 @@ evm = st.builds(
     memory=memory,
     code=code,
     gas_left=gas_left,
-    env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
     logs=st.from_type(Tuple[Log, ...]),
     refund_counter=felt,
@@ -475,7 +468,6 @@ evm = st.builds(
     message=message,
     output=small_bytes,
     accounts_to_delete=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
-    touched_accounts=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
     return_data=small_bytes,
     error=st.none() | st.from_type(EthereumException),
     accessed_addresses=accessed_addresses,
@@ -819,7 +811,7 @@ def register_type_strategies():
     st.register_type_strategy(State, state_strategy())
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
-    st.register_type_strategy(Environment, environment_lite)
+    st.register_type_strategy(BlockEnvironment, block_environment_lite)
     st.register_type_strategy(Header, header)
     st.register_type_strategy(
         VersionedHash,

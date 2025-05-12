@@ -65,7 +65,7 @@ namespace GasConstants {
     const TARGET_BLOB_GAS_PER_BLOCK = 393216;
     const GAS_PER_BLOB = 2 ** 17;
     const MIN_BLOB_GASPRICE = 1;
-    const BLOB_GASPRICE_UPDATE_FRACTION = 3338477;
+    const BLOB_BASE_FEE_UPDATE_FRACTION = 3338477;
 }
 
 struct ExtendMemory {
@@ -285,7 +285,7 @@ func calculate_blob_gas_price{range_check_ptr}(excess_blob_gas: U64) -> Uint {
     let blob_gas_price = taylor_exponential(
         Uint(GasConstants.MIN_BLOB_GASPRICE),
         Uint(excess_blob_gas.value),
-        Uint(GasConstants.BLOB_GASPRICE_UPDATE_FRACTION),
+        Uint(GasConstants.BLOB_BASE_FEE_UPDATE_FRACTION),
     );
     let saturate = is_le_felt(2 ** 128, blob_gas_price.value);
     if (saturate != 0) {

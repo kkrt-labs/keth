@@ -3,7 +3,7 @@ from typing import Tuple
 from ethereum.cancun.blocks import Log
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import Environment, Evm
+from ethereum.cancun.vm import BlockEnvironment, Evm
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U64, U256, Bytes32, Uint
 from hypothesis import strategies as st
@@ -15,9 +15,9 @@ from tests.utils.strategies import (
     MAX_TOUCHED_ACCOUNTS_SIZE,
     Memory,
     address_zero,
+    block_environment_lite,
     code,
     empty_state,
-    environment_lite,
     gas_left,
     memory_lite,
     message_lite,
@@ -27,7 +27,7 @@ from tests.utils.strategies import (
 )
 
 empty_environment = st.builds(
-    Environment,
+    BlockEnvironment,
     caller=st.just(address_zero),
     block_hashes=st.builds(list, st.just([])),
     origin=st.just(address_zero),
@@ -97,7 +97,7 @@ class EvmBuilder:
         self._gas_left = strategy
         return self
 
-    def with_env(self, strategy=environment_lite):
+    def with_env(self, strategy=block_environment_lite):
         self._env = strategy
         return self
 
