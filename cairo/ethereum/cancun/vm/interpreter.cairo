@@ -20,7 +20,7 @@ from ethereum.cancun.fork_types import (
 )
 
 from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
-from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl
 from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
 
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
@@ -69,7 +69,6 @@ struct MessageCallOutputStruct {
     refund_counter: U256,
     logs: TupleLog,
     accounts_to_delete: SetAddress,
-    touched_accounts: SetAddress,
     error: EthereumException*,
     accessed_storage_keys: SetTupleAddressBytes32,
 }
@@ -82,11 +81,13 @@ func process_create_message{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(message: Message, env: Environment) -> Evm {
+}(message: Message) -> Evm {
     alloc_locals;
 
-    let state = env.value.state;
-    let transient_storage = env.value.transient_storage;
+    let block_env = message.value.block_env;
+    let state = block_env.value.state;
+    let tx_env = message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
 
     // take snapshot of state before processing the message
     begin_transaction{state=state, transient_storage=transient_storage}();
@@ -125,21 +126,25 @@ func process_create_message{
     mark_account_created{state=state}(message.value.current_target);
 
     increment_nonce{state=state}(message.value.current_target);
-    EnvImpl.set_state{env=env}(state);
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    let evm = process_message(message, env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    MessageImpl.set_block_env{message=message}(block_env);
+    MessageImpl.set_tx_env{message=message}(tx_env);
+    let evm = process_message(message);
 
     // Rebind variables mutated in environment
-    let env = evm.value.env;
-    let state = env.value.state;
-    let transient_storage = env.value.transient_storage;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
 
     if (cast(evm.value.error, felt) != 0) {
         // Error case
         rollback_transaction{state=state, transient_storage=transient_storage}();
-        EnvImpl.set_state{env=env}(state);
-        EnvImpl.set_transient_storage{env=env}(transient_storage);
-        EvmImpl.set_env{evm=evm}(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+        EvmImpl.set_block_env{evm=evm}(block_env);
+        EvmImpl.set_tx_env{evm=evm}(tx_env);
         return evm;
     }
     let contract_code = evm.value.output;
@@ -170,9 +175,10 @@ func process_create_message{
     }
     set_code{state=state}(message.value.current_target, contract_code);
     commit_transaction{state=state, transient_storage=transient_storage}();
-    EnvImpl.set_state{env=env}(state);
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    EvmImpl.set_env{evm=evm}(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_block_env{evm=evm}(block_env);
+    EvmImpl.set_tx_env{evm=evm}(tx_env);
     return evm;
 }
 
@@ -183,13 +189,15 @@ func _process_create_message_error{
     poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
 }(error: EthereumException*) {
-    let env = evm.value.env;
-    let state = env.value.state;
-    let transient_storage = env.value.transient_storage;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     rollback_transaction{state=state, transient_storage=transient_storage}();
-    EnvImpl.set_state{env=env}(state);
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    EvmImpl.set_env(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_block_env{evm=evm}(block_env);
+    EvmImpl.set_tx_env{evm=evm}(tx_env);
     EvmImpl.set_gas_left(Uint(0));
     let output_bytes: felt* = alloc();
     tempvar output = Bytes(new BytesStruct(output_bytes, 0));
@@ -206,7 +214,7 @@ func process_message{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(message: Message, env: Environment) -> Evm {
+}(message: Message) -> Evm {
     alloc_locals;
 
     // EELS checks whether the stack depth limit is reached here.
@@ -214,12 +222,11 @@ func process_message{
     // check the stack depth limit before calling `process_message`.
 
     // Take snapshot of state before processing the message
-    let state = env.value.state;
-    let transient_storage = env.value.transient_storage;
+    let block_env = message.value.block_env;
+    let state = block_env.value.state;
+    let tx_env = message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     begin_transaction{state=state, transient_storage=transient_storage}();
-
-    // Touch account
-    touch_account{state=state}(message.value.current_target);
 
     // Handle value transfer if needed
     let value_eq_zero = U256__eq__(message.value.value, U256(new U256Struct(0, 0)));
@@ -238,22 +245,26 @@ func process_message{
     }
 
     // Execute the code
-    EnvImpl.set_state{env=env}(state);
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    let evm = execute_code(message, env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    MessageImpl.set_block_env{message=message}(block_env);
+    MessageImpl.set_tx_env{message=message}(tx_env);
+    let evm = execute_code(message);
 
     // Handle transaction state based on execution result
-    let env = evm.value.env;
-    let state = env.value.state;
-    let transient_storage = env.value.transient_storage;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     if (cast(evm.value.error, felt) != 0) {
         rollback_transaction{state=state, transient_storage=transient_storage}();
     } else {
         commit_transaction{state=state, transient_storage=transient_storage}();
     }
-    EnvImpl.set_state{env=env}(state);
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
-    EvmImpl.set_env{evm=evm}(env);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_block_env{evm=evm}(block_env);
+    EvmImpl.set_tx_env{evm=evm}(tx_env);
 
     return evm;
 }
@@ -266,7 +277,7 @@ func execute_code{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(message: Message, env: Environment) -> Evm {
+}(message: Message) -> Evm {
     alloc_locals;
 
     // Get valid jump destinations
@@ -295,7 +306,7 @@ func execute_code{
     // Create empty Logs
     let (empty_logs: Log*) = alloc();
     tempvar tuple_log_struct = TupleLog(new TupleLogStruct(data=empty_logs, len=0));
-    // Create empty accounts_to_delete and touched_accounts
+    // Create empty accounts_to_delete
     let (dict_start: DictAccess*) = default_dict_new(0);
     let dict_ptr = dict_start;
     tempvar empty_accounts_to_delete = SetAddress(
@@ -304,15 +315,6 @@ func execute_code{
             dict_ptr=cast(dict_ptr, SetAddressDictAccess*),
         ),
     );
-    let (dict_start: DictAccess*) = default_dict_new(0);
-    let dict_ptr = dict_start;
-    tempvar empty_touched_accounts = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(dict_start, SetAddressDictAccess*),
-            dict_ptr=cast(dict_ptr, SetAddressDictAccess*),
-        ),
-    );
-
     // Initialize EVM state
     tempvar evm = Evm(
         new EvmStruct(
@@ -321,7 +323,6 @@ func execute_code{
             memory=empty_memory,
             code=message.value.code,
             gas_left=message.value.gas,
-            env=env,
             valid_jump_destinations=valid_jump_destinations,
             logs=tuple_log_struct,
             refund_counter=0,
@@ -329,7 +330,6 @@ func execute_code{
             message=message,
             output=Bytes(new BytesStruct(cast(0, felt*), 0)),
             accounts_to_delete=empty_accounts_to_delete,
-            touched_accounts=empty_touched_accounts,
             return_data=Bytes(new BytesStruct(cast(0, felt*), 0)),
             error=cast(0, EthereumException*),
             accessed_addresses=message.value.accessed_addresses,
@@ -474,18 +474,23 @@ func process_message_call{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    env: Environment,
+    block_env: BlockEnvironment,
 }(message: Message) -> MessageCallOutput {
     alloc_locals;
 
+    let block_env = message.value.block_env;
+    let tx_env = message.value.tx_env;
+    let state = block_env.value.state;
+    let transient_storage = tx_env.value.transient_storage;
+
     // Check if this is a contract creation (target is empty)
     if (cast(message.value.target.value.address, felt) == 0) {
-        let state = env.value.state;
         let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
         let has_storage = account_has_storage{state=state}(
             message.value.current_target
         );
-        EnvImpl.set_state{env=env}(state);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
@@ -495,7 +500,7 @@ func process_message_call{
         }
 
         // Process create message
-        let evm = process_create_message(message, env);
+        let evm = process_create_message(message);
 
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -507,51 +512,18 @@ func process_message_call{
         tempvar evm = evm;
     } else {
         // Regular message call path
-        let evm = process_message(message, env);
+        let evm = process_message(message);
         // Re-bind the evm's mutated `env` object to the original `env` object.
-        let env = evm.value.env;
+        let block_env = evm.value.message.value.block_env;
 
         // Check if account exists and is empty - and rebind the `evm` object with the mutated env.state.
-        let state = env.value.state;
+        let state = block_env.value.state;
         let is_empty = account_exists_and_is_empty{state=state}(
             [message.value.target.value.address]
         );
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env{evm=evm}(env);
+        BlockEnvImpl.set_state{block_env=block_env}(state);
+        EvmImpl.set_block_env{evm=evm}(block_env);
 
-        if (is_empty.value != FALSE) {
-            // Add to touched accounts
-            let dict_ptr = cast(evm.value.touched_accounts.value.dict_ptr, DictAccess*);
-            hashdict_write{dict_ptr=dict_ptr}(
-                1, message.value.target.value.address, 1
-            );
-            tempvar new_touched_accounts = SetAddress(
-                new SetAddressStruct(
-                    dict_ptr_start=evm.value.touched_accounts.value.dict_ptr_start,
-                    dict_ptr=cast(dict_ptr, SetAddressDictAccess*),
-                ),
-            );
-
-            EvmImpl.set_touched_accounts{evm=evm}(new_touched_accounts);
-
-            tempvar range_check_ptr = range_check_ptr;
-            tempvar bitwise_ptr = bitwise_ptr;
-            tempvar keccak_ptr = keccak_ptr;
-            tempvar poseidon_ptr = poseidon_ptr;
-            tempvar range_check96_ptr = range_check96_ptr;
-            tempvar add_mod_ptr = add_mod_ptr;
-            tempvar mul_mod_ptr = mul_mod_ptr;
-            tempvar evm = evm;
-        } else {
-            tempvar range_check_ptr = range_check_ptr;
-            tempvar bitwise_ptr = bitwise_ptr;
-            tempvar keccak_ptr = keccak_ptr;
-            tempvar poseidon_ptr = poseidon_ptr;
-            tempvar range_check96_ptr = range_check96_ptr;
-            tempvar add_mod_ptr = add_mod_ptr;
-            tempvar mul_mod_ptr = mul_mod_ptr;
-            tempvar evm = evm;
-        }
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
@@ -570,7 +542,7 @@ func process_message_call{
     let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
     let evm_struct = cast([ap - 1], EvmStruct*);
     tempvar evm = Evm(evm_struct);
-    let env = evm.value.env;
+    let block_env = evm.value.message.value.block_env;
 
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
@@ -605,7 +577,6 @@ func process_message_call{
             refund_counter=U256(new U256Struct(squashed_evm.value.refund_counter, 0)),
             logs=squashed_evm.value.logs,
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
-            touched_accounts=squashed_evm.value.touched_accounts,
             error=squashed_evm.value.error,
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
@@ -630,16 +601,6 @@ func create_empty_message_call_output(
         ),
     );
 
-    // Create second empty set for touched_accounts
-    let (dict_start2: DictAccess*) = default_dict_new(0);
-    let dict_ptr2 = dict_start2;
-    tempvar empty_set2 = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(dict_start2, SetAddressDictAccess*),
-            dict_ptr=cast(dict_ptr2, SetAddressDictAccess*),
-        ),
-    );
-
     let (dict_start3: DictAccess*) = default_dict_new(0);
     let dict_ptr3 = dict_start3;
     tempvar empty_set3 = SetTupleAddressBytes32(
@@ -655,7 +616,6 @@ func create_empty_message_call_output(
             refund_counter=U256(new U256Struct(0, 0)),
             logs=empty_tuple_log,
             accounts_to_delete=empty_set1,
-            touched_accounts=empty_set2,
             error=error,
             accessed_storage_keys=empty_set3,
         ),
@@ -758,20 +718,6 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
         ),
     );
 
-    // Squash touched_accounts
-    let touched_accounts = evm.value.touched_accounts;
-    let touched_accounts_start = touched_accounts.value.dict_ptr_start;
-    let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
-    let (new_touched_accounts_start, new_touched_accounts_end) = default_dict_finalize(
-        cast(touched_accounts_start, DictAccess*), cast(touched_accounts_end, DictAccess*), 0
-    );
-    tempvar new_touched_accounts = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(new_touched_accounts_start, SetAddressDictAccess*),
-            dict_ptr=cast(new_touched_accounts_end, SetAddressDictAccess*),
-        ),
-    );
-
     // Squash accessed_addresses
     let accessed_addresses = evm.value.accessed_addresses;
     let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
@@ -802,15 +748,16 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
         ),
     );
 
-    let env = evm.value.env;
-    let transient_storage = env.value.transient_storage;
+    let tx_env = evm.value.message.value.tx_env;
+    let transient_storage = tx_env.value.transient_storage;
     finalize_transient_storage{transient_storage=transient_storage}();
-    EnvImpl.set_transient_storage{env=env}(transient_storage);
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
 
     // The `original_storage_tries` are specific to each transaction in the block - and as such MUST be squashed and reset
     // at the end of each execution.
     // Consequently, we must also set back the `parent_dict` of the `main_trie` to `0`
-    let state = env.value.state;
+    let block_env = evm.value.message.value.block_env;
+    let state = block_env.value.state;
     let original_storage_tries = state.value.original_storage_tries;
     dict_squash(
         cast(original_storage_tries.value._data.value.dict_ptr_start, DictAccess*),
@@ -821,7 +768,11 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
     );
     // INVARIANT: there should not be a parent_dict to the main_trie at this point.
     assert cast(state.value._main_trie.value._data.value.parent_dict, felt) = 0;
-    EnvImpl.set_state{env=env}(state);
+
+    // Ensure the state in the block_env is properly updated
+    let message = evm.value.message;
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    MessageImpl.set_block_env{message=message}(block_env);
 
     // Rebind all dicts to the evm struct
     tempvar evm = Evm(
@@ -831,15 +782,13 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
             memory=new_memory,
             code=evm.value.code,
             gas_left=evm.value.gas_left,
-            env=env,
             valid_jump_destinations=new_valid_jump_destinations,
             logs=evm.value.logs,
             refund_counter=evm.value.refund_counter,
             running=evm.value.running,
-            message=evm.value.message,
+            message=message,
             output=evm.value.output,
             accounts_to_delete=new_accounts_to_delete,
-            touched_accounts=new_touched_accounts,
             return_data=evm.value.return_data,
             error=evm.value.error,
             accessed_addresses=new_accessed_addresses,

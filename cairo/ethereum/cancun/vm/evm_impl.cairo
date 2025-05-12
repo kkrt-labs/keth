@@ -582,3 +582,54 @@ namespace EvmImpl {
         return ();
     }
 }
+
+namespace MessageImpl {
+    func set_block_env{message: Message}(new_block_env: BlockEnvironment) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=new_block_env,
+                tx_env=message.value.tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=message.value.code_address,
+                code=message.value.code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=message.value.accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
+
+    func set_tx_env{message: Message}(new_tx_env: TransactionEnvironment) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=message.value.block_env,
+                tx_env=new_tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=message.value.code_address,
+                code=message.value.code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=message.value.accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
+
+}

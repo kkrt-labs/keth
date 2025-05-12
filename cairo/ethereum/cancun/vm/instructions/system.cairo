@@ -189,7 +189,6 @@ func generic_call{
     [ap] = add_mod_ptr, ap++;
     [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
-    [ap] = block_env.value, ap++;
 
     call abs process_message_label;
 
@@ -1133,7 +1132,6 @@ func generic_create{
     [ap] = add_mod_ptr, ap++;
     [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
-    [ap] = block_env.value, ap++;
 
     //TODO: update call stack once migrated signature. same process message.
     call abs process_create_message_label;
