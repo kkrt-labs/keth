@@ -22,7 +22,7 @@ from ethereum.cancun.transactions_types import (
     BlobTransactionStruct,
     To,
     ToStruct,
-    TupleAccessListStruct,
+    TupleAccessStruct,
     TX_BASE_COST,
     TX_DATA_COST_PER_NON_ZERO,
     TX_DATA_COST_PER_ZERO,
@@ -113,16 +113,16 @@ func _calculate_data_and_create_cost{range_check_ptr}(data: Bytes, to: To) -> fe
     return data_cost + TX_CREATE_COST + cost.value;
 }
 
-func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessListStruct) -> felt {
+func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessStruct) -> felt {
     alloc_locals;
     if (access_list.len == 0) {
         return 0;
     }
 
     let current_list = access_list.data[access_list.len - 1];
-    let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.storage_keys.value.len *
+    let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.slots.value.len *
         TX_ACCESS_LIST_STORAGE_KEY_COST;
-    let access_list = TupleAccessListStruct(data=access_list.data, len=access_list.len - 1);
+    let access_list = TupleAccessStruct(data=access_list.data, len=access_list.len - 1);
     let cum_gas_cost = _calculate_access_list_cost(access_list);
     let cost = current_cost + cum_gas_cost;
     return cost;

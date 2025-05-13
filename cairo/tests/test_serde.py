@@ -7,6 +7,7 @@ from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -266,13 +267,13 @@ class TestSerde:
             Tuple[VersionedHash, ...],
             Tuple[Address, Uint, Tuple[VersionedHash, ...]],
             Union[Bytes0, Address],
+            Access,
+            Tuple[Access, ...],
             LegacyTransaction,
             AccessListTransaction,
             FeeMarketTransaction,
             BlobTransaction,
             Transaction,
-            Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
-            Tuple[Address, Tuple[Bytes32, ...]],
             MessageCallGas,
             LeafNode,
             ExtensionNode,

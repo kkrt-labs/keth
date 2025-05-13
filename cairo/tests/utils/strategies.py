@@ -823,6 +823,7 @@ def register_type_strategies():
     st.register_type_strategy(Stack, stack_strategy)
     st.register_type_strategy(Memory, memory)
     st.register_type_strategy(Evm, evm)
+    st.register_type_strategy(Message, message)
     st.register_type_strategy(tuple, tuple_strategy)
     st.register_type_strategy(dict, dict_strategy)
     st.register_type_strategy(ChainMap, dict_strategy)

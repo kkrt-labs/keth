@@ -38,15 +38,15 @@ from ethereum.cancun.fork_types import (
 from ethereum.cancun.transactions_types import (
     LegacyTransaction,
     To,
-    AccessList,
+    Access,
+    AccessStruct,
     ToStruct,
-    TupleAccessList,
+    TupleAccess,
     AccessListTransaction,
     FeeMarketTransaction,
     BlobTransaction,
     Transaction,
-    TupleAccessListStruct,
-    AccessListStruct,
+    TupleAccessStruct,
     LegacyTransactionStruct,
     AccessListTransactionStruct,
     FeeMarketTransactionStruct,
@@ -622,7 +622,7 @@ func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
     return result;
 }
 
-func encode_tuple_access_list{range_check_ptr}(raw_tuple_access_list: TupleAccessList) -> Bytes {
+func encode_tuple_access_list{range_check_ptr}(raw_tuple_access_list: TupleAccess) -> Bytes {
     alloc_locals;
     let (local dst) = alloc();
     let len = _encode_tuple_access_list(dst, raw_tuple_access_list);
@@ -630,14 +630,14 @@ func encode_tuple_access_list{range_check_ptr}(raw_tuple_access_list: TupleAcces
     return result;
 }
 
-func encode_access_list{range_check_ptr}(raw_access_list: AccessList) -> Bytes {
+func encode_access_list{range_check_ptr}(raw_access_list: Access) -> Bytes {
     alloc_locals;
     let (local dst) = alloc();
     let body_ptr = dst + PREFIX_LEN_MAX;
 
     let address_len = _encode_address(body_ptr, raw_access_list.value.address);
     let body_ptr = body_ptr + address_len;
-    let storage_keys_len = _encode_tuple_bytes32(body_ptr, raw_access_list.value.storage_keys);
+    let storage_keys_len = _encode_tuple_bytes32(body_ptr, raw_access_list.value.slots);
     let body_ptr = body_ptr + storage_keys_len;
 
     let body_len = body_ptr - dst - PREFIX_LEN_MAX;
@@ -1464,37 +1464,37 @@ func _decode_to{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> 
     return to;
 }
 
-// Helper function to decode AccessList
+// Helper function to decode Access
 func _decode_access_list{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     sequence: SequenceSimple
-) -> TupleAccessList {
+) -> TupleAccess {
     alloc_locals;
-    let (access_list: AccessList*) = alloc();
+    let (access_list: Access*) = alloc();
     let access_list_len = _decode_access_list_inner(
         access_list, sequence.value.len, sequence.value.data
     );
 
-    tempvar tuple_access_list = TupleAccessList(
-        new TupleAccessListStruct(data=access_list, len=access_list_len)
+    tempvar tuple_access_list = TupleAccess(
+        new TupleAccessStruct(data=access_list, len=access_list_len)
     );
     return tuple_access_list;
 }
 
 func _decode_access_list_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    access_list: AccessList*, len: felt, items: Simple*
+    access_list: Access*, len: felt, items: Simple*
 ) -> felt {
     alloc_locals;
     if (len == 0) {
         return 0;
     }
 
-    // Each item should be a sequence of [address, storage_keys]
+    // Each item should be a sequence of [account, slots]
     with_attr error_message("Invalid access list entry: expected sequence") {
         assert cast(items[0].value.bytes.value, felt) = 0;
     }
     let entry = items[0].value.sequence;
 
-    // Entry should have exactly 2 items (address and storage_keys)
+    // Entry should have exactly 2 items (account and slots)
     with_attr error_message("Invalid access list entry: wrong number of fields") {
         assert entry.value.len = 2;
     }
@@ -1512,16 +1512,16 @@ func _decode_access_list_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     with_attr error_message("Invalid storage keys: expected sequence") {
         assert cast(entry.value.data[1].value.bytes.value, felt) = 0;
     }
-    let storage_keys = _decode_storage_keys(entry.value.data[1].value.sequence);
+    let slots = _decode_storage_keys(entry.value.data[1].value.sequence);
 
-    // Create AccessList entry
-    assert [access_list] = AccessList(
-        new AccessListStruct(address=address, storage_keys=storage_keys)
+    // Create Access entry
+    assert [access_list] = Access(
+        new AccessStruct(account=address, slots=slots)
     );
 
     // Process next entry
     let remaining_len = _decode_access_list_inner(
-        access_list + AccessList.SIZE, len - 1, items + Simple.SIZE
+        access_list + Access.SIZE, len - 1, items + Simple.SIZE
     );
     return 1 + remaining_len;
 }
@@ -1530,19 +1530,19 @@ func _decode_storage_keys{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     sequence: SequenceSimple
 ) -> TupleBytes32 {
     alloc_locals;
-    let (storage_keys: Bytes32*) = alloc();
+    let (slots: Bytes32*) = alloc();
     let storage_keys_len = _decode_storage_keys_inner(
-        storage_keys, sequence.value.len, sequence.value.data
+        slots, sequence.value.len, sequence.value.data
     );
 
     tempvar tuple_storage_keys = TupleBytes32(
-        new TupleBytes32Struct(data=storage_keys, len=storage_keys_len)
+        new TupleBytes32Struct(data=slots, len=storage_keys_len)
     );
     return tuple_storage_keys;
 }
 
 func _decode_storage_keys_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    storage_keys: Bytes32*, len: felt, items: Simple*
+    slots: Bytes32*, len: felt, items: Simple*
 ) -> felt {
     if (len == 0) {
         return 0;
@@ -1553,11 +1553,11 @@ func _decode_storage_keys_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
 
     let key = Bytes32_from_be_bytes(items[0].value.bytes);
-    assert [storage_keys] = key;
+    assert [slots] = key;
 
     // Process next storage key
     let remaining_len = _decode_storage_keys_inner(
-        storage_keys + Bytes32.SIZE, len - 1, items + Simple.SIZE
+        slots + Bytes32.SIZE, len - 1, items + Simple.SIZE
     );
     return 1 + remaining_len;
 }
@@ -1801,7 +1801,7 @@ func _encode_tuple_log_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_l
 }
 
 func _encode_tuple_access_list_inner{range_check_ptr}(
-    dst: felt*, len: felt, raw_tuple_access_list: AccessList*
+    dst: felt*, len: felt, raw_tuple_access_list: Access*
 ) -> felt {
     alloc_locals;
     if (len == 0) {
@@ -1821,7 +1821,7 @@ func _encode_tuple_access_list_inner{range_check_ptr}(
 }
 
 func _encode_tuple_access_list{range_check_ptr}(
-    dst: felt*, tuple_access_list: TupleAccessList
+    dst: felt*, tuple_access_list: TupleAccess
 ) -> felt {
     alloc_locals;
     if (tuple_access_list.value.len == 0) {

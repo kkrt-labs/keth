@@ -4,6 +4,7 @@ import pytest
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -126,16 +127,14 @@ class TestRlp:
         def test_encode_tuple_access_list(
             self,
             cairo_run,
-            tuple_access_list: Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
+            tuple_access_list: Tuple[Access, ...],
         ):
             assert encode(tuple_access_list) == cairo_run(
                 "encode_tuple_access_list", tuple_access_list
             )
 
         @given(access_list=...)
-        def test_encode_access_list(
-            self, cairo_run, access_list: Tuple[Address, Tuple[Bytes32, ...]]
-        ):
+        def test_encode_access_list(self, cairo_run, access_list: Access):
             assert encode(access_list) == cairo_run("encode_access_list", access_list)
 
         @given(tx=...)

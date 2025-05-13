@@ -101,8 +101,8 @@ from ethereum.cancun.transactions_types import (
     get_nonce,
     get_value,
     TransactionType,
-    TupleAccessList,
-    TupleAccessListStruct,
+    TupleAccess,
+    TupleAccessStruct,
     To,
     ToStruct,
 )
@@ -378,7 +378,7 @@ func process_transaction{
     local tx_to: To;
     local tx_value: U256;
     local blob_gas_fee: Uint;
-    local access_lists: TupleAccessList;
+    local access_lists: TupleAccess;
     if (tx.value.blob_transaction.value != 0) {
         assert tx_gas = tx.value.blob_transaction.value.gas;
         assert tx_data = tx.value.blob_transaction.value.data;
@@ -411,7 +411,7 @@ func process_transaction{
         assert tx_to = tx.value.legacy_transaction.value.to;
         assert tx_value = tx.value.legacy_transaction.value.value;
         assert blob_gas_fee = Uint(0);
-        assert access_lists = TupleAccessList(cast(0, TupleAccessListStruct*));
+        assert access_lists = TupleAccess(cast(0, TupleAccessStruct*));
     }
 
     if (tx.value.access_list_transaction.value != 0) {
@@ -675,7 +675,7 @@ func process_access_list{
     range_check_ptr,
     preaccessed_addresses: SetAddress,
     preaccessed_storage_keys: SetTupleAddressBytes32,
-}(access_list_data: TupleAccessList, len: felt, index: felt) {
+}(access_list_data: TupleAccess, len: felt, index: felt) {
     alloc_locals;
 
     // Base case: end of list
@@ -701,7 +701,7 @@ func process_access_list{
 
     // Process storage keys for this address
     process_storage_keys{preaccessed_storage_keys=preaccessed_storage_keys}(
-        entry.value.storage_keys, entry.value.storage_keys.value.len, 0, address
+        entry.value.slots, entry.value.slots.value.len, 0, address
     );
 
     // Process next entry

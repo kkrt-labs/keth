@@ -84,6 +84,7 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -344,6 +345,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
     ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
+    ("ethereum", "cancun", "transactions_types", "Access"): Access,
+    ("ethereum", "cancun", "transactions_types", "TupleAccess"): Tuple[Access, ...],
     (
         "ethereum",
         "cancun",
@@ -369,12 +372,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "BlobTransaction",
     ): BlobTransaction,
     ("ethereum", "cancun", "transactions_types", "Transaction"): Transaction,
-    ("ethereum", "cancun", "transactions_types", "TupleAccessList"): Tuple[
-        Tuple[Address, Tuple[Bytes32, ...]], ...
-    ],
-    ("ethereum", "cancun", "transactions_types", "AccessList"): Tuple[
-        Address, Tuple[Bytes32, ...]
-    ],
     ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
     ("ethereum_rlp", "rlp", "Simple"): Simple,
     ("ethereum_rlp", "rlp", "Extended"): Extended,
