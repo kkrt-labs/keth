@@ -635,7 +635,7 @@ func encode_access_list{range_check_ptr}(raw_access_list: Access) -> Bytes {
     let (local dst) = alloc();
     let body_ptr = dst + PREFIX_LEN_MAX;
 
-    let address_len = _encode_address(body_ptr, raw_access_list.value.address);
+    let address_len = _encode_address(body_ptr, raw_access_list.value.account);
     let body_ptr = body_ptr + address_len;
     let storage_keys_len = _encode_tuple_bytes32(body_ptr, raw_access_list.value.slots);
     let body_ptr = body_ptr + storage_keys_len;
