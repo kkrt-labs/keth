@@ -411,7 +411,6 @@ transaction_environment_lite = st.builds(
     ).map(tuple),
     index_in_block=st.none() | uint,
     tx_hash=st.none() | hash32,
-    traces=st.builds(list, st.just([])),
 )
 
 message_lite = st.builds(
@@ -831,6 +830,7 @@ def register_type_strategies():
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
     st.register_type_strategy(BlockEnvironment, block_environment_lite)
+    st.register_type_strategy(TransactionEnvironment, transaction_environment_lite)
     st.register_type_strategy(Header, header)
     st.register_type_strategy(
         VersionedHash,

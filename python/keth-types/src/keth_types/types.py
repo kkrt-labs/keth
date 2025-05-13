@@ -1,3 +1,4 @@
+import functools
 from collections import defaultdict
 from dataclasses import dataclass, field, fields, make_dataclass
 from typing import (
@@ -155,6 +156,16 @@ class TransactionEnvironment(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
         )
+
+    @functools.wraps(TransactionEnvironmentBase.__init__)
+    def __init__(self, *args, **kwargs):
+        if "traces" in kwargs:
+            del kwargs["traces"]
+        super().__init__(*args, **kwargs)
+
+    @property
+    def traces(self):
+        return []
 
 
 @dataclass

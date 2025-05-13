@@ -80,7 +80,6 @@ tx_env_extra_lite = st.builds(
     access_list_storage_keys=st.just(set()),
     index_in_block=st.just(None),
     tx_hash=st.just(None),
-    traces=st.just([]),
 )
 
 block_tests_strategy = (

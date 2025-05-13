@@ -44,7 +44,6 @@ empty_transaction_environment = st.builds(
     blob_versioned_hashes=st.just(tuple()),  # Tuple[VersionedHash, ...]
     index_in_block=st.just(None),  # Optional[Uint]
     tx_hash=st.just(None),  # Optional[Hash32]
-    traces=st.just([]),  # List[dict]
 )
 
 
