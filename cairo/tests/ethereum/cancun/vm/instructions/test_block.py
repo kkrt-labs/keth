@@ -51,6 +51,9 @@ block_env_extra_lite = st.integers(
 ).flatmap(  # Generate block number first
     lambda number: st.builds(
         BlockEnvironment,
+        chain_id=uint64,
+        state=empty_state,
+        block_gas_limit=uint,
         block_hashes=st.lists(
             st.sampled_from(BLOCK_HASHES_LIST),
             min_size=min(number, 256),
@@ -59,11 +62,8 @@ block_env_extra_lite = st.integers(
         coinbase=address,
         number=st.just(Uint(number)),
         base_fee_per_gas=st.just(Uint(0)),
-        gas_limit=uint,
         time=uint256,
         prev_randao=bytes32,
-        state=empty_state,
-        chain_id=uint64,
         excess_blob_gas=st.just(U64(0)),
         parent_beacon_block_root=st.just(Hash32(Bytes32(b"\x00" * 32))),
     )
