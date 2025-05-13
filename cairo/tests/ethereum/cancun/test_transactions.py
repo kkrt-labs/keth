@@ -35,7 +35,7 @@ class TestTransactions:
         tx=LegacyTransaction(
             value=U256(0),
             nonce=U256(0),
-            data=bytes(b"1" * 49153),
+            data=Bytes(b"1" * 49153),
             to=Bytes0(),
             gas=Uint(2_000_000),
             gas_price=Uint(0),

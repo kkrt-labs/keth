@@ -273,7 +273,7 @@ func recover_sender{
             let hash = signing_hash_pre155(tx.value.legacy_transaction);
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -287,7 +287,7 @@ func recover_sender{
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -304,7 +304,7 @@ func recover_sender{
         let hash = signing_hash_2930(tx.value.access_list_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -321,7 +321,7 @@ func recover_sender{
         let hash = signing_hash_1559(tx.value.fee_market_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -337,7 +337,7 @@ func recover_sender{
         let hash = signing_hash_4844(tx.value.blob_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
