@@ -10,6 +10,7 @@ from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
+from tests.utils.message_builder import MessageBuilder
 
 local_strategy = (
     EvmBuilder()
@@ -18,7 +19,6 @@ local_strategy = (
     .with_accessed_addresses()
     .with_accessed_storage_keys()
     .with_accounts_to_delete()
-    .with_touched_accounts()
     .with_refund_counter()
     .build()
 )
@@ -30,9 +30,8 @@ local_strategy_with_env = (
     .with_accessed_addresses()
     .with_accessed_storage_keys()
     .with_accounts_to_delete()
-    .with_touched_accounts()
     .with_refund_counter()
-    .with_env()
+    .with_message(MessageBuilder().with_block_env().with_tx_env().build())
     .build()
 )
 
@@ -69,7 +68,11 @@ class TestVm:
     def test_incorporate_child_on_success_with_empty_account(
         self, cairo_run, evm: Evm, child_evm: Evm
     ):
-        set_account(evm.env.state, child_evm.message.current_target, EMPTY_ACCOUNT)
+        set_account(
+            child_evm.message.block_env.state,
+            child_evm.message.current_target,
+            EMPTY_ACCOUNT,
+        )
         try:
             evm_cairo = cairo_run("incorporate_child_on_success", evm, child_evm)
         except Exception as e:
@@ -88,7 +91,11 @@ class TestVm:
         self, cairo_run, evm: Evm, child_evm: Evm
     ):
         child_evm.message.current_target = RIPEMD160_ADDRESS
-        set_account(evm.env.state, child_evm.message.current_target, EMPTY_ACCOUNT)
+        set_account(
+            child_evm.message.block_env.state,
+            child_evm.message.current_target,
+            EMPTY_ACCOUNT,
+        )
         try:
             evm_cairo = cairo_run("incorporate_child_on_error", evm, child_evm)
         except Exception as e:

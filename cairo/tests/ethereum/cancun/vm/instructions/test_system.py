@@ -21,6 +21,7 @@ from hypothesis.strategies import composite
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
+from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (
     MAX_MEMORY_SIZE,
     bounded_u256_strategy,
@@ -35,7 +36,6 @@ local_strategy = (
     .with_accessed_addresses()
     .with_accessed_storage_keys()
     .with_accounts_to_delete()
-    .with_touched_accounts()
     .with_refund_counter()
     .build()
 )
@@ -44,8 +44,7 @@ evm_stack_memory_gas = EvmBuilder().with_stack().with_memory().with_gas_left().b
 evm_call = (
     EvmBuilder()
     .with_stack()
-    .with_env()
-    .with_message()
+    .with_message(MessageBuilder().with_block_env().with_tx_env().build())
     .with_memory()
     .with_gas_left()
     .build()
@@ -83,16 +82,13 @@ def beneficiary_from_state(draw):
     """
     evm = draw(
         EvmBuilder()
-        .with_env()
-        .with_message()
+        .with_message(MessageBuilder().with_block_env().with_tx_env().build())
         .with_stack()
         .with_gas_left()
         .with_running()
         .with_accessed_addresses()
         .with_accessed_storage_keys()
         .with_accounts_to_delete()
-        .with_touched_accounts()
-        .with_env()
         .build()
     )
 
@@ -162,7 +158,6 @@ class TestSystemCairoFile:
         # Restricting to MAX_MEMORY_SIZE to avoid OOG errors which would be caught by the calling function
         memory_start_position=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
         memory_size=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
-        init_code_gas=...,
     )
     def test_generic_create(
         self,
@@ -172,7 +167,6 @@ class TestSystemCairoFile:
         contract_address: Address,
         memory_start_position: U256,
         memory_size: U256,
-        init_code_gas: Uint,
     ):
         try:
             cairo_evm = cairo_run(
@@ -182,7 +176,6 @@ class TestSystemCairoFile:
                 contract_address,
                 memory_start_position,
                 memory_size,
-                init_code_gas,
             )
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
@@ -192,7 +185,6 @@ class TestSystemCairoFile:
                     contract_address,
                     memory_start_position,
                     memory_size,
-                    init_code_gas,
                 )
             return
 
@@ -202,7 +194,6 @@ class TestSystemCairoFile:
             contract_address,
             memory_start_position,
             memory_size,
-            init_code_gas,
         )
         assert evm == cairo_evm
 

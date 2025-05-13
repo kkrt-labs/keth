@@ -39,7 +39,7 @@ from ethereum.cancun.trie import (
     encode_internal_node,
 )
 from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.vm import BlockEnvironment, Evm, Message
+from ethereum.cancun.vm import BlockEnvironment, Evm, Message, TransactionEnvironment
 from ethereum.crypto.alt_bn128 import (
     BNF,
     BNF2,
@@ -321,7 +321,7 @@ def dict_strategy(thing):
             lambda x: TypedDict[key_type, value_type](x)
         )
     else:
-        return st.dictionaries()
+        return st.dictionaries(st.text(), st.booleans(), max_size=0)
 
 
 gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
@@ -347,24 +347,6 @@ memory_lite_start_position = bounded_u256_strategy(max_value=memory_lite_size //
 memory_lite_access_size = bounded_u256_strategy(max_value=memory_lite_size // 2)
 memory_lite_destination = bounded_u256_strategy(max_value=memory_lite_size * 2)
 
-
-message_lite = st.builds(
-    Message,
-    caller=address,
-    target=st.one_of(bytes0, address),
-    current_target=address,
-    gas=uint,
-    value=uint256,
-    data=st.just(b""),
-    code_address=st.none() | address,
-    code=code,
-    depth=uint,
-    should_transfer_value=st.booleans(),
-    is_static=st.booleans(),
-    accessed_addresses=st.builds(set, st.just(set())),
-    accessed_storage_keys=st.builds(set, st.just(set())),
-    parent_evm=st.none(),
-)
 
 # Using this list instead of the hash32 strategy to avoid data_to_large errors
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
@@ -393,7 +375,6 @@ transient_storage = st.sets(
     )
 )
 
-# Fork
 block_environment_lite = st.integers(
     min_value=0, max_value=2**64 - 1
 ).flatmap(  # Generate block number first
@@ -417,6 +398,42 @@ block_environment_lite = st.integers(
     )
 )
 
+transaction_environment_lite = st.builds(
+    TransactionEnvironment,
+    origin=address,
+    gas_price=uint,
+    gas=uint,
+    access_list_addresses=st.builds(set, st.just(set())),
+    access_list_storage_keys=st.builds(set, st.just(set())),
+    transient_storage=transient_storage,
+    blob_versioned_hashes=st.lists(
+        st.from_type(VersionedHash), max_size=MAX_TUPLE_SIZE
+    ).map(tuple),
+    index_in_block=st.none() | uint,
+    tx_hash=st.none() | hash32,
+    traces=st.builds(list, st.just([])),
+)
+
+message_lite = st.builds(
+    Message,
+    block_env=block_environment_lite,
+    tx_env=transaction_environment_lite,
+    caller=address,
+    target=st.one_of(bytes0, address),
+    current_target=address,
+    gas=uint,
+    value=uint256,
+    data=st.just(b""),
+    code_address=st.none() | address,
+    code=code,
+    depth=uint,
+    should_transfer_value=st.booleans(),
+    is_static=st.booleans(),
+    accessed_addresses=st.builds(set, st.just(set())),
+    accessed_storage_keys=st.builds(set, st.just(set())),
+    parent_evm=st.none(),
+)
+
 valid_jump_destinations_lite = st.sets(uint, max_size=MAX_JUMP_DESTINATIONS_SET_SIZE)
 
 
@@ -438,6 +455,8 @@ evm_strategy = st.deferred(lambda: evm)
 
 message = st.builds(
     Message,
+    block_env=block_environment_lite,
+    tx_env=transaction_environment_lite,
     caller=address,
     target=st.one_of(bytes0, address),
     current_target=address,
