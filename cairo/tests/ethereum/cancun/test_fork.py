@@ -5,7 +5,14 @@ from typing import Optional, Tuple
 from eth_abi.abi import encode
 from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.blocks import Block, Header, Log, Withdrawal
+from ethereum.cancun.blocks import (
+    Block,
+    Header,
+    Log,
+    Receipt,
+    Withdrawal,
+    encode_receipt,
+)
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     BlockChain,
@@ -522,14 +529,16 @@ class TestFork:
     @given(headers=headers())
     def test_validate_header(self, cairo_run, headers: Tuple[Header, Header]):
         parent_header, header = headers
+        blocks = [Block(header=parent_header)]
+        chain = BlockChain(blocks=blocks, state=empty_state, chain_id=U64(1))
         try:
-            cairo_run("validate_header", header, parent_header)
+            cairo_run("validate_header", chain=chain, header=header)
         except Exception as e:
             with strict_raises(type(e)):
-                validate_header(header, parent_header)
+                validate_header(chain=chain, header=header)
             return
 
-        validate_header(header, parent_header)
+        validate_header(chain=chain, header=header)
 
     @given(gas_limit=..., parent_gas_limit=...)
     def test_check_gas_limit(self, cairo_run, gas_limit: Uint, parent_gas_limit: Uint):
@@ -753,3 +762,10 @@ def _create_erc20_data():
     }
 
     return accounts, storage_tries
+
+
+class TestEncodeReceipt:
+    @given(tx=..., receipt=...)
+    def test_encode_receipt(self, cairo_run, tx: Transaction, receipt: Receipt):
+        cairo_result = cairo_run("encode_receipt", tx, receipt)
+        assert encode_receipt(tx, receipt) == cairo_result

@@ -1,5 +1,5 @@
 from ethereum.cancun.vm.evm_impl import Message, MessageStruct, EvmStruct, Evm
-from ethereum.cancun.vm.env_impl import BlockEnvironment, TransactionEnvironment
+from ethereum.cancun.vm.env_impl import BlockEnvironment, TransactionEnvironment, BlockEnvImpl
 from ethereum.cancun.fork_types import (
     Address,
     OptionalAddress,
@@ -13,7 +13,6 @@ from ethereum.cancun.state import get_account, State, StateStruct, get_account_c
 from ethereum.cancun.utils.address import compute_contract_address
 from ethereum.cancun.transactions import Transaction
 from ethereum.cancun.transactions_types import get_data, get_to, get_value
-from ethereum.cancun.vm.env_impl import BlockEnvImpl
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
