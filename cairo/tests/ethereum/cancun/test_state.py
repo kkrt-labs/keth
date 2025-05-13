@@ -2,7 +2,7 @@ import copy
 from typing import Mapping, Optional
 
 import pytest
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import (
     account_exists,
     account_exists_and_is_empty,
@@ -12,7 +12,6 @@ from ethereum.cancun.state import (
     commit_transaction,
     destroy_account,
     destroy_storage,
-    destroy_touched_empty_accounts,
     get_account,
     get_account_optional,
     get_storage,
@@ -23,7 +22,6 @@ from ethereum.cancun.state import (
     is_account_empty,
     mark_account_created,
     move_ether,
-    process_withdrawal,
     rollback_transaction,
     set_account,
     set_account_balance,
@@ -32,19 +30,17 @@ from ethereum.cancun.state import (
     set_transient_storage,
     state_root,
     storage_root,
-    touch_account,
 )
-from ethereum.cancun.trie import Trie, copy_trie, root
+from ethereum.cancun.trie import Trie, copy_trie
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.numeric import U256
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from cairo_addons.testing.errors import strict_raises
-from keth_types.types import EMPTY_BYTES_HASH
-from tests.utils.args_gen import State, TransientStorage, Withdrawal
+from tests.utils.args_gen import State, TransientStorage
 from tests.utils.strategies import (
     address,
     bytes32,
@@ -275,18 +271,6 @@ class TestStateAccounts:
         move_ether(state, sender_address, recipient_address, amount)
         assert state_cairo == state
 
-    @given(data=state_and_address_and_optional_key(), withdrawal=...)
-    def test_process_withdrawal(self, cairo_run, data, withdrawal: Withdrawal):
-        state, _ = data
-        try:
-            state_cairo = cairo_run("process_withdrawal", state, withdrawal)
-        except Exception as cairo_error:
-            with strict_raises(type(cairo_error)):
-                process_withdrawal(state, withdrawal)
-            return
-        process_withdrawal(state, withdrawal)
-        assert state_cairo == state
-
     @given(data=state_and_address_and_optional_key())
     def test_destroy_account(self, cairo_run, data):
         state, address = data
@@ -407,46 +391,6 @@ class TestStateAccounts:
         state, address = data
         state_cairo = cairo_run("increment_nonce", state, address)
         increment_nonce(state, address)
-        assert state_cairo == state
-
-    @given(data=state_and_address_and_optional_key())
-    def test_touch_account(self, cairo_run, data):
-        state, address = data
-        state_cairo = cairo_run("touch_account", state, address)
-        touch_account(state, address)
-        assert state_cairo == state
-
-    @given(data=touched_accounts_strategy())
-    def test_destroy_touched_empty_accounts(self, cairo_run, data):
-        state, touched_accounts = data
-        state_cairo = cairo_run(
-            "destroy_touched_empty_accounts", state, touched_accounts
-        )
-        destroy_touched_empty_accounts(state, touched_accounts)
-        assert state_cairo == state
-
-    @given(data=touched_accounts_strategy(), address=...)
-    def test_destroy_touched_empty_accounts_with_empty_account(
-        self, cairo_run, data, address: Address
-    ):
-        state, touched_accounts = data
-        touched_accounts.add(address)
-        set_account(state, address, EMPTY_ACCOUNT)
-        # Make that empty account have storage to cover for eip158 and eip161 cases.
-        set_storage(state, address, U256(0).to_bytes(32, "big"), U256(0))
-        storage_root = root(state._storage_tries[address])
-        empty_account_with_storage = Account(
-            balance=U256(0),
-            code=b"",
-            nonce=Uint(0),
-            storage_root=storage_root,
-            code_hash=EMPTY_BYTES_HASH,
-        )
-        set_account(state, address, empty_account_with_storage)
-        state_cairo = cairo_run(
-            "destroy_touched_empty_accounts", state, touched_accounts
-        )
-        destroy_touched_empty_accounts(state, touched_accounts)
         assert state_cairo == state
 
 

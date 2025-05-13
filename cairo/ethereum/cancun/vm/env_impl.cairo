@@ -102,3 +102,53 @@ namespace TransactionEnvImpl {
         return ();
     }
 }
+
+struct BlockEnvironmentStruct {
+    chain_id: U64,
+    state: State,
+    block_gas_limit: Uint,
+    block_hashes: ListHash32,
+    coinbase: Address,
+    number: Uint,
+    base_fee_per_gas: Uint,
+    time: U256,
+    prev_randao: Bytes32,
+    excess_blob_gas: U64,
+    parent_beacon_block_root: Hash32,
+}
+
+struct BlockEnvironment {
+    value: BlockEnvironmentStruct*,
+}
+
+struct BlockOutputStruct {
+    block_gas_used: Uint,
+    transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
+    receipts_trie: TrieBytesOptionalUnionBytesReceipt,
+    receipt_keys: TupleBytes,
+    block_logs: TupleLog,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+    blob_gas_used: U64,
+}
+
+struct BlockOutput {
+    value: BlockOutputStruct*,
+}
+
+struct TransactionEnvironmentStruct {
+    origin: Address,
+    gas_price: Uint,
+    gas: Uint,
+    access_list_addresses: SetAddress,
+    access_list_storage_keys: SetTupleAddressBytes32,
+    transient_storage: TransientStorage,
+    blob_versioned_hashes: TupleVersionedHash,
+    has_index_in_block: bool,
+    index_in_block: Uint,
+    has_tx_hash: bool,
+    tx_hash: Hash32,
+}
+
+struct TransactionEnvironment {
+    value: TransactionEnvironmentStruct*,
+}

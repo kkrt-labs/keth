@@ -11,14 +11,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from mpt.ethereum_tries import EMPTY_TRIE_HASH
-from tests.utils.args_gen import Environment
+from tests.utils.args_gen import BlockEnvironment
 
 
 @st.composite
 def caller_nonce_non_zero(draw):
     caller_address: Address = draw(st.from_type(Address))
     nonce = draw(st.integers(min_value=1, max_value=2**64 - 1).map(Uint))
-    env: Environment = draw(st.from_type(Environment))
+    env: BlockEnvironment = draw(st.from_type(BlockEnvironment))
     if caller_address in env.state._storage_tries:
         storage_root = root(env.state._storage_tries[caller_address])
     else:
@@ -54,7 +54,7 @@ class TestMessage:
     def test_prepare_message(
         self,
         cairo_run,
-        caller_and_env: Tuple[Address, Environment],
+        caller_and_env: Tuple[Address, BlockEnvironment],
         target: Union[Bytes0, Address],
         value: U256,
         data: Bytes,

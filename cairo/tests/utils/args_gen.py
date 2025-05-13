@@ -74,7 +74,7 @@ from typing import (
 )
 
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
+from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import (
     Account,
     Address,
@@ -97,7 +97,13 @@ from ethereum.cancun.trie import (
     LeafNode,
     Trie,
 )
-from ethereum.cancun.vm import Environment, Evm, Message
+from ethereum.cancun.vm import (
+    BlockEnvironment,
+    BlockOutput,
+    Evm,
+    Message,
+    TransactionEnvironment,
+)
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
@@ -457,7 +463,14 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]],
     ("ethereum", "cancun", "state", "State"): State,
-    ("ethereum", "cancun", "vm", "env_impl", "Environment"): Environment,
+    ("ethereum", "cancun", "vm", "env_impl", "BlockEnvironment"): BlockEnvironment,
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "env_impl",
+        "TransactionEnvironment",
+    ): TransactionEnvironment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
     ("ethereum", "cancun", "vm", "evm_impl", "Message"): Message,
     ("ethereum", "cancun", "vm", "evm_impl", "Evm"): Evm,
@@ -465,7 +478,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "fork", "ApplyBodyOutput"): ApplyBodyOutput,
+    ("ethereum", "cancun", "fork", "BlockOutput"): BlockOutput,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,

@@ -1,4 +1,3 @@
-import functools
 from collections import defaultdict
 from dataclasses import dataclass, field, fields, make_dataclass
 from typing import (
@@ -22,7 +21,7 @@ from ethereum.cancun.trie import (
     trie_get,
     trie_set,
 )
-from ethereum.cancun.vm import Environment as EnvironmentBase
+from ethereum.cancun.vm import BlockEnvironment as BlockEnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
@@ -124,11 +123,11 @@ class Stack(List[T]):
 
 # All these classes are auto-patched in test imports in cairo/tests/conftests.py
 @dataclass
-class Environment(
+class BlockEnvironment(
     make_dataclass(
-        "Environment",
-        [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
-        namespace={"__doc__": EnvironmentBase.__doc__},
+        "BlockEnvironment",
+        [(f.name, f.type, f) for f in fields(BlockEnvironmentBase)],
+        namespace={"__doc__": BlockEnvironmentBase.__doc__},
     )
 ):
     def __eq__(self, other):
@@ -136,16 +135,6 @@ class Environment(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
         )
-
-    @functools.wraps(EnvironmentBase.__init__)
-    def __init__(self, *args, **kwargs):
-        if "traces" in kwargs:
-            del kwargs["traces"]
-        super().__init__(*args, **kwargs)
-
-    @property
-    def traces(self):
-        return []
 
 
 @dataclass
@@ -326,7 +315,6 @@ Node = Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal,
 _field_mapping = {
     "stack": Stack[U256],
     "memory": Memory,
-    "env": Environment,
     "error": Optional[EthereumException],
     "message": Message,
 }

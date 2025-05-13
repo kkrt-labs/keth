@@ -27,7 +27,6 @@ from ethereum.cancun.fork_types import (
 from ethereum.cancun.state import (
     State,
     TransientStorage,
-    destroy_touched_empty_accounts,
     get_account,
 )
 from ethereum.cancun.transactions import (

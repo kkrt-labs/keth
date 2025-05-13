@@ -2,7 +2,7 @@ from typing import Tuple
 
 from ethereum.cancun.blocks import Log
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import Environment, Evm
+from ethereum.cancun.vm import BlockEnvironment, Evm
 from ethereum.cancun.vm.instructions.block import (
     block_hash,
     chain_id,
@@ -43,7 +43,7 @@ environment_extra_lite = st.integers(
     min_value=0, max_value=2**64 - 1
 ).flatmap(  # Generate block number first
     lambda number: st.builds(
-        Environment,
+        BlockEnvironment,  # TODO: adapt it to new type
         caller=st.just(address_zero),
         block_hashes=st.lists(
             st.sampled_from(BLOCK_HASHES_LIST),
