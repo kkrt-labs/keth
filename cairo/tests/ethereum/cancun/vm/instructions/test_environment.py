@@ -144,7 +144,7 @@ def evm_accessed_addresses_strategy(draw):
         .with_message(MessageBuilder().with_block_env().with_tx_env().build())
         .build()
     )
-    state = evm.env.state
+    state = evm.message.block_env.state
 
     address_options = []
 

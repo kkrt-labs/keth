@@ -47,7 +47,7 @@ def sstore_strategy(draw):
         account = draw(st.from_type(Account))
         # Ensure the account exists and the key is accessed
         set_account(
-            evm.env.state,
+            evm.message.block_env.state,
             evm.message.current_target,
             account,
         )

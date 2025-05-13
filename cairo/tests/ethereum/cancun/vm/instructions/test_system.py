@@ -95,9 +95,11 @@ def beneficiary_from_state(draw):
     # Choose between state address (80%) or random address (20%)
     use_state_address = draw(st.integers(0, 99)) < 80
 
-    if use_state_address and evm.env.state._main_trie._data:
+    if use_state_address and evm.message.block_env.state._main_trie._data:
         # Get address from state if av
-        beneficiary = draw(st.sampled_from(list(evm.env.state._main_trie._data.keys())))
+        beneficiary = draw(
+            st.sampled_from(list(evm.message.block_env.state._main_trie._data.keys()))
+        )
     else:
         beneficiary = draw(st.from_type(Address))
 

@@ -1,5 +1,5 @@
 from ethereum.cancun.fork_types import SetAddress, SetTupleAddressBytes32, Address, ListHash32
-from ethereum_types.numeric import U256, U64, Uint, bool, OptionalUint
+from ethereum_types.numeric import OptionalUint, U256, U64, Uint
 from ethereum_types.bytes import Bytes32, OptionalHash32
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.fork_types import TupleVersionedHash
