@@ -597,7 +597,7 @@ fn prepare_cairo_execution<'a>(
     compiled_program_path: &str,
 ) -> PyResult<(Program, ExecutionScopes, CairoRunConfig<'a>)> {
     let cairo_run_config: CairoRunConfig<'a> = CairoRunConfig {
-        entrypoint: &entrypoint,
+        entrypoint,
         trace_enabled: true,
         relocate_mem: true,
         layout: LayoutName::all_cairo_stwo,

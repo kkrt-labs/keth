@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
-from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Receipt, Withdrawal
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct
 from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
@@ -9,31 +9,21 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32,
     SetTupleAddressBytes32Struct,
     SetTupleAddressBytes32DictAccess,
-    Address,
-    VersionedHash,
-    ListHash32,
 )
 from ethereum_types.numeric import Uint
 from ethereum.cancun.vm.runtime import finalize_jumpdests
-from ethereum.cancun.state import account_exists_and_is_empty
 // cairo-lint: disable
 from ethereum.cancun.vm.stack import Stack
-from cairo_core.comparison import is_zero
 from starkware.cairo.common.memcpy import memcpy
-from legacy.utils.dict import (
-    hashdict_write,
-    hashdict_read,
-    dict_update,
-    squash_and_update,
-    default_dict_finalize,
-    dict_squash,
+from legacy.utils.dict import dict_update, squash_and_update, default_dict_finalize, dict_squash
+from ethereum.cancun.trie import (
+    TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieBytesOptionalUnionBytesReceipt,
+    TrieBytesOptionalUnionBytesWithdrawal,
 )
-from ethereum.cancun.trie import TrieBytesOptionalUnionBytesLegacyTransaction, TrieBytesOptionalUnionBytesReceipt, TrieBytesOptionalUnionBytesWithdrawal
-from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, EvmImpl, Message, MessageStruct
-from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
 from ethereum_types.numeric import U64
 from ethereum_types.bytes import TupleBytes
-
 
 struct BlockOutputStruct {
     block_gas_used: Uint,

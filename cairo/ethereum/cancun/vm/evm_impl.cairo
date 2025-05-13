@@ -5,15 +5,13 @@ from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes, OptionalBytes
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.vm.memory import Memory
-from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
+from ethereum.cancun.vm.env_impl import BlockEnvironment, TransactionEnvironment
 from ethereum.cancun.fork_types import Address, OptionalAddress
 from ethereum.cancun.transactions_types import To
-
 
 struct Evm {
     value: EvmStruct*,
 }
-
 
 using OptionalEvm = Evm;
 
@@ -631,5 +629,4 @@ namespace MessageImpl {
         );
         return ();
     }
-
 }

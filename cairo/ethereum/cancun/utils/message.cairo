@@ -5,11 +5,10 @@ from ethereum.cancun.fork_types import (
     OptionalAddress,
     SetAddress,
     SetAddressStruct,
-    SetTupleAddressBytes32,
     SetAddressDictAccess,
 )
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes20
-from ethereum_types.numeric import U256, Uint, bool
+from ethereum_types.numeric import Uint, bool
 from ethereum.cancun.state import get_account, State, StateStruct, get_account_code
 from ethereum.cancun.utils.address import compute_contract_address
 from ethereum.cancun.transactions import Transaction
@@ -123,7 +122,7 @@ func prepare_message{
             is_static=bool(0),
             accessed_addresses=accessed_addresses,
             accessed_storage_keys=tx_env.value.access_list_storage_keys,
-            parent_evm=Evm(cast(0, EvmStruct*)), // None for top-level transaction
+            parent_evm=Evm(cast(0, EvmStruct*)),
         ),
     );
 

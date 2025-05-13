@@ -21,7 +21,7 @@ from ethereum.cancun.fork_types import (
 
 from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl
-from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
+from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvImpl, TransactionEnvImpl
 
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
 from ethereum.exceptions import EthereumException
@@ -58,7 +58,7 @@ from ethereum.cancun.state import (
 
 from ethereum.cancun.vm.evm_impl import EvmImpl
 
-from legacy.utils.dict import hashdict_write, default_dict_finalize, dict_squash
+from legacy.utils.dict import default_dict_finalize, dict_squash
 
 struct MessageCallOutput {
     value: MessageCallOutputStruct*,
@@ -486,9 +486,7 @@ func process_message_call{
     // Check if this is a contract creation (target is empty)
     if (cast(message.value.target.value.address, felt) == 0) {
         let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
-        let has_storage = account_has_storage{state=state}(
-            message.value.current_target
-        );
+        let has_storage = account_has_storage{state=state}(message.value.current_target);
         BlockEnvImpl.set_state{block_env=block_env}(state);
         TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
         if (has_collision.value + has_storage.value != FALSE) {

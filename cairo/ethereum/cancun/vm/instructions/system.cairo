@@ -6,7 +6,7 @@ from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import incorporate_child_on_error, incorporate_child_on_success
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, EvmImpl, Message, MessageStruct
-from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
+from ethereum.cancun.vm.env_impl import BlockEnvImpl, TransactionEnvImpl
 from ethereum.cancun.utils.address import to_address
 from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
@@ -42,7 +42,6 @@ from ethereum_types.others import (
 from ethereum.cancun.state import (
     State,
     StateStruct,
-    account_exists_and_is_empty,
     move_ether,
     set_account_balance,
     get_account,
@@ -1055,9 +1054,7 @@ func generic_create{
     }
 
     let account_has_code_or_nonce_ = account_has_code_or_nonce{state=state}(contract_address);
-    let account_has_storage_ = account_has_storage{state=state}(
-        contract_address
-    );
+    let account_has_storage_ = account_has_storage{state=state}(contract_address);
     if (account_has_code_or_nonce_.value + account_has_storage_.value != 0) {
         increment_nonce{state=state}(evm.value.message.value.current_target);
         tempvar zero = U256(new U256Struct(0, 0));
@@ -1133,7 +1130,7 @@ func generic_create{
     [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
 
-    //TODO: update call stack once migrated signature. same process message.
+    // TODO: update call stack once migrated signature. same process message.
     call abs process_create_message_label;
 
     let range_check_ptr = [ap - 8];

@@ -382,11 +382,7 @@ def prepare_body_input(
         transient_storage=TransientStorage(),
     )
 
-    system_tx_output = process_message_call(system_tx_message, system_tx_env)
-
-    destroy_touched_empty_accounts(
-        system_tx_env.state, system_tx_output.touched_accounts
-    )
+    process_message_call(system_tx_message, system_tx_env)
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
         trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
