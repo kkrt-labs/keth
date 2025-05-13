@@ -57,6 +57,7 @@ from keth_types.types import (
     Message,
     MessageCallOutput,
     Node,
+    TransactionEnvironment,
     account_exists_and_is_empty,
     encode_account,
     is_account_alive,
@@ -84,6 +85,7 @@ PATCHES: Dict[str, Dict[str, Any]] = {
         "Evm": Evm,
         "Message": Message,
         "BlockEnvironment": BlockEnvironment,
+        "TransactionEnvironment": TransactionEnvironment,
     },
     ethereum.cancun.trie: {
         "Node": Node,

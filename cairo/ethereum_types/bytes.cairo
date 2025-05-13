@@ -53,4 +53,5 @@ from cairo_core.bytes import (
     ListBytes4,
     OptionalBytes,
     OptionalBytes32,
+    OptionalHash32,
 )

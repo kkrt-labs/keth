@@ -55,6 +55,8 @@ struct OptionalBytes32 {
     value: Bytes32Struct*,
 }
 
+using OptionalHash32 = OptionalBytes32;
+
 using Bytes48Struct = UInt384;
 struct Bytes48 {
     value: Bytes48Struct*,

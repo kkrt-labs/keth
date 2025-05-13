@@ -1,6 +1,6 @@
 from ethereum.cancun.fork_types import SetAddress, SetTupleAddressBytes32, Address, ListHash32
-from ethereum_types.numeric import U256, U64, Uint, bool
-from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256, U64, Uint, bool, OptionalUint
+from ethereum_types.bytes import Bytes32, OptionalHash32
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.fork_types import TupleVersionedHash
 from ethereum.crypto.hash import Hash32
@@ -36,9 +36,8 @@ struct TransactionEnvironmentStruct {
     transient_storage: TransientStorage,
     blob_versioned_hashes: TupleVersionedHash,
     has_index_in_block: bool,
-    index_in_block: Uint,
-    has_tx_hash: bool,
-    tx_hash: Hash32,
+    index_in_block: OptionalUint,
+    tx_hash: OptionalHash32,
 }
 
 namespace BlockEnvImpl {
@@ -77,7 +76,6 @@ namespace TransactionEnvImpl {
                 blob_versioned_hashes=tx_env.value.blob_versioned_hashes,
                 has_index_in_block=tx_env.value.has_index_in_block,
                 index_in_block=tx_env.value.index_in_block,
-                has_tx_hash=tx_env.value.has_tx_hash,
                 tx_hash=tx_env.value.tx_hash,
             ),
         );
