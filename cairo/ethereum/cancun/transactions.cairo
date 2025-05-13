@@ -425,7 +425,6 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
 }
 
-// TODO: validate this is correct with a test
 func get_transaction_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx_encoded: UnionBytesLegacyTransaction
 ) -> Hash32 {
