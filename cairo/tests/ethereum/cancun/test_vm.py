@@ -69,7 +69,7 @@ class TestVm:
         self, cairo_run, evm: Evm, child_evm: Evm
     ):
         set_account(
-            child_evm.message.block_env.state,
+            evm.message.block_env.state,
             child_evm.message.current_target,
             EMPTY_ACCOUNT,
         )
@@ -92,7 +92,7 @@ class TestVm:
     ):
         child_evm.message.current_target = RIPEMD160_ADDRESS
         set_account(
-            child_evm.message.block_env.state,
+            evm.message.block_env.state,
             child_evm.message.current_target,
             EMPTY_ACCOUNT,
         )
