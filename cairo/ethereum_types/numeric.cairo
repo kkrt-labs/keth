@@ -15,4 +15,5 @@ from cairo_core.numeric import (
     U384,
     U384Struct,
     OptionalU256,
+    OptionalUint,
 )

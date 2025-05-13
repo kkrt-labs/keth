@@ -2,7 +2,7 @@ from typing import Tuple
 
 from ethereum.cancun.blocks import Log
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import BlockEnvironment, Evm
+from ethereum.cancun.vm import BlockEnvironment, Evm, TransactionEnvironment
 from ethereum.cancun.vm.instructions.block import (
     block_hash,
     chain_id,
@@ -12,16 +12,20 @@ from ethereum.cancun.vm.instructions.block import (
     prev_randao,
     timestamp,
 )
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U64, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
-from tests.utils.evm_builder import EvmBuilder, address_zero
+from tests.utils.evm_builder import EvmBuilder
+from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (
     BLOCK_HASHES_LIST,
     address,
+    address_zero,
     bytes32,
     empty_state,
     uint,
@@ -29,45 +33,66 @@ from tests.utils.strategies import (
     uint256,
 )
 
-# Specific environment strategy with minimal items:
-# block_hashes, coinbase, number, gas_limit, time, prev_randao, chain_id are
-# strategies, the rest:
-#   * Empty state
-#   * Empty transient storage
-#   * Empty block versioned hashes
-#   * Excess blob gas is 0
-#   * Caller and origin are address_zero
-#   * Gas price is 0
-#   * Base fee per gas is 0
-environment_extra_lite = st.integers(
+# Strategies for BlockEnvironment and TransactionEnvironment with minimal items.
+#
+# block_env_extra_lite:
+# Fields like block_hashes, coinbase, number, gas_limit, time, prev_randao, chain_id
+# use specific strategies (some dependent on 'number', others general like `address` or `uint`).
+# Other fields (base_fee_per_gas, state, excess_blob_gas, parent_beacon_block_root)
+# are set to specific default/empty values (e.g., 0, empty_state, Hash32(zero_bytes)).
+#
+# tx_env_extra_lite:
+# All fields (origin, gas_price, blob_versioned_hashes, transient_storage, gas,
+# access_list_addresses, access_list_storage_keys, index_in_block, tx_hash, traces)
+# are set to specific default/empty values (e.g., address_zero, 0, empty tuple/set/list, None).
+
+block_env_extra_lite = st.integers(
     min_value=0, max_value=2**64 - 1
 ).flatmap(  # Generate block number first
     lambda number: st.builds(
-        BlockEnvironment,  # TODO: adapt it to new type
-        caller=st.just(address_zero),
+        BlockEnvironment,
+        chain_id=uint64,
+        state=empty_state,
+        block_gas_limit=uint,
         block_hashes=st.lists(
             st.sampled_from(BLOCK_HASHES_LIST),
-            min_size=min(number, 256),  # number or 256 if number is greater
+            min_size=min(number, 256),
             max_size=min(number, 256),
         ),
-        origin=st.just(address_zero),
         coinbase=address,
-        number=st.just(Uint(number)),  # Use the same number
+        number=st.just(Uint(number)),
         base_fee_per_gas=st.just(Uint(0)),
-        gas_limit=uint,
-        gas_price=st.just(Uint(0)),
         time=uint256,
         prev_randao=bytes32,
-        state=empty_state,
-        chain_id=uint64,
         excess_blob_gas=st.just(U64(0)),
-        blob_versioned_hashes=st.just(()),
-        transient_storage=st.just(TransientStorage()),
+        parent_beacon_block_root=st.just(Hash32(Bytes32(b"\x00" * 32))),
     )
 )
 
+tx_env_extra_lite = st.builds(
+    TransactionEnvironment,
+    origin=st.just(address_zero),
+    gas_price=st.just(Uint(0)),
+    blob_versioned_hashes=st.just(tuple()),
+    transient_storage=st.just(TransientStorage()),
+    gas=st.just(Uint(0)),
+    access_list_addresses=st.just(set()),
+    access_list_storage_keys=st.just(set()),
+    index_in_block=st.just(None),
+    tx_hash=st.just(None),
+)
+
 block_tests_strategy = (
-    EvmBuilder().with_stack().with_gas_left().with_env(environment_extra_lite).build()
+    EvmBuilder()
+    .with_stack()
+    .with_gas_left()
+    .with_message(
+        MessageBuilder()
+        .with_block_env(block_env_extra_lite)
+        .with_tx_env(tx_env_extra_lite)
+        .build()
+    )
+    .build()
 )
 
 

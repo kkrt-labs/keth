@@ -35,7 +35,7 @@ from ethereum.cancun.blocks import (
 )
 
 from ethereum.cancun.transactions_types import (
-    TupleAccessList,
+    TupleAccess,
     Transaction,
     LegacyTransaction,
     AccessListTransaction,

@@ -1,3 +1,4 @@
+import functools
 from collections import defaultdict
 from dataclasses import dataclass, field, fields, make_dataclass
 from typing import (
@@ -24,6 +25,7 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.vm import BlockEnvironment as BlockEnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
+from ethereum.cancun.vm import TransactionEnvironment as TransactionEnvironmentBase
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -135,6 +137,35 @@ class BlockEnvironment(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
         )
+
+
+@dataclass
+class TransactionEnvironment(
+    make_dataclass(
+        "TransactionEnvironment",
+        [
+            (f.name, f.type, f)
+            for f in fields(TransactionEnvironmentBase)
+            if f.name != "traces"
+        ],
+        namespace={"__doc__": TransactionEnvironmentBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+        )
+
+    @functools.wraps(TransactionEnvironmentBase.__init__)
+    def __init__(self, *args, **kwargs):
+        if "traces" in kwargs:
+            del kwargs["traces"]
+        super().__init__(*args, **kwargs)
+
+    @property
+    def traces(self):
+        return []
 
 
 @dataclass

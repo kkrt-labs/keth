@@ -495,14 +495,14 @@ func destroy_storage{range_check_ptr, state: State}(
     let dict_ptr = cast(squashed_storage_tries.value._data.value.dict_ptr, DictAccess*);
 
     let (storage_keys_buffer: TupleAddressBytes32*) = alloc();
-    tempvar storage_keys = ListTupleAddressBytes32(
+    tempvar slots = ListTupleAddressBytes32(
         new ListTupleAddressBytes32Struct(storage_keys_buffer, 0)
     );
     _get_storage_keys_for_address{
-        dict_ptr_start=dict_ptr_start, dict_ptr=dict_ptr, storage_keys=storage_keys
+        dict_ptr_start=dict_ptr_start, dict_ptr=dict_ptr, slots=slots
     }(address);
 
-    _destroy_storage_keys{storage_tries_ptr=dict_ptr}(storage_keys, 0);
+    _destroy_storage_keys{storage_tries_ptr=dict_ptr}(slots, 0);
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(
@@ -540,7 +540,7 @@ func _get_storage_keys_for_address{
     range_check_ptr,
     dict_ptr_start: DictAccess*,
     dict_ptr: DictAccess*,
-    storage_keys: ListTupleAddressBytes32,
+    slots: ListTupleAddressBytes32,
 }(address: Address) {
     alloc_locals;
 
@@ -555,17 +555,17 @@ func _get_storage_keys_for_address{
     let preimage = get_tuple_address_bytes32_preimage_for_key(key, end);
 
     if (preimage.value.address.value == address.value) {
-        assert storage_keys.value.data[storage_keys.value.len] = preimage;
-        tempvar storage_keys = ListTupleAddressBytes32(
-            new ListTupleAddressBytes32Struct(storage_keys.value.data, storage_keys.value.len + 1)
+        assert slots.value.data[slots.value.len] = preimage;
+        tempvar slots = ListTupleAddressBytes32(
+            new ListTupleAddressBytes32Struct(slots.value.data, slots.value.len + 1)
         );
     } else {
-        tempvar storage_keys = storage_keys;
+        tempvar slots = slots;
     }
 
     let next = current + DictAccess.SIZE;
     return _get_storage_keys_for_address{
-        dict_ptr_start=next, dict_ptr=end, storage_keys=storage_keys
+        dict_ptr_start=next, dict_ptr=end, slots=slots
     }(address);
 }
 
