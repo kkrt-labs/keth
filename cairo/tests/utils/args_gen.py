@@ -330,9 +330,12 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
     ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
-    ("ethereum", "cancun", "fork_types", "TupleAddressUintTupleVersionedHash"): Tuple[
-        Address, Uint, Tuple[VersionedHash, ...]
-    ],
+    (
+        "ethereum",
+        "cancun",
+        "fork_types",
+        "TupleAddressUintTupleVersionedHashU64",
+    ): Tuple[Address, Uint, Tuple[VersionedHash, ...], U64],
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
         VersionedHash, ...
     ],
@@ -478,7 +481,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "fork", "BlockOutput"): BlockOutput,
+    ("ethereum", "cancun", "vm", "BlockOutput"): BlockOutput,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,

@@ -6,6 +6,9 @@ from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
+    SetTupleAddressBytes32,
+    SetTupleAddressBytes32Struct,
+    SetTupleAddressBytes32DictAccess,
 )
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes20
 from ethereum_types.numeric import Uint, bool
@@ -19,7 +22,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuilti
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 
-from legacy.utils.dict import hashdict_write, dict_write
+from legacy.utils.dict import hashdict_write, dict_write, dict_copy
 
 const PRECOMPILED_ADDRESSES_SIZE = 10;
 
@@ -37,8 +40,34 @@ func prepare_message{
     local __fp__: felt* = fp_and_pc.fp_val;
 
     let access_list_addresses = tx_env.value.access_list_addresses;
-    let access_list_addresses_ptr_start = access_list_addresses.value.dict_ptr_start;
+    let access_list_addresses_ptr_start = cast(
+        access_list_addresses.value.dict_ptr_start, DictAccess*
+    );
     let access_list_addresses_ptr = cast(access_list_addresses.value.dict_ptr, DictAccess*);
+
+    // Use a copy to not mutate the message tx_env data.
+    let (access_list_addresses_ptr_start, access_list_addresses_ptr) = dict_copy(
+        access_list_addresses_ptr_start, access_list_addresses_ptr
+    );
+
+    // Use a copy to not mutate the message tx_env data.
+    let access_list_storage_keys = tx_env.value.access_list_storage_keys;
+    let access_list_storage_keys_ptr_start = cast(
+        access_list_storage_keys.value.dict_ptr_start, DictAccess*
+    );
+    let access_list_storage_keys_ptr = cast(access_list_storage_keys.value.dict_ptr, DictAccess*);
+    let (access_list_storage_keys_ptr_start, access_list_storage_keys_ptr) = dict_copy(
+        access_list_storage_keys_ptr_start, access_list_storage_keys_ptr
+    );
+    tempvar accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            dict_ptr_start=cast(
+                access_list_storage_keys_ptr_start, SetTupleAddressBytes32DictAccess*
+            ),
+            dict_ptr=cast(access_list_storage_keys_ptr, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+
     hashdict_write{dict_ptr=access_list_addresses_ptr}(1, &tx_env.value.origin.value, 1);
     track_precompiles{dict_ptr=access_list_addresses_ptr}();
 
@@ -120,7 +149,7 @@ func prepare_message{
             should_transfer_value=bool(1),
             is_static=bool(0),
             accessed_addresses=accessed_addresses,
-            accessed_storage_keys=tx_env.value.access_list_storage_keys,
+            accessed_storage_keys=accessed_storage_keys,
             parent_evm=Evm(cast(0, EvmStruct*)),
         ),
     );

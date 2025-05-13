@@ -1,5 +1,6 @@
+import dataclasses
 from collections import defaultdict
-from dataclasses import fields, replace
+from dataclasses import replace
 from typing import Optional, Tuple
 
 from eth_abi.abi import encode
@@ -28,6 +29,7 @@ from ethereum.cancun.fork import (
 from ethereum.cancun.fork_types import Account, Address, VersionedHash
 from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -43,7 +45,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import Trie, root
 from ethereum.cancun.utils.address import to_address
-from ethereum.cancun.vm import BlockEnvironment
+from ethereum.cancun.vm import BlockEnvironment, BlockOutput, TransactionEnvironment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
@@ -72,10 +74,10 @@ from tests.utils.strategies import (
     SYSTEM_ACCOUNT,
     SYSTEM_ADDRESS,
     account_strategy,
-    address,
     address_zero,
     bounded_u256_strategy,
     bytes32,
+    empty_block_output,
     empty_state,
     excess_blob_gas,
     small_bytes,
@@ -253,11 +255,7 @@ def get_blob_tx_with_tx_sender_in_state():
 
 @composite
 def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
-    access_list = draw(
-        st.lists(
-            st.tuples(address, st.lists(bytes32, max_size=3).map(tuple)), max_size=3
-        ).map(tuple)
-    )
+    access_list = draw(st.lists(st.builds(Access)).map(tuple))
 
     addr = (
         st.integers(min_value=0, max_value=2**160 - 1)
@@ -399,30 +397,26 @@ def tx_with_sender_in_state(
     ),
     account_strategy=account_strategy,
 ):
-    env = draw(st.from_type(BlockEnvironment))
-    if env.gas_price < env.base_fee_per_gas:
-        env.gas_price = draw(
-            st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
-                Uint
-            )
-        )
+    block_env = draw(st.from_type(BlockEnvironment))
     # Values too high would cause taylor_exponential to run indefinitely.
-    env.excess_blob_gas = draw(
+    block_env.excess_blob_gas = draw(
         st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
     )
-    state = env.state
+    state = block_env.state
     # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
     state._snapshots = []
     tx = draw(tx_strategy)
     account = draw(account_strategy)
     private_key = draw(st.from_type(PrivateKey))
+    # the origin address is derived from the signature.
     expected_address = int(private_key.public_key.to_address(), 16)
     if draw(integers(0, 99)) < 80:
         # to ensure the account has enough balance and tx.gas > intrinsic_cost
         # also that the code is empty
-        env.origin = to_address(Uint(expected_address))
         if calculate_intrinsic_cost(tx) > tx.gas:
-            tx = replace(tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000)))
+            tx = dataclasses.replace(
+                tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000))
+            )
 
         account_address = to_address(Uint(expected_address))
         if account_address in state._storage_tries:
@@ -430,12 +424,19 @@ def tx_with_sender_in_state(
         else:
             account_storage_root = EMPTY_TRIE_HASH
 
+        if hasattr(tx, "max_priority_fee_per_gas"):
+            effective_gas_price = max(
+                tx.max_priority_fee_per_gas, block_env.base_fee_per_gas
+            )
+        else:
+            effective_gas_price = tx.gas_price
+
         set_account(
             state,
             to_address(Uint(expected_address)),
             Account(
-                balance=U256(tx.value) * U256(env.gas_price)
-                + U256(env.excess_blob_gas)
+                balance=U256(tx.value) * U256(effective_gas_price)
+                + U256(block_env.excess_blob_gas)
                 + U256(10000),
                 nonce=account.nonce,
                 code=bytes(),
@@ -483,7 +484,7 @@ def tx_with_sender_in_state(
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
         set_account(state, sender, account)
-    return tx, env, chain_id
+    return tx, block_env, chain_id
 
 
 class TestFork:
@@ -526,11 +527,15 @@ class TestFork:
             parent_base_fee_per_gas,
         )
 
-    @given(headers=headers())
-    def test_validate_header(self, cairo_run, headers: Tuple[Header, Header]):
+    @given(headers=headers(), state=empty_state)
+    def test_validate_header(
+        self, cairo_run, headers: Tuple[Header, Header], state: State
+    ):
         parent_header, header = headers
-        blocks = [Block(header=parent_header)]
-        chain = BlockChain(blocks=blocks, state=empty_state, chain_id=U64(1))
+        blocks = [
+            Block(header=parent_header, transactions=[], ommers=[], withdrawals=[])
+        ]
+        chain = BlockChain(blocks=blocks, state=state, chain_id=U64(1))
         try:
             cairo_run("validate_header", chain=chain, header=header)
         except Exception as e:
@@ -563,72 +568,56 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(data=tx_with_sender_in_state())
+    @given(data=tx_with_sender_in_state(), index=uint, block_output=empty_block_output)
     def test_process_transaction(
-        self, cairo_run, data: Tuple[Transaction, BlockEnvironment, U64]
-    ):
-        # The Cairo Runner will raise if an exception is in the return values OR if
-        # an assert expression fails (e.g. InvalidBlock)
-        tx, env, _ = data
-        try:
-            env_cairo, cairo_result = cairo_run("process_transaction", env, tx)
-        except Exception as cairo_e:
-            # 1. Handle exceptions thrown
-            try:
-                output_py = process_transaction(env, tx)
-            except Exception as thrown_exception:
-                assert type(cairo_e) is type(thrown_exception)
-                return
-
-            # 2. Handle exceptions in return values
-            # Never reached with the current strategy and 300 examples
-            # For that, it would be necessary to send a tx with correct data
-            # that would raise inside execute_code
-            with strict_raises(type(cairo_e)):
-                if len(output_py) == 3:
-                    raise output_py[2]
-            return
-
-        gas_used, logs, error = process_transaction(env, tx)
-        assert env_cairo == env
-        assert gas_used == cairo_result[0]
-        assert logs == cairo_result[1]
-        assert error == cairo_result[2]
-
-    def test_check_transaction(
         self,
         cairo_run,
+        data: Tuple[Transaction, BlockEnvironment, TransactionEnvironment, U64],
+        index: Uint,
+        block_output: BlockOutput,
     ):
-        tx, env, chain_id = get_blob_tx_with_tx_sender_in_state()
-        gas_available = Uint(int("0x1000000", 16))
-        base_fee_per_gas = Uint(int("0x100000", 16))
-        excess_blob_gas = U64(0)
+        tx, block_env, _ = data
+
+        encoded_tx = encode_transaction(tx)
+
         try:
-            cairo_state, cairo_result = cairo_run(
-                "check_transaction",
-                env.state,
-                tx,
-                gas_available,
-                chain_id,
-                base_fee_per_gas,
-                excess_blob_gas,
+            returned_block_env_cairo, returned_block_output_cairo = cairo_run(
+                "process_transaction", block_env, block_output, encoded_tx, index
             )
         except Exception as e:
             with strict_raises(type(e)):
-                check_transaction(
-                    env.state,
-                    tx,
-                    gas_available,
-                    chain_id,
-                    base_fee_per_gas,
-                    excess_blob_gas,
-                )
+                process_transaction(block_env, block_output, tx, index)
             return
 
-        assert cairo_result == check_transaction(
-            env.state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
-        )
-        assert cairo_state == env.state
+        process_transaction(block_env, block_output, tx, index)
+
+        assert returned_block_env_cairo == block_env
+        assert returned_block_output_cairo == block_output
+
+    @given(block_output=empty_block_output)
+    def test_check_transaction(
+        self,
+        cairo_run,
+        block_output: BlockOutput,
+    ):
+        tx, block_env, _ = get_blob_tx_with_tx_sender_in_state()
+
+        try:
+            block_env_cairo, output_cairo = cairo_run(
+                "check_transaction",
+                block_env=block_env,
+                block_output=block_output,
+                tx=tx,
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                check_transaction(block_env, block_output, tx)
+            return
+
+        output = check_transaction(block_env, block_output, tx)
+
+        assert block_env == block_env_cairo
+        assert output == output_cairo
 
     @given(blocks=st.lists(st.builds(Block), max_size=300), empty_state=empty_state)
     def test_get_last_256_block_hashes(self, cairo_run, blocks, empty_state: State):
@@ -679,24 +668,35 @@ class TestFork:
             BEACON_ROOTS_ACCOUNT,
         )
 
-        kwargs = {**data, "withdrawals": withdrawals, "state": state}
+        block_env = BlockEnvironment(
+            chain_id=data["chain_id"],
+            state=state,
+            block_gas_limit=data["block_gas_limit"],
+            block_hashes=data["block_hashes"],
+            coinbase=data["coinbase"],
+            number=data["block_number"],
+            base_fee_per_gas=data["base_fee_per_gas"],
+            time=data["block_time"],
+            prev_randao=data["prev_randao"],
+            excess_blob_gas=data["excess_blob_gas"],
+            parent_beacon_block_root=data["parent_beacon_block_root"],
+        )
+
+        transactions = data["transactions"]
 
         try:
-            cairo_state, cairo_result = cairo_run("apply_body", **kwargs)
+            block_env_cairo, cairo_block_output = cairo_run(
+                "apply_body", block_env, transactions, withdrawals
+            )
         except Exception as e:
             with strict_raises(type(e)):
-                apply_body(**kwargs)
+                apply_body(block_env, transactions, withdrawals)
             return
 
-        output = apply_body(**kwargs)
+        output = apply_body(block_env, transactions, withdrawals)
 
-        # Compare all fields except state_root
-        assert all(
-            getattr(cairo_result, field.name) == getattr(output, field.name)
-            for field in fields(cairo_result)
-            if field.name != "state_root"
-        )
-        assert cairo_state == state
+        assert block_env_cairo == block_env
+        assert cairo_block_output == output
 
 
 def _create_erc20_data():

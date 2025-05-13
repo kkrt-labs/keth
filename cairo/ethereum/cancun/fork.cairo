@@ -344,6 +344,7 @@ func process_system_transaction{
 
     let state = block_env.value.state;
     let system_contract = get_account{state=state}(target_address);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
     let system_contract_code = system_contract.value.code;
 
     let (empty_data_ptr) = default_dict_new(0);
@@ -1010,6 +1011,8 @@ func check_transaction{
     with_attr error_message("InvalidBlock") {
         assert sender_code.value.len = 0;
     }
+
+    BlockEnvImpl.set_state{block_env=block_env}(state);
 
     tempvar res = TupleAddressUintTupleVersionedHashU64(
         new TupleAddressUintTupleVersionedHashU64Struct(

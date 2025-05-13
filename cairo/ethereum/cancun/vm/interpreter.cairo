@@ -489,6 +489,8 @@ func process_message_call{
         let has_storage = account_has_storage{state=state}(message.value.current_target);
         BlockEnvImpl.set_state{block_env=block_env}(state);
         TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+        MessageImpl.set_block_env{message=message}(block_env);
+        MessageImpl.set_tx_env{message=message}(tx_env);
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);

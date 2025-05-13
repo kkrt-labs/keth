@@ -986,7 +986,6 @@ func generic_create{
     contract_address: Address,
     memory_start_position: U256,
     memory_size: U256,
-    init_code_gas: Uint,
 ) -> EthereumException* {
     alloc_locals;
 
@@ -1258,7 +1257,7 @@ func create{
     let contract_address = compute_contract_address(current_target, sender.value.nonce);
 
     let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+        endowment, contract_address, memory_start_position, memory_size
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -1364,7 +1363,7 @@ func create2{
     );
 
     let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+        endowment, contract_address, memory_start_position, memory_size
     );
     if (cast(err, felt) != 0) {
         return err;
