@@ -1073,9 +1073,16 @@ func set_code{
         ),
     );
 
-    // Set the updated account
+    // Inlining logic of modify_state: an empty account should be destroyed
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = account_eq_without_storage_root(new_account, empty_account);
+    if (is_empty_account.value != 0) {
+        destroy_account(address);
+        return();
+    }
     set_account(address, new_account);
-    return ();
+    return();
 }
 
 func set_account_balance{range_check_ptr, state: State}(
