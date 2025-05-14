@@ -897,19 +897,26 @@ func check_transaction{
 }(block_output: BlockOutput, tx: Transaction) -> TupleAddressUintTupleVersionedHashU64 {
     alloc_locals;
 
-    let gas_available = block_env.value.block_gas_limit.value -
-        block_output.value.block_gas_used.value;
-    let blob_gas_available = MAX_BLOB_GAS_PER_BLOCK - block_env.value.excess_blob_gas.value;
-
-    let gas = get_gas(tx);
-    let tx_gas_within_bounds = is_le_felt(gas.value, gas_available);
     with_attr error_message("InvalidBlock") {
+        let gas_available = block_env.value.block_gas_limit.value -
+            block_output.value.block_gas_used.value;
+        // Ensure no overflow
+        assert [range_check_ptr] = gas_available;
+        let range_check_ptr = range_check_ptr + 1;
+        let gas = get_gas(tx);
+        let tx_gas_within_bounds = is_le_felt(gas.value, gas_available);
         assert tx_gas_within_bounds = 1;
     }
 
-    let tx_blob_gas_used = calculate_total_blob_gas(tx);
-    let tx_blob_gas_within_bounds = is_le_felt(tx_blob_gas_used.value, blob_gas_available);
+
     with_attr error_message("InvalidBlock") {
+        let blob_gas_available = MAX_BLOB_GAS_PER_BLOCK - block_output.value.blob_gas_used.value;
+        // Ensure no overflow
+        assert [range_check_ptr] = blob_gas_available;
+        let range_check_ptr = range_check_ptr + 1;
+
+        let tx_blob_gas_used = calculate_total_blob_gas(tx);
+        let tx_blob_gas_within_bounds = is_le_felt(tx_blob_gas_used.value, blob_gas_available);
         assert tx_blob_gas_within_bounds = 1;
     }
 
@@ -1157,7 +1164,6 @@ func apply_body{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let state = block_env.value.state;
     let block_output = empty_block_output();
 
     let data_bytes = Bytes32_to_Bytes(block_env.value.parent_beacon_block_root);
