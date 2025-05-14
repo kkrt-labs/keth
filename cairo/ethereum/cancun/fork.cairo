@@ -233,9 +233,7 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
     alloc_locals;
 
     with_attr error_message("InvalidBlock") {
-        // Assert that the number is not 0 or 1.
-        let squared_number = header.value.number.value * header.value.number.value;
-        assert_not_equal(squared_number, header.value.number.value);
+        assert_not_equal(header.value.number.value, 0);
     }
 
     let parent_header = chain.value.blocks.value.data[
@@ -584,7 +582,7 @@ func process_transaction{
         new TransactionEnvironmentStruct(
             origin=sender,
             gas_price=effective_gas_price,
-            gas=tx_gas,
+            gas=Uint(gas),
             access_list_addresses=access_list_addresses,
             access_list_storage_keys=access_list_storage_keys,
             transient_storage=transient_storage,
