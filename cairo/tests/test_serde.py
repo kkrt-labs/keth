@@ -24,7 +24,6 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.vm import (
     BlockEnvironment,
-    BlockOutput,
     Evm,
     Message,
     TransactionEnvironment,

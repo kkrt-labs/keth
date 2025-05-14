@@ -200,7 +200,17 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     load = LoadKethFixture("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
+
+    # TODO(zkpi): Remove requestsHash key if null from block header and all ancestors
     input_block = prover_inputs["blocks"][0]
+    if 'requestsHash' in input_block['header'] and input_block['header']['requestsHash'] is None:
+        del input_block['header']['requestsHash']
+
+    # Also remove from ancestors
+    for ancestor in prover_inputs["witness"]["ancestors"]:
+        if 'requestsHash' in ancestor and ancestor['requestsHash'] is None:
+            del ancestor['requestsHash']
+
     block_transactions = input_block["transaction"]
     transactions = process_block_transactions(block_transactions)
 
