@@ -570,6 +570,23 @@ func process_transaction{
         cast([ap - 1], SetTupleAddressBytes32Struct*)
     );
 
+    tempvar access_list_addresses = access_list_addresses;
+    tempvar access_list_storage_keys = access_list_storage_keys;
+
+    // Squash the access_list_addresses and access_list_storage_keys here -
+    // they're copied needed.
+    default_dict_finalize(
+        cast(access_list_addresses.value.dict_ptr_start, DictAccess*),
+        cast(access_list_addresses.value.dict_ptr, DictAccess*),
+        0,
+    );
+
+    default_dict_finalize(
+        cast(access_list_storage_keys.value.dict_ptr_start, DictAccess*),
+        cast(access_list_storage_keys.value.dict_ptr, DictAccess*),
+        0,
+    );
+
     tempvar code_address = OptionalAddress(cast(0, Address*));
 
     let transient_storage = empty_transient_storage();

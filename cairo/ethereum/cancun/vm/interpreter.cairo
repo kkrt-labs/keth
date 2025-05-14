@@ -554,7 +554,7 @@ func process_message_call{
 
     let squashed_evm = evm;
     %{
-        initial_gas = serialize(ids.message.value.gas)
+        initial_gas = serialize(ids.evm.value.message.value.gas)
         final_gas = serialize(ids.squashed_evm.value.gas_left)
         output = serialize(ids.squashed_evm.value.output)
         error_int = serialize(ids.squashed_evm.value.error)["value"]
