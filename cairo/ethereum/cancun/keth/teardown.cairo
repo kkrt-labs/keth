@@ -13,27 +13,38 @@ from starkware.cairo.common.alloc import alloc
 
 from ethereum.cancun.bloom import logs_bloom
 from ethereum.cancun.fork import BlockChainStruct, _process_withdrawals_inner, BlockChain, Block
+from ethereum.cancun.vm import BlockOutput, BlockOutput__hash__
+from ethereum.cancun.vm.env_impl import (
+    BlockEnvironment,
+    BlockEnvironmentStruct,
+    BlockEnv__hash__,
+    BlockEnvImpl,
+)
 from legacy.utils.dict import default_dict_finalize
-from ethereum_types.numeric import U64, Uint
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from ethereum.cancun.trie import (
-    EthereumTriesImpl,
-    root,
-    TrieBytesOptionalUnionBytesLegacyTransaction,
-    TrieBytesOptionalUnionBytesReceipt,
-    TrieBytesOptionalUnionBytesWithdrawal,
-    TrieAddressOptionalAccount,
     TrieAddressOptionalAccountStruct,
+    root,
+    EthereumTries,
+    EthereumTriesEnum,
+    TrieAddressOptionalAccount,
+    TrieBytes32U256,
+    TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieBytesOptionalUnionBytesLegacyTransactionStruct,
+    TrieBytesOptionalUnionBytesReceipt,
+    TrieBytesOptionalUnionBytesReceiptStruct,
+    TrieBytesOptionalUnionBytesWithdrawal,
+    TrieBytesOptionalUnionBytesWithdrawalStruct,
+    TrieBytes32U256Struct,
 )
 
 from ethereum.cancun.state import State, StateStruct, state_root, finalize_state
 from ethereum.cancun.keth.commitments import teardown_commitments, body_commitments
 
-from ethereum.cancun.blocks import Header__hash__, TupleUnionBytesLegacyTransaction, TupleLog
+from ethereum.cancun.blocks import Header, Header__hash__, TupleUnionBytesLegacyTransaction
 from ethereum.cancun.fork_types import (
     MappingAddressAccount,
     MappingAddressAccountStruct,
-    ListHash32,
     OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
 )
@@ -73,19 +84,12 @@ func teardown{
     // Program inputs from the init.cairo program.
     local block: Block;
     local chain: BlockChain;
-    local withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal;
 
     // Program inputs from the body.cairo program.
+    local block_header: Header;
     local block_transactions: TupleUnionBytesLegacyTransaction;
-    local state: State;
-    local transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction;
-    local receipts_trie: TrieBytesOptionalUnionBytesReceipt;
-    local block_logs: TupleLog;
-    local block_hashes: ListHash32;
-    local gas_available: Uint;
-    local chain_id: U64;
-    local blob_gas_used: Uint;
-    local excess_blob_gas: U64;
+    local block_env: BlockEnvironment;
+    local block_output: BlockOutput;
 
     // MPT diffs inputs
     local node_store: NodeStore;
@@ -99,6 +103,7 @@ func teardown{
     // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
     // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
     // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
+    let state = block_env.value.state;
     tempvar main_trie_data = MappingAddressAccount(
         new MappingAddressAccountStruct(
             dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
@@ -121,6 +126,21 @@ func teardown{
             original_storage_tries=state.value.original_storage_tries,
         ),
     );
+    tempvar block_env = BlockEnvironment(
+        new BlockEnvironmentStruct(
+            chain_id=block_env.value.chain_id,
+            state=state,
+            block_gas_limit=block_env.value.block_gas_limit,
+            block_hashes=block_env.value.block_hashes,
+            coinbase=block_env.value.coinbase,
+            number=block_env.value.number,
+            base_fee_per_gas=block_env.value.base_fee_per_gas,
+            time=block_env.value.time,
+            prev_randao=block_env.value.prev_randao,
+            excess_blob_gas=block_env.value.excess_blob_gas,
+            parent_beacon_block_root=block_env.value.parent_beacon_block_root,
+        ),
+    );
 
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
@@ -128,11 +148,15 @@ func teardown{
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
 
-
     // Commit to the same inputs as the init.cairo's outputs.
     let header = block.value.header;
     let header_commitment = Header__hash__(header);
-    let teardown_commitment = teardown_commitments(header_commitment, withdrawals_trie, block.value.withdrawals);
+    let block_env_commitment = BlockEnv__hash__(block_env);
+    let block_output_commitment = BlockOutput__hash__(block_output);
+
+    let teardown_commitment = teardown_commitments(
+        header_commitment, block_output_commitment, block.value.withdrawals
+    );
 
     assert [output_ptr] = teardown_commitment.value.low;
     assert [output_ptr + 1] = teardown_commitment.value.high;
@@ -140,31 +164,25 @@ func teardown{
 
     // Commit to the same inputs as the body.cairo's outputs.
     let body_commitment = body_commitments(
-        header_commitment,
-        block_transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain_id,
-        excess_blob_gas,
+        header_commitment, block_env_commitment, block_output_commitment, block_transactions
     );
     assert [output_ptr] = body_commitment.value.low;
     assert [output_ptr + 1] = body_commitment.value.high;
     let output_ptr = output_ptr + 2;
 
-    // Commit to the same inputs as the body.cairo's outputs.
-
-    // Start the teardown process when _apply_body_inner stops.
-    tempvar block_gas_used = Uint(
-        block.value.header.value.gas_limit.value - gas_available.value
+    _process_withdrawals_inner{block_env=block_env, block_output=block_output}(
+        0, block.value.withdrawals
     );
-    let block_logs_bloom = logs_bloom(block_logs);
 
-    _process_withdrawals_inner{state=state, trie=withdrawals_trie}(0, block.value.withdrawals);
+    // Finalize the state, getting unique keys for main and storage tries
+    let state = block_env.value.state;
+    finalize_state{state=state}();
 
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+
+    let transactions_trie = block_output.value.transactions_trie;
+    let receipts_trie = block_output.value.receipts_trie;
+    let withdrawals_trie = block_output.value.withdrawals_trie;
     // Squash the receipts, transactions, and withdrawals dicts once they're no longer being modified.
     default_dict_finalize(
         cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
@@ -182,29 +200,69 @@ func teardown{
         0,
     );
 
-    let null_account_roots = OptionalMappingAddressBytes32(
-        cast(0, MappingAddressBytes32Struct*)
+    let none_storage_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+
+    // Compute all roots
+    tempvar transaction_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=transactions_trie,
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
     );
-    let tx_trie_typed = EthereumTriesImpl.from_transaction_trie(transactions_trie);
-    let transactions_root = root(tx_trie_typed, null_account_roots, 'keccak256');
+    let none_storage_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+    let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
 
-    let receipt_trie_typed = EthereumTriesImpl.from_receipt_trie(receipts_trie);
-    let receipts_root = root(receipt_trie_typed, null_account_roots, 'keccak256');
+    tempvar receipt_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=receipts_trie,
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
+    );
+    let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
 
-    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
-    let withdrawals_root = root(withdrawal_trie_typed, null_account_roots, 'keccak256');
-
-    finalize_state{state=state}();
-
-    // rebind state
-    tempvar chain = BlockChain(
-        new BlockChainStruct(
-            blocks=chain.value.blocks, state=state, chain_id=chain.value.chain_id
+    tempvar withdrawals_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=withdrawals_trie,
         ),
     );
 
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
+    // Diff with EELS: we don't compute the full state root here - because we have a diff-based approach with the hinted sparse MPT
+    let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
+    let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
+    let block_logs_bloom = logs_bloom(block_output.value.block_logs);
+
+    // Rebind state
+    let state = block_env.value.state;
+    tempvar chain = BlockChain(
+        new BlockChainStruct(blocks=chain.value.blocks, state=state, chain_id=chain.value.chain_id)
+    );
+
     with_attr error_message("InvalidBlock") {
-        assert block_gas_used = block.value.header.value.gas_used;
+        assert block_output.value.block_gas_used = block.value.header.value.gas_used;
 
         let transactions_root_equal = Bytes32__eq__(
             transactions_root, block.value.header.value.transactions_root
@@ -229,7 +287,7 @@ func teardown{
         );
         assert withdrawals_root_equal.value = 1;
 
-        assert blob_gas_used.value = block.value.header.value.blob_gas_used.value;
+        assert block_output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
     }
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.

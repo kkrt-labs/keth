@@ -1,8 +1,8 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
-from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log, TupleLog__hash__
 from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
@@ -22,10 +22,16 @@ from ethereum.cancun.trie import (
     TrieBytesOptionalUnionBytesLegacyTransaction,
     TrieBytesOptionalUnionBytesReceipt,
     TrieBytesOptionalUnionBytesWithdrawal,
+    EthereumTriesImpl,
+    root,
 )
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
 from ethereum_types.numeric import U64
 from ethereum_types.bytes import TupleBytes, TupleBytesStruct, Bytes
+from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
+from cairo_core.bytes_impl import TupleBytes__hash__
+from ethereum.crypto.hash import Hash32
+from ethereum.cancun.fork_types import OptionalMappingAddressBytes32, MappingAddressBytes32Struct
 
 struct BlockOutputStruct {
     block_gas_used: Uint,
@@ -48,7 +54,6 @@ func empty_block_output() -> BlockOutput {
     let (receipt_keys: Bytes*) = alloc();
     tempvar tuple_receipt_keys = TupleBytes(new TupleBytesStruct(data=receipt_keys, len=0));
 
-
     tempvar block_output = BlockOutput(
         new BlockOutputStruct(
             block_gas_used=Uint(0),
@@ -62,6 +67,68 @@ func empty_block_output() -> BlockOutput {
     );
 
     return block_output;
+}
+
+func BlockOutput__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    block_output: BlockOutput
+) -> Hash32 {
+    alloc_locals;
+
+    let transactions_trie = block_output.value.transactions_trie;
+    let receipts_trie = block_output.value.receipts_trie;
+    let withdrawals_trie = block_output.value.withdrawals_trie;
+
+    // Commit to the transaction and receipt tries
+    // Squash the receipts and transactions dicts once they're no longer being modified.
+    default_dict_finalize(
+        cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(receipts_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+
+    // we're hashing with blake2s, we can use a mock keccak_ptr and mock poseidon_ptr
+    let keccak_ptr = cast(0, felt*);
+    let poseidon_ptr = cast(0, PoseidonBuiltin*);
+    with keccak_ptr, poseidon_ptr {
+        let null_account_roots = OptionalMappingAddressBytes32(
+            cast(0, MappingAddressBytes32Struct*)
+        );
+        let tx_trie_typed = EthereumTriesImpl.from_transaction_trie(transactions_trie);
+        let tx_trie_commitment = root(tx_trie_typed, null_account_roots, 'blake2s');
+
+        let receipt_trie_typed = EthereumTriesImpl.from_receipt_trie(receipts_trie);
+        let receipt_trie_commitment = root(receipt_trie_typed, null_account_roots, 'blake2s');
+
+        let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
+        let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
+    }
+
+    let receipt_keys_commitment = TupleBytes__hash__(block_output.value.receipt_keys);
+    let block_logs_commitment = TupleLog__hash__(block_output.value.block_logs);
+
+    let (blake2s_input) = alloc();
+    let start = blake2s_input;
+    blake2s_add_felt{data=blake2s_input}(block_output.value.block_gas_used.value, bigend=0);
+    blake2s_add_uint256{data=blake2s_input}([tx_trie_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([receipt_trie_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([receipt_keys_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([block_logs_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([withdrawal_trie_commitment.value]);
+    blake2s_add_felt{data=blake2s_input}(block_output.value.blob_gas_used.value, bigend=0);
+
+    let (block_output_commitment) = blake2s(data=start, n_bytes=BlockOutputStruct.SIZE * 32);
+    tempvar res = Hash32(new block_output_commitment);
+    return res;
 }
 
 // @notice Incorporates the child EVM in its parent in case of a successful execution.

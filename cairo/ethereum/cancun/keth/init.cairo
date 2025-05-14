@@ -14,16 +14,22 @@ from ethereum.cancun.fork import (
     Block,
     validate_header,
     get_last_256_block_hashes,
-    process_system_tx,
+    process_system_transaction,
+    BEACON_ROOTS_ADDRESS,
 )
-from ethereum_types.numeric import Uint
-from ethereum.cancun.trie import init_tries
+from ethereum.cancun.fork_types import Address
 
 from ethereum.cancun.state import finalize_state
 
-from ethereum.cancun.blocks import Header__hash__, TupleLog, TupleLogStruct, Log
-from ethereum.cancun.vm.gas import calculate_excess_blob_gas
-
+from ethereum.utils.bytes import Bytes32_to_Bytes
+from ethereum.cancun.blocks import Header__hash__
+from ethereum.cancun.vm import BlockOutput__hash__, empty_block_output
+from ethereum.cancun.vm.env_impl import (
+    BlockEnvironment,
+    BlockEnvironmentStruct,
+    BlockEnvImpl,
+    BlockEnv__hash__,
+)
 from ethereum.cancun.keth.commitments import body_commitments, teardown_commitments
 
 func init{
@@ -55,12 +61,7 @@ func init{
         chain.value.blocks.value.len - 1
     ].value.header;
 
-    let excess_blob_gas = calculate_excess_blob_gas(parent_header);
-    with_attr error_message("InvalidBlock") {
-        assert block.value.header.value.excess_blob_gas = excess_blob_gas;
-    }
-
-    validate_header(block.value.header, parent_header);
+    validate_header{keccak_ptr=keccak_ptr}(chain, block.value.header);
 
     with_attr error_message("InvalidBlock") {
         assert block.value.ommers.value.len = 0;
@@ -72,41 +73,55 @@ func init{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    tempvar blob_gas_used = Uint(0);
-    let gas_available = block.value.header.value.gas_limit;
-
-    let (transactions_trie, receipts_trie, withdrawals_trie) = init_tries();
-
-    let (logs: Log*) = alloc();
-    tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
-
-    process_system_tx{state=state}(
-        block, chain.value.chain_id, excess_blob_gas, block_hashes
+    let state = chain.value.state;
+    let block_hashes = get_last_256_block_hashes(chain);
+    tempvar block_env = BlockEnvironment(
+        new BlockEnvironmentStruct(
+            chain_id=chain.value.chain_id,
+            state=chain.value.state,
+            block_gas_limit=block.value.header.value.gas_limit,
+            block_hashes=block_hashes,
+            coinbase=block.value.header.value.coinbase,
+            number=block.value.header.value.number,
+            base_fee_per_gas=block.value.header.value.base_fee_per_gas,
+            time=block.value.header.value.timestamp,
+            prev_randao=block.value.header.value.prev_randao,
+            excess_blob_gas=block.value.header.value.excess_blob_gas,
+            parent_beacon_block_root=block.value.header.value.parent_beacon_block_root,
+        ),
     );
+
+    let data_bytes = Bytes32_to_Bytes(block_env.value.parent_beacon_block_root);
+    process_system_transaction{block_env=block_env}(
+        target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
+    );
+    let state = block_env.value.state;
+
+    let block_output = empty_block_output();
+    let transactions_trie = block_output.value.transactions_trie;
+    let receipts_trie = block_output.value.receipts_trie;
+    let withdrawals_trie = block_output.value.withdrawals_trie;
+    let block_logs = block_output.value.block_logs;
+    let gas_available = block_env.value.block_gas_limit;
+    let excess_blob_gas = block_env.value.excess_blob_gas;
 
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
+    BlockEnvImpl.set_state{block_env=block_env}(state);
 
-    // Commit to the header
+    // Commit to the header, block_env, and block_output
     let header_commitment = Header__hash__(block.value.header);
+    let block_env_commitment = BlockEnv__hash__(block_env);
+    let block_output_commitment = BlockOutput__hash__(block_output);
 
     // Commit to the following body.cairo program
     let body_commitment = body_commitments(
-        header_commitment,
-        block.value.transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain.value.chain_id,
-        excess_blob_gas,
+        header_commitment, block_env_commitment, block_output_commitment, block.value.transactions
     );
 
     // Commit to the teardown program
     let teardown_commitment = teardown_commitments(
-        header_commitment, withdrawals_trie, block.value.withdrawals
+        header_commitment, block_output_commitment, block.value.withdrawals
     );
 
     assert [output_ptr] = body_commitment.value.low;

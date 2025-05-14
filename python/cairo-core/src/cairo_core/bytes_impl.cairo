@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum.crypto.hash import Hash32, blake2s_bytes
-from cairo_core.bytes import Bytes, Bytes20, Bytes32, TupleBytes32, Bytes256, BytesStruct, Bytes8
+from cairo_core.bytes import Bytes, Bytes20, Bytes32, TupleBytes32, Bytes256, BytesStruct, Bytes8, TupleBytes
 from cairo_core.hash.blake2s import blake2s_add_felt, blake2s, blake2s_add_uint256
 
 func Bytes__hash__{range_check_ptr}(self: Bytes) -> Hash32 {
@@ -69,4 +69,33 @@ func _innerTupleBytes32__hash__{
     blake2s_add_uint256{data=acc}([item_hash.value]);
     let index = index + 1;
     return _innerTupleBytes32__hash__(self);
+}
+
+func TupleBytes__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    self: TupleBytes
+) -> Hash32 {
+    alloc_locals;
+    let (acc) = alloc();
+    let acc_start = acc;
+    let index = 0;
+    _innerTupleBytes__hash__{acc=acc, index=index}(self);
+
+    let n_bytes = 32 * self.value.len;
+    let (res) = blake2s(data=acc_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
+}
+
+func _innerTupleBytes__hash__{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, acc: felt*, index: felt
+}(self: TupleBytes) {
+    if (index == self.value.len) {
+        return ();
+    }
+
+    let item = self.value.data[index];
+    let item_hash = Bytes__hash__(item);
+    blake2s_add_uint256{data=acc}([item_hash.value]);
+    let index = index + 1;
+    return _innerTupleBytes__hash__(self);
 }
