@@ -265,7 +265,7 @@ class TestSerde:
             Bloom,
             VersionedHash,
             Tuple[VersionedHash, ...],
-            Tuple[Address, Uint, Tuple[VersionedHash, ...]],
+            Tuple[Address, Uint, Tuple[VersionedHash, ...], U64],
             Union[Bytes0, Address],
             Access,
             Tuple[Access, ...],
@@ -358,7 +358,6 @@ class TestSerde:
             BLSF12,
             Tuple[FQ, FQ2],
             Tuple[Tuple[FQ, FQ2], Tuple[FQ, FQ2]],
-            BlockOutput,
         ],
     ):
         assume(no_empty_sequence(b))
