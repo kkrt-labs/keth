@@ -352,14 +352,13 @@ func tload{
     let value = get_transient_storage{transient_storage=transient_storage}(
         evm.value.message.value.current_target, key_bytes32
     );
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+    EvmImpl.set_tx_env(tx_env);
+
     // Push cannot fail with StackOverflowError, 1 element was popped
     push{stack=stack}(value);
 
     // PROGRAM COUNTER
-    // Transient storage is part of tx_env, which is part of message
-    let tx_env = evm.value.message.value.tx_env;
-    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
-    EvmImpl.set_tx_env(tx_env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
@@ -413,11 +412,10 @@ func tstore{
     set_transient_storage{transient_storage=transient_storage}(
         evm.value.message.value.current_target, key_bytes32, new_value
     );
-
-    // PROGRAM COUNTER
-    let tx_env = evm.value.message.value.tx_env;
     TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
     EvmImpl.set_tx_env(tx_env);
+
+    // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;

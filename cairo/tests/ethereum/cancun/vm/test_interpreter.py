@@ -17,19 +17,12 @@ from cairo_addons.testing.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import block_environment_lite, transaction_environment_lite
 
-# TODO: enable execution of these precompiles
-unimplemented_precompiles = [
-    1,
-    8,
-]
-
-message_without_precompile = (
+message_strategy = (
     MessageBuilder()
     .with_block_env(block_environment_lite)
     .with_tx_env(transaction_environment_lite)
     .with_current_target(
         st.integers(min_value=0, max_value=2**160 - 1)
-        .filter(lambda x: x not in unimplemented_precompiles)
         .map(lambda x: Bytes20(x.to_bytes(20, "little")))
         .map(Address)
     )
@@ -50,7 +43,7 @@ message_without_precompile = (
 
 class TestInterpreter:
     @given(
-        message=message_without_precompile,
+        message=message_strategy,
     )
     @pytest.mark.slow
     def test_execute_code(self, cairo_run, message: Message):
@@ -65,7 +58,7 @@ class TestInterpreter:
         assert evm_python == evm_cairo
 
     @given(
-        message=message_without_precompile,
+        message=message_strategy,
     )
     @pytest.mark.slow
     def test_process_message(self, cairo_run, message: Message):
@@ -80,8 +73,9 @@ class TestInterpreter:
         assert evm_python == evm_cairo
 
     @given(
-        message=message_without_precompile,
+        message=message_strategy,
     )
+    @pytest.mark.slow
     def test_process_create_message(self, cairo_run, message: Message):
         try:
             evm_cairo = cairo_run("process_create_message", message)
@@ -94,7 +88,7 @@ class TestInterpreter:
         assert evm_python == evm_cairo
 
     @given(
-        message=message_without_precompile,
+        message=message_strategy,
     )
     @pytest.mark.slow
     def test_process_message_call(self, cairo_run, message: Message):

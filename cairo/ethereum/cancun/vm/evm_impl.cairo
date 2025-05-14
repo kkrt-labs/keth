@@ -256,7 +256,7 @@ namespace EvmImpl {
                 logs=evm.value.logs,
                 refund_counter=evm.value.refund_counter,
                 running=evm.value.running,
-                message=evm.value.message,
+                message=new_message,
                 output=evm.value.output,
                 accounts_to_delete=evm.value.accounts_to_delete,
                 return_data=evm.value.return_data,

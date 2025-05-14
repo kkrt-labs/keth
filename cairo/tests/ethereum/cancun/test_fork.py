@@ -58,7 +58,6 @@ from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
-from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
     COINBASE,
     OMMER_HASH,
@@ -259,7 +258,6 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
 
     addr = (
         st.integers(min_value=0, max_value=2**160 - 1)
-        .filter(lambda x: x not in unimplemented_precompiles)
         .map(lambda x: Bytes20(x.to_bytes(20, "little")))
         .map(Address)
     )
