@@ -196,8 +196,8 @@ known_first_party = [
   "cairo_addons",
   "eth_rpc",
   "mpt",
-  "tests",
   "utils",
+  "tests",
   "keth_types",
 ]
 
