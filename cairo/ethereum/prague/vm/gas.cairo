@@ -66,6 +66,13 @@ namespace GasConstants {
     const GAS_PER_BLOB = 2 ** 17;
     const MIN_BLOB_GASPRICE = 1;
     const BLOB_BASE_FEE_UPDATE_FRACTION = 3338477;
+
+    const GAS_BLS_G1_ADD = 375;
+    const GAS_BLS_G1_MUL = 12000;
+    const GAS_BLS_G1_MAP = 5500;
+    const GAS_BLS_G2_ADD = 600;
+    const GAS_BLS_G2_MUL = 22500;
+    const GAS_BLS_G2_MAP = 23800;
 }
 
 struct ExtendMemory {
