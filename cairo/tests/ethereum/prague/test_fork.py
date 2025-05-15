@@ -6,6 +6,8 @@ from typing import Optional, Tuple
 from eth_abi.abi import encode
 from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import (
     Block,
     Header,
@@ -47,8 +49,6 @@ from ethereum.prague.trie import Trie, root
 from ethereum.prague.utils.address import to_address
 from ethereum.prague.vm import BlockEnvironment, BlockOutput, TransactionEnvironment
 from ethereum.prague.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
-from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint

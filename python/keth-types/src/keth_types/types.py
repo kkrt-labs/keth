@@ -11,6 +11,8 @@ from typing import (
     Union,
 )
 
+from ethereum.crypto.hash import Hash32
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import Receipt, Withdrawal
 from ethereum.prague.fork_types import Address
 from ethereum.prague.state import State, TransientStorage
@@ -27,8 +29,6 @@ from ethereum.prague.vm import Evm as EvmBase
 from ethereum.prague.vm import Message as MessageBase
 from ethereum.prague.vm import TransactionEnvironment as TransactionEnvironmentBase
 from ethereum.prague.vm.interpreter import MessageCallOutput as MessageCallOutputBase
-from ethereum.crypto.hash import Hash32
-from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_types.bytes import (
     Bytes,

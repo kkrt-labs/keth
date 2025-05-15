@@ -76,7 +76,6 @@ def alt_bn128_pairing_check_hint(
     segments: MemorySegmentManager,
 ):
 
-    from ethereum.prague.vm.exceptions import OutOfGasError
     from ethereum.crypto.alt_bn128 import (
         ALT_BN128_CURVE_ORDER,
         ALT_BN128_PRIME,
@@ -87,6 +86,7 @@ def alt_bn128_pairing_check_hint(
         BNP2,
         pairing,
     )
+    from ethereum.prague.vm.exceptions import OutOfGasError
     from ethereum_types.numeric import U256
 
     from cairo_addons.hints.precompiles import write_error, write_output
@@ -142,8 +142,8 @@ def alt_bn128_add_hint(
     ap: RelocatableValue,
     segments: MemorySegmentManager,
 ):
-    from ethereum.prague.vm.exceptions import OutOfGasError
     from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
+    from ethereum.prague.vm.exceptions import OutOfGasError
 
     from cairo_addons.hints.precompiles import write_error, write_output
     from cairo_addons.utils.uint256 import uint256_to_int
@@ -186,8 +186,8 @@ def alt_bn128_mul_hint(
     ap: RelocatableValue,
     segments: MemorySegmentManager,
 ):
-    from ethereum.prague.vm.exceptions import OutOfGasError
     from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
+    from ethereum.prague.vm.exceptions import OutOfGasError
 
     from cairo_addons.hints.precompiles import write_error, write_output
     from cairo_addons.utils.uint256 import uint256_to_int

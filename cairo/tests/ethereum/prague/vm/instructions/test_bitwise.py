@@ -1,3 +1,4 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.instructions.bitwise import (
     bitwise_and,
@@ -9,7 +10,6 @@ from ethereum.prague.vm.instructions.bitwise import (
     bitwise_xor,
     get_byte,
 )
-from ethereum.exceptions import EthereumException
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises

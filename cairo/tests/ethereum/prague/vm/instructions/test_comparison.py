@@ -1,3 +1,4 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.instructions.comparison import (
     equal,
@@ -7,7 +8,6 @@ from ethereum.prague.vm.instructions.comparison import (
     signed_greater_than,
     signed_less_than,
 )
-from ethereum.exceptions import EthereumException
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises

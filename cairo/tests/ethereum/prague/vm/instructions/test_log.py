@@ -1,6 +1,6 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.instructions.log import log0, log1, log2, log3, log4
-from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis.strategies import composite, integers

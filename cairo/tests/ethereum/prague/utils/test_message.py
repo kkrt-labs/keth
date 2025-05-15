@@ -1,12 +1,12 @@
 from typing import Tuple
 
+from ethereum.crypto.hash import keccak256
 from ethereum.prague.fork_types import Account, Address
 from ethereum.prague.state import set_account
 from ethereum.prague.transactions import Transaction
 from ethereum.prague.trie import root
 from ethereum.prague.utils.message import prepare_message
 from ethereum.prague.vm import BlockEnvironment, TransactionEnvironment
-from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given

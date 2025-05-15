@@ -5,6 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ethereum.crypto.hash import keccak256
 from ethereum.prague.blocks import Block, Log, Receipt, Withdrawal
 from ethereum.prague.fork import (
     BEACON_ROOTS_ADDRESS,
@@ -35,7 +36,6 @@ from ethereum.prague.vm import (
 from ethereum.prague.vm.gas import (
     calculate_excess_blob_gas,
 )
-from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
     hex_to_bytes32,

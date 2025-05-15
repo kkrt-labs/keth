@@ -1,6 +1,6 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.precompiled_contracts.sha256 import sha256
-from ethereum.exceptions import EthereumException
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises

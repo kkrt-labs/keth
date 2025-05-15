@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from ethereum.prague.fork import state_transition
 from ethereum.exceptions import InvalidBlock
+from ethereum.prague.fork import state_transition
 from ethereum_types.numeric import U64
 
 from utils.fixture_loader import (

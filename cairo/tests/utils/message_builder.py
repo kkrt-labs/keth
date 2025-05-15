@@ -1,7 +1,7 @@
+from ethereum.crypto.hash import Hash32
 from ethereum.prague.fork_types import Address
 from ethereum.prague.state import TransientStorage
 from ethereum.prague.vm import BlockEnvironment, Message, TransactionEnvironment
-from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import strategies as st

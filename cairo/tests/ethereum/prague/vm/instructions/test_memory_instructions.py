@@ -1,6 +1,6 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.instructions.memory import mcopy, mload, msize, mstore, mstore8
-from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
 

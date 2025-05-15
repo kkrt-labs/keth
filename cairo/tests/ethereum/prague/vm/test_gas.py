@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import Header
 from ethereum.prague.transactions import BlobTransaction, Transaction
 from ethereum.prague.vm import Evm
@@ -16,7 +17,6 @@ from ethereum.prague.vm.gas import (
     init_code_cost,
     max_message_call_gas,
 )
-from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st

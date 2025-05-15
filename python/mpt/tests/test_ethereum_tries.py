@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import pytest
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.prague.blocks import Block, Header, Withdrawal
 from ethereum.prague.fork import (
     BlockChain,
@@ -12,7 +13,6 @@ from ethereum.prague.fork import (
 )
 from ethereum.prague.fork_types import Address
 from ethereum.prague.transactions import LegacyTransaction, encode_transaction
-from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
