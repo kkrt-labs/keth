@@ -24,8 +24,8 @@ fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 ETHEREUM_BLOCKCHAIN_TESTS_DIR = f"{ETHEREUM_TESTS_PATH}/BlockchainTests/"
 EEST_BLOCKCHAIN_TESTS_DIR = f"{EEST_TESTS_PATH}/blockchain_tests/"
 
-NETWORK = "Prague"
-PACKAGE = "prague"
+NETWORK = "Cancun"
+PACKAGE = "cancun"
 
 SLOW_TESTS = (
     # GeneralStateTests
@@ -90,18 +90,11 @@ with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
     SKIPPED_TESTS = tuple(json.load(f))
 
 
-<<<<<<< HEAD:cairo/tests/ef_tests/cancun/test_state_transition.py
-fetch_state_tests = partial(
-    fetch_cancun_tests,
-    test_dir,
-    ignore_list=IGNORE_TESTS + SKIPPED_TESTS,
-=======
 # Define Tests
 fetch_tests = partial(
     fetch_state_test_files,
     network=NETWORK,
     ignore_list=IGNORE_TESTS,
->>>>>>> e458a096 (update EELS ef-tests loader):cairo/tests/ef_tests/prague/test_state_transition.py
     slow_list=SLOW_TESTS,
     big_memory_list=BIG_MEMORY_TESTS,
 )
@@ -133,11 +126,7 @@ def test_general_state_tests(test_case: Dict, cairo_state_transition) -> None:
 # Run EEST test fixtures
 @pytest.mark.parametrize(
     "test_case",
-<<<<<<< HEAD:cairo/tests/ef_tests/cancun/test_state_transition.py
-    fetch_cancun_tests(test_dir),
-=======
-    fetch_prague_tests(EEST_BLOCKCHAIN_TESTS_DIR),
->>>>>>> e458a096 (update EELS ef-tests loader):cairo/tests/ef_tests/prague/test_state_transition.py
+    fetch_cancun_tests(EEST_BLOCKCHAIN_TESTS_DIR),
     ids=idfn,
 )
 def test_execution_specs_generated_tests(
