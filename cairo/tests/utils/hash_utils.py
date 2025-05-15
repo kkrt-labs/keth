@@ -116,3 +116,10 @@ def TupleWithdrawal__hash__(tuple_withdrawal: Tuple[Withdrawal, ...]) -> Hash32:
     for item in tuple_withdrawal:
         acc.append(Withdrawal__hash__(item))
     return hashlib.blake2s(b"".join(acc)).digest()
+
+
+def TupleBytes__hash__(tuple_bytes: Tuple[Bytes, ...]) -> Hash32:
+    acc = []
+    for item in tuple_bytes:
+        acc.append(hashlib.blake2s(item).digest())
+    return hashlib.blake2s(b"".join(acc)).digest()
