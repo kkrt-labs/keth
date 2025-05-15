@@ -31,9 +31,10 @@ evm_storage_strategy = (
     EvmBuilder()
     .with_stack()
     .with_gas_left()
-    .with_env()
     .with_accessed_storage_keys()
-    .with_message(MessageBuilder().with_is_static().build())
+    .with_message(
+        MessageBuilder().with_block_env().with_tx_env().with_is_static().build()
+    )
     .build()
 )
 
@@ -46,7 +47,7 @@ def sstore_strategy(draw):
         account = draw(st.from_type(Account))
         # Ensure the account exists and the key is accessed
         set_account(
-            evm.env.state,
+            evm.message.block_env.state,
             evm.message.current_target,
             account,
         )
@@ -82,7 +83,7 @@ class TestStorage:
         """
         This test ensures that sload won't be used on an empty storage.
         """
-        state = evm.env.state
+        state = evm.message.block_env.state
 
         # Set an empty account in state
         set_account(state, address, EMPTY_ACCOUNT)
@@ -149,13 +150,13 @@ class TestStorage:
         # Ensure an account exists in state to fill the storage
         evm.message.current_target = address
         set_account(
-            evm.env.state,
+            evm.message.block_env.state,
             address,
             EMPTY_ACCOUNT,
         )
         # Set the original value
         set_storage(
-            evm.env.state,
+            evm.message.block_env.state,
             address,
             key,
             original_value,
@@ -163,8 +164,8 @@ class TestStorage:
         # Fill with the proper account values - ensure it's the current target
         code = b"6001600101"
         code_hash = keccak256(code)
-        if address in evm.env.state._storage_tries:
-            storage_root = root(evm.env.state._storage_tries[address])
+        if address in evm.message.block_env.state._storage_tries:
+            storage_root = root(evm.message.block_env.state._storage_tries[address])
         else:
             storage_root = EMPTY_TRIE_HASH
         account = Account(
@@ -175,15 +176,15 @@ class TestStorage:
             storage_root=storage_root,
         )
         set_account(
-            evm.env.state,
+            evm.message.block_env.state,
             address,
             account,
         )
         # Take a snapshot of the state
-        evm.env.state._snapshots.insert(
+        evm.message.block_env.state._snapshots.insert(
             0,
             (
-                copy_trie(evm.env.state._main_trie),
+                copy_trie(evm.message.block_env.state._main_trie),
                 defaultdict(
                     lambda: Trie(
                         secured=True,
@@ -192,14 +193,14 @@ class TestStorage:
                     ),
                     {
                         addr: copy_trie(trie)
-                        for addr, trie in evm.env.state._storage_tries.items()
+                        for addr, trie in evm.message.block_env.state._storage_tries.items()
                     },
                 ),
             ),
         )
         # Set the current value
         set_storage(
-            evm.env.state,
+            evm.message.block_env.state,
             evm.message.current_target,
             key,
             current_value,
@@ -267,7 +268,7 @@ class TestStorage:
             current_value,
             new_value,
         )
-        assert res % DEFAULT_PRIME == res_cairo
+        assert int(res) % DEFAULT_PRIME == int(res_cairo)
 
 
 # see https://github.com/ethereum/execution-specs/blob/6e652281164025f1f4227f6e5b0036c1bbd27347/src/ethereum/cancun/vm/instructions/storage.py#L104

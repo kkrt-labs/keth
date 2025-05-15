@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Minimal Ethereum JSON-RPC library"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["ethereum", "python-dotenv>=1.0.1"]
+dependencies = ["ethereum-execution", "python-dotenv>=1.0.1"]
 
 [build-system]
 requires = ["hatchling"]

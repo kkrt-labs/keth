@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memset import memset
-from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.utils.numeric import U256_from_be_bytes, U256_le, divmod

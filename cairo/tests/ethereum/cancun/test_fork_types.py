@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
 from ethereum.crypto.hash import Hash32
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
 from hypothesis import example, given
 
@@ -18,14 +19,14 @@ class TestForkTypes:
         account_a=Account(
             nonce=Uint(1),
             balance=U256(2**128),
-            code=bytearray(),
+            code=Bytes(),
             storage_root=EMPTY_TRIE_HASH,
             code_hash=EMPTY_BYTES_HASH,
         ),
         account_b=Account(
             nonce=Uint(1),
             balance=U256(2**129),
-            code=bytearray(),
+            code=Bytes(),
             storage_root=EMPTY_TRIE_HASH,
             code_hash=EMPTY_BYTES_HASH,
         ),

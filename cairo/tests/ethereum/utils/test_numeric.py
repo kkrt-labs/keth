@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import (
-    BLOB_GASPRICE_UPDATE_FRACTION,
+    BLOB_BASE_FEE_UPDATE_FRACTION,
     MIN_BLOB_GASPRICE,
     TARGET_BLOB_GAS_PER_BLOCK,
 )
@@ -78,7 +78,7 @@ class TestNumeric:
         numerator=st.integers(
             min_value=1, max_value=10 * int(TARGET_BLOB_GAS_PER_BLOCK)
         ).map(Uint),
-        denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
+        denominator=st.just(BLOB_BASE_FEE_UPDATE_FRACTION),
     )
     def test_taylor_exponential(
         self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint
@@ -90,7 +90,7 @@ class TestNumeric:
     @given(
         factor=st.just(MIN_BLOB_GASPRICE),
         numerator=st.integers(min_value=1, max_value=100_000_000_000_000_000).map(Uint),
-        denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
+        denominator=st.just(BLOB_BASE_FEE_UPDATE_FRACTION),
     )
     def test_taylor_exponential_limited(
         self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint

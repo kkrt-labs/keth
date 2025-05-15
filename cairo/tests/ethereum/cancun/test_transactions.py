@@ -1,3 +1,5 @@
+from typing import Union
+
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -6,6 +8,7 @@ from ethereum.cancun.transactions import (
     Transaction,
     calculate_intrinsic_cost,
     encode_transaction,
+    get_transaction_hash,
     recover_sender,
     signing_hash_155,
     signing_hash_1559,
@@ -14,7 +17,7 @@ from ethereum.cancun.transactions import (
     signing_hash_pre155,
     validate_transaction,
 )
-from ethereum_types.bytes import Bytes0
+from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import example, given
 
@@ -32,7 +35,7 @@ class TestTransactions:
         tx=LegacyTransaction(
             value=U256(0),
             nonce=U256(0),
-            data=bytes(b"1" * 49153),
+            data=Bytes(b"1" * 49153),
             to=Bytes0(),
             gas=Uint(2_000_000),
             gas_price=Uint(0),
@@ -92,3 +95,8 @@ class TestTransactions:
         encoded_tx = encode_transaction(tx)
         decoded_tx = cairo_run("decode_transaction", encoded_tx)
         assert decoded_tx == tx
+
+    @given(tx=...)
+    def test_get_transaction_hash(self, cairo_run, tx: Union[Bytes, LegacyTransaction]):
+        encoded_tx = cairo_run("get_transaction_hash", tx)
+        assert encoded_tx == get_transaction_hash(tx)

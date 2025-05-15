@@ -1,7 +1,8 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
-from ethereum.cancun.blocks import TupleLog, TupleLogStruct
+from starkware.cairo.common.alloc import alloc
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log, TupleLog__hash__
 from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
@@ -12,24 +13,126 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum_types.numeric import Uint
 from ethereum.cancun.vm.runtime import finalize_jumpdests
-from ethereum.cancun.state import account_exists_and_is_empty
 // cairo-lint: disable
 from ethereum.cancun.vm.stack import Stack
-from cairo_core.comparison import is_zero
 from starkware.cairo.common.memcpy import memcpy
-from legacy.utils.dict import (
-    hashdict_write,
-    hashdict_read,
-    dict_update,
-    squash_and_update,
-    default_dict_finalize,
-    dict_squash,
+from legacy.utils.dict import dict_update, squash_and_update, default_dict_finalize, dict_squash
+from ethereum.cancun.trie import (
+    init_tries,
+    TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieBytesOptionalUnionBytesReceipt,
+    TrieBytesOptionalUnionBytesWithdrawal,
+    EthereumTriesImpl,
+    root,
 )
-from ethereum.cancun.vm.evm_impl import EvmImpl, Evm, EvmStruct
-from ethereum.cancun.vm.env_impl import EnvImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
+from ethereum_types.numeric import U64
+from ethereum_types.bytes import TupleBytes, TupleBytesStruct, Bytes
+from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
+from cairo_core.bytes_impl import TupleBytes__hash__
+from ethereum.crypto.hash import Hash32
+from ethereum.cancun.fork_types import OptionalMappingAddressBytes32, MappingAddressBytes32Struct
+
+struct BlockOutputStruct {
+    block_gas_used: Uint,
+    transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
+    receipts_trie: TrieBytesOptionalUnionBytesReceipt,
+    receipt_keys: TupleBytes,
+    block_logs: TupleLog,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+    blob_gas_used: U64,
+}
+
+struct BlockOutput {
+    value: BlockOutputStruct*,
+}
+
+func empty_block_output() -> BlockOutput {
+    let (transactions_trie, receipts_trie, withdrawals_trie) = init_tries();
+    let (logs: Log*) = alloc();
+    tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
+    let (receipt_keys: Bytes*) = alloc();
+    tempvar tuple_receipt_keys = TupleBytes(new TupleBytesStruct(data=receipt_keys, len=0));
+
+    tempvar block_output = BlockOutput(
+        new BlockOutputStruct(
+            block_gas_used=Uint(0),
+            transactions_trie=transactions_trie,
+            receipts_trie=receipts_trie,
+            receipt_keys=tuple_receipt_keys,
+            block_logs=block_logs,
+            withdrawals_trie=withdrawals_trie,
+            blob_gas_used=U64(0),
+        ),
+    );
+
+    return block_output;
+}
+
+func BlockOutput__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    block_output: BlockOutput
+) -> Hash32 {
+    alloc_locals;
+
+    let transactions_trie = block_output.value.transactions_trie;
+    let receipts_trie = block_output.value.receipts_trie;
+    let withdrawals_trie = block_output.value.withdrawals_trie;
+
+    // Commit to the transaction and receipt tries
+    // Squash the receipts and transactions dicts once they're no longer being modified.
+    default_dict_finalize(
+        cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(receipts_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+
+    // we're hashing with blake2s, we can use a mock keccak_ptr and mock poseidon_ptr
+    let keccak_ptr = cast(0, felt*);
+    let poseidon_ptr = cast(0, PoseidonBuiltin*);
+    with keccak_ptr, poseidon_ptr {
+        let null_account_roots = OptionalMappingAddressBytes32(
+            cast(0, MappingAddressBytes32Struct*)
+        );
+        let tx_trie_typed = EthereumTriesImpl.from_transaction_trie(transactions_trie);
+        let tx_trie_commitment = root(tx_trie_typed, null_account_roots, 'blake2s');
+
+        let receipt_trie_typed = EthereumTriesImpl.from_receipt_trie(receipts_trie);
+        let receipt_trie_commitment = root(receipt_trie_typed, null_account_roots, 'blake2s');
+
+        let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
+        let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
+    }
+
+    let receipt_keys_commitment = TupleBytes__hash__(block_output.value.receipt_keys);
+    let block_logs_commitment = TupleLog__hash__(block_output.value.block_logs);
+
+    let (blake2s_input) = alloc();
+    let start = blake2s_input;
+    blake2s_add_felt{data=blake2s_input}(block_output.value.block_gas_used.value, bigend=0);
+    blake2s_add_uint256{data=blake2s_input}([tx_trie_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([receipt_trie_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([receipt_keys_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([block_logs_commitment.value]);
+    blake2s_add_uint256{data=blake2s_input}([withdrawal_trie_commitment.value]);
+    blake2s_add_felt{data=blake2s_input}(block_output.value.blob_gas_used.value, bigend=0);
+
+    let (block_output_commitment) = blake2s(data=start, n_bytes=BlockOutputStruct.SIZE * 32);
+    tempvar res = Hash32(new block_output_commitment);
+    return res;
+}
 
 // @notice Incorporates the child EVM in its parent in case of a successful execution.
-// @dev This merges the current logs, touched_accounts, accounts_to_delete, accessed addresses and storage keys into the parent.
+// @dev This merges the current logs, accounts_to_delete, accessed addresses and storage keys into the parent.
 // @dev The transient storage and state have been handled in `commit_transaction`, in which we
 // dict accesses to the parent's state and transient storage segments.
 func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
@@ -53,42 +156,6 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
     // 30M block gas, at least 5k gas per SSTORE, max 6k SSTOREs per block, meaning at most 6000 * 4800 = 28.8M refund counter
     // thus this won't overflow.
     let new_refund_counter = evm.value.refund_counter + child_evm.value.refund_counter;
-
-    // Squash & update touched_accounts into parent
-    let child_touched_accounts_start = child_evm.value.touched_accounts.value.dict_ptr_start;
-    let child_touched_accounts_end = child_evm.value.touched_accounts.value.dict_ptr;
-    let touched_accounts = evm.value.touched_accounts;
-    let touched_accounts_end = touched_accounts.value.dict_ptr;
-    let new_touched_accounts_end = squash_and_update(
-        cast(child_touched_accounts_start, DictAccess*),
-        cast(child_touched_accounts_end, DictAccess*),
-        cast(touched_accounts_end, DictAccess*),
-    );
-
-    // Check if child message target account exists and is empty
-    let env = evm.value.env;
-    let state = env.value.state;
-    let exists_and_is_empty = account_exists_and_is_empty{state=state}(
-        child_evm.value.message.value.current_target
-    );
-    if (exists_and_is_empty.value != 0) {
-        hashdict_write{dict_ptr=new_touched_accounts_end}(
-            1, &child_evm.value.message.value.current_target.value, 1
-        );
-    } else {
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar new_touched_accounts_end = new_touched_accounts_end;
-    }
-    let range_check_ptr = [ap-2];
-    let new_touched_accounts_end = cast([ap - 1], DictAccess*);
-    EnvImpl.set_state{env=env}(state);
-
-    tempvar new_touched_accounts = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(touched_accounts.value.dict_ptr_start, SetAddressDictAccess*),
-            dict_ptr=cast(new_touched_accounts_end, SetAddressDictAccess*),
-        ),
-    );
 
     // Squash & update accounts_to_delete into parent
     let accounts_to_delete = evm.value.accounts_to_delete;
@@ -179,7 +246,6 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
             memory=evm.value.memory,
             code=evm.value.code,
             gas_left=new_gas_left,
-            env=env,
             valid_jump_destinations=evm.value.valid_jump_destinations,
             logs=new_logs,
             refund_counter=new_refund_counter,
@@ -187,7 +253,6 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
             message=evm.value.message,
             output=evm.value.output,
             accounts_to_delete=new_accounts_to_delete,
-            touched_accounts=new_touched_accounts,
             return_data=evm.value.return_data,
             error=evm.value.error,
             accessed_addresses=new_accessed_addresses,
@@ -199,7 +264,7 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
 }
 
 // @notice Incorporates the child EVM in its parent in case of an error.
-// @dev This squashes and drops the current logs, touched_accounts, accounts_to_delete, accessed
+// @dev This squashes and drops the current logs, accounts_to_delete, accessed
 // addresses and storage keys that are no longer used.
 // @dev The transient storage and state have been handled in `rollback_transaction`, in which we squashed the segment
 // and appended the (key, prev_value, prev_value) pairs to the parent's state and transient storage segments.
@@ -207,39 +272,6 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     child_evm: Evm
 ) {
     alloc_locals;
-
-    let fp_and_pc = get_fp_and_pc();
-    local __fp__: felt* = fp_and_pc.fp_val;
-
-    // Special handling for RIPEMD160 precompile address (0x3)
-    // TODO: unless we want to retro-prove all blocks, we could remove this logic.
-    // In block 2675119, the empty account at 0x3 (the RIPEMD160 precompile) was
-    // cleared despite running out of gas. This is an obscure edge case that can
-    // only happen to a precompile.
-    // According to the general rules governing clearing of empty accounts, the
-    // touch should have been reverted. Due to client bugs, this event went
-    // unnoticed and 0x3 has been exempted from the rule that touches are
-    // reverted in order to preserve this historical behaviour.
-
-    // TODO: Move this to precompiled_contracts.cairo
-    const RIPEMD160_ADDRESS = 0x0300000000000000000000000000000000000000;
-
-    // Check if RIPEMD160 address is in child's touched accounts
-    let child_touched_accounts = child_evm.value.touched_accounts;
-    let child_touched_accounts_start = child_touched_accounts.value.dict_ptr_start;
-    let child_touched_accounts_end = cast(child_touched_accounts.value.dict_ptr, DictAccess*);
-    let (ripemd_touched) = hashdict_read{dict_ptr=child_touched_accounts_end}(
-        1, new RIPEMD160_ADDRESS
-    );
-
-    // Soundness requirement: squash all child dicts - including ones from message and env.
-
-    // EVM //
-    default_dict_finalize(
-        cast(child_touched_accounts_start, DictAccess*),
-        cast(child_touched_accounts_end, DictAccess*),
-        0,
-    );
 
     // Drop child's accessed_addresses
     tempvar parent_accessed_addresses = evm.value.accessed_addresses;
@@ -260,7 +292,7 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     );
 
     // Drop child's accessed_storage_keys
-    tempvar parent_accessed_storage_keys = evm.value.accessed_storage_keys;
+    let parent_accessed_storage_keys = evm.value.accessed_storage_keys;
     let child_accessed_storage_keys_start = child_evm.value.accessed_storage_keys.value.dict_ptr_start;
     let child_accessed_storage_keys_end = child_evm.value.accessed_storage_keys.value.dict_ptr;
     let (new_accessed_storage_keys_start, new_accessed_storage_keys_end) = dict_update(
@@ -311,49 +343,6 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     // No need to squash the env's `state` and `transient_storage` because it was handled in `rollback_transaction`,
     // when we squashed and appended the prev keys to the parent's state and transient storage segments.
 
-    // Check if child message target is RIPEMD160 address
-    let is_ripemd_target = is_zero(
-        child_evm.value.message.value.current_target.value - RIPEMD160_ADDRESS
-    );
-    if (is_ripemd_target != 0) {
-        let env = evm.value.env;
-        let state = env.value.state;
-        let exists_and_is_empty = account_exists_and_is_empty{state=state}(
-            child_evm.value.message.value.current_target
-        );
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env(env);
-        tempvar evm = evm;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar write_ripemd = exists_and_is_empty.value + ripemd_touched;
-    } else {
-        tempvar evm = evm;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar write_ripemd = ripemd_touched;
-    }
-    let evm_ = cast([ap - 3], EvmStruct*);
-    let range_check_ptr = [ap - 2];
-    let write_ripemd = [ap - 1];
-    tempvar evm = Evm(evm_);
-
-    let touched_accounts = evm.value.touched_accounts;
-    let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
-
-    if (write_ripemd != 0) {
-        hashdict_write{dict_ptr=touched_accounts_end}(1, new RIPEMD160_ADDRESS, 1);
-    } else {
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar touched_accounts_end = touched_accounts_end;
-    }
-    let range_check_ptr = [ap - 2];
-    let new_touched_accounts_end = cast([ap - 1], DictAccess*);
-
-    tempvar new_touched_accounts = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(touched_accounts.value.dict_ptr_start, SetAddressDictAccess*),
-            dict_ptr=cast(new_touched_accounts_end, SetAddressDictAccess*),
-        ),
-    );
     let new_gas_left = Uint(evm.value.gas_left.value + child_evm.value.gas_left.value);
 
     tempvar evm = Evm(
@@ -363,7 +352,6 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
             memory=evm.value.memory,
             code=evm.value.code,
             gas_left=new_gas_left,
-            env=evm.value.env,
             valid_jump_destinations=evm.value.valid_jump_destinations,
             logs=evm.value.logs,
             refund_counter=evm.value.refund_counter,
@@ -371,7 +359,6 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
             message=evm.value.message,
             output=evm.value.output,
             accounts_to_delete=evm.value.accounts_to_delete,
-            touched_accounts=new_touched_accounts,
             return_data=evm.value.return_data,
             error=evm.value.error,
             accessed_addresses=new_accessed_addresses,

@@ -1,5 +1,5 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
-from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
@@ -22,7 +22,7 @@ from ethereum.cancun.transactions_types import (
     BlobTransactionStruct,
     To,
     ToStruct,
-    TupleAccessListStruct,
+    TupleAccessStruct,
     TX_BASE_COST,
     TX_DATA_COST_PER_NON_ZERO,
     TX_DATA_COST_PER_ZERO,
@@ -42,6 +42,7 @@ from ethereum_rlp.rlp import (
     decode_to_access_list_transaction,
     decode_to_fee_market_transaction,
     decode_to_blob_transaction,
+    encode_legacy_transaction,
 )
 from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
@@ -112,22 +113,22 @@ func _calculate_data_and_create_cost{range_check_ptr}(data: Bytes, to: To) -> fe
     return data_cost + TX_CREATE_COST + cost.value;
 }
 
-func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessListStruct) -> felt {
+func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessStruct) -> felt {
     alloc_locals;
     if (access_list.len == 0) {
         return 0;
     }
 
     let current_list = access_list.data[access_list.len - 1];
-    let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.storage_keys.value.len *
+    let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.slots.value.len *
         TX_ACCESS_LIST_STORAGE_KEY_COST;
-    let access_list = TupleAccessListStruct(data=access_list.data, len=access_list.len - 1);
+    let access_list = TupleAccessStruct(data=access_list.data, len=access_list.len - 1);
     let cum_gas_cost = _calculate_access_list_cost(access_list);
     let cost = current_cost + cum_gas_cost;
     return cost;
 }
 
-func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
+func validate_transaction{range_check_ptr}(tx: Transaction) -> Uint {
     alloc_locals;
 
     local tx_gas: Uint;
@@ -166,25 +167,21 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
     let intrinsic_cost = calculate_intrinsic_cost(tx);
     let is_gas_insufficient = is_le_felt(tx_gas.value, intrinsic_cost.value - 1);
     if (is_gas_insufficient != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
     let is_nonce_out_of_range = is_le_felt(2 ** 64 - 1, tx_nonce.value.low);
     if (is_nonce_out_of_range + tx_nonce.value.high != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
     let is_data_not_zero = is_not_zero(tx_data.value.len);
     let is_data_too_large = is_le_felt(2 * MAX_CODE_SIZE, tx_data.value.len - 1);
     if (tx_to_ptr == 0 and is_data_not_zero != FALSE and is_data_too_large != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
-    tempvar res = bool(TRUE);
-    return res;
+    return intrinsic_cost;
 }
 
 func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
@@ -272,7 +269,7 @@ func recover_sender{
             let hash = signing_hash_pre155(tx.value.legacy_transaction);
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -286,7 +283,7 @@ func recover_sender{
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -303,7 +300,7 @@ func recover_sender{
         let hash = signing_hash_2930(tx.value.access_list_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -320,7 +317,7 @@ func recover_sender{
         let hash = signing_hash_1559(tx.value.fee_market_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -336,7 +333,7 @@ func recover_sender{
         let hash = signing_hash_4844(tx.value.blob_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -420,6 +417,29 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return res;
     }
     with_attr error_message("TransactionTypeError") {
+        jmp raise.raise_label;
+    }
+}
+
+func get_transaction_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    tx_encoded: UnionBytesLegacyTransaction
+) -> Hash32 {
+    alloc_locals;
+
+    if (cast(tx_encoded.value.bytes.value, felt) != 0) {
+        // This is a typed transaction, already RLP encoded with its type prefix
+        let hash = keccak256(tx_encoded.value.bytes);
+        return hash;
+    }
+
+    if (cast(tx_encoded.value.legacy_transaction.value, felt) != 0) {
+        // This is a legacy transaction, RLP encode it without chain ID for hashing
+        let encoded_legacy_tx = encode_legacy_transaction(tx_encoded.value.legacy_transaction);
+        let hash = keccak256(encoded_legacy_tx);
+        return hash;
+    }
+
+    with_attr error_message("get_transaction_hash: Invalid input type") {
         jmp raise.raise_label;
     }
 }

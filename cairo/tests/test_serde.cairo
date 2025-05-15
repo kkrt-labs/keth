@@ -35,7 +35,7 @@ from ethereum.cancun.blocks import (
 )
 
 from ethereum.cancun.transactions_types import (
-    TupleAccessList,
+    TupleAccess,
     Transaction,
     LegacyTransaction,
     AccessListTransaction,
@@ -48,7 +48,7 @@ from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node, Subnodes
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm.env_impl import Environment
+from ethereum.cancun.vm.env_impl import BlockEnvironment, BlockEnvironmentStruct, BlockEnvImpl, TransactionEnvImpl, TransactionEnvironment, TransactionEnvironmentStruct
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.cancun.fork import BlockChain
 

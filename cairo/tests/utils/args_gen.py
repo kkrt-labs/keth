@@ -74,7 +74,7 @@ from typing import (
 )
 
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
+from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import (
     Account,
     Address,
@@ -84,6 +84,7 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -97,7 +98,13 @@ from ethereum.cancun.trie import (
     LeafNode,
     Trie,
 )
-from ethereum.cancun.vm import Environment, Evm, Message
+from ethereum.cancun.vm import (
+    BlockEnvironment,
+    BlockOutput,
+    Evm,
+    Message,
+    TransactionEnvironment,
+)
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
@@ -249,6 +256,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "numeric", "bool"): bool,
     ("cairo_core", "numeric", "U64"): U64,
     ("cairo_core", "numeric", "Uint"): Uint,
+    ("cairo_core", "numeric", "OptionalUint"): Optional[Uint],
     ("cairo_core", "numeric", "U256"): U256,
     ("cairo_core", "numeric", "OptionalU256"): Optional[U256],
     ("cairo_core", "numeric", "SetUint"): Set[Uint],
@@ -261,6 +269,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "bytes", "Bytes8"): Bytes8,
     ("cairo_core", "bytes", "Bytes20"): Bytes20,
     ("cairo_core", "bytes", "Bytes32"): Bytes32,
+    ("cairo_core", "bytes", "OptionalBytes32"): Optional[Bytes32],
+    ("cairo_core", "bytes", "OptionalHash32"): Optional[Hash32],
     ("cairo_core", "bytes", "Bytes48"): Bytes48,
     ("cairo_core", "bytes", "TupleBytes32"): Tuple[Bytes32, ...],
     ("cairo_core", "bytes", "Bytes256"): Bytes256,
@@ -320,9 +330,12 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
     ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
-    ("ethereum", "cancun", "fork_types", "TupleAddressUintTupleVersionedHash"): Tuple[
-        Address, Uint, Tuple[VersionedHash, ...]
-    ],
+    (
+        "ethereum",
+        "cancun",
+        "fork_types",
+        "TupleAddressUintTupleVersionedHashU64",
+    ): Tuple[Address, Uint, Tuple[VersionedHash, ...], U64],
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
         VersionedHash, ...
     ],
@@ -335,6 +348,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
     ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
+    ("ethereum", "cancun", "transactions_types", "Access"): Access,
+    ("ethereum", "cancun", "transactions_types", "TupleAccess"): Tuple[Access, ...],
     (
         "ethereum",
         "cancun",
@@ -360,12 +375,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "BlobTransaction",
     ): BlobTransaction,
     ("ethereum", "cancun", "transactions_types", "Transaction"): Transaction,
-    ("ethereum", "cancun", "transactions_types", "TupleAccessList"): Tuple[
-        Tuple[Address, Tuple[Bytes32, ...]], ...
-    ],
-    ("ethereum", "cancun", "transactions_types", "AccessList"): Tuple[
-        Address, Tuple[Bytes32, ...]
-    ],
     ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
     ("ethereum_rlp", "rlp", "Simple"): Simple,
     ("ethereum_rlp", "rlp", "Extended"): Extended,
@@ -457,7 +466,14 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]],
     ("ethereum", "cancun", "state", "State"): State,
-    ("ethereum", "cancun", "vm", "env_impl", "Environment"): Environment,
+    ("ethereum", "cancun", "vm", "env_impl", "BlockEnvironment"): BlockEnvironment,
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "env_impl",
+        "TransactionEnvironment",
+    ): TransactionEnvironment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
     ("ethereum", "cancun", "vm", "evm_impl", "Message"): Message,
     ("ethereum", "cancun", "vm", "evm_impl", "Evm"): Evm,
@@ -465,7 +481,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "fork", "ApplyBodyOutput"): ApplyBodyOutput,
+    ("ethereum", "cancun", "vm", "BlockOutput"): BlockOutput,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,

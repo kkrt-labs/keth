@@ -86,22 +86,22 @@ func LegacyTransaction__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return hash;
 }
 
-struct AccessListStruct {
-    address: Address,
-    storage_keys: TupleBytes32,
+struct AccessStruct {
+    account: Address,
+    slots: TupleBytes32,
 }
 
-struct AccessList {
-    value: AccessListStruct*,
+struct Access {
+    value: AccessStruct*,
 }
 
-struct TupleAccessListStruct {
-    data: AccessList*,
+struct TupleAccessStruct {
+    data: Access*,
     len: felt,
 }
 
-struct TupleAccessList {
-    value: TupleAccessListStruct*,
+struct TupleAccess {
+    value: TupleAccessStruct*,
 }
 
 struct AccessListTransactionStruct {
@@ -112,7 +112,7 @@ struct AccessListTransactionStruct {
     to: To,
     value: U256,
     data: Bytes,
-    access_list: TupleAccessList,
+    access_list: TupleAccess,
     y_parity: U256,
     r: U256,
     s: U256,
@@ -131,7 +131,7 @@ struct FeeMarketTransactionStruct {
     to: To,
     value: U256,
     data: Bytes,
-    access_list: TupleAccessList,
+    access_list: TupleAccess,
     y_parity: U256,
     r: U256,
     s: U256,
@@ -150,7 +150,7 @@ struct BlobTransactionStruct {
     to: Address,
     value: U256,
     data: Bytes,
-    access_list: TupleAccessList,
+    access_list: TupleAccess,
     max_fee_per_blob_gas: U256,
     blob_versioned_hashes: TupleVersionedHash,
     y_parity: U256,
@@ -249,6 +249,46 @@ func get_s(tx: Transaction) -> U256 {
     }
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.s;
+    }
+    with_attr error_message("InvalidTransaction") {
+        jmp raise.raise_label;
+    }
+}
+
+func get_to(tx: Transaction) -> To {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.to;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.to;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.to;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        let bytes20_value = tx.value.blob_transaction.value.to;
+        tempvar to = To(value=new ToStruct(bytes0=cast(0, Bytes0*), address=new bytes20_value));
+        return to;
+    }
+    with_attr error_message("InvalidTransaction") {
+        jmp raise.raise_label;
+    }
+}
+
+func get_data(tx: Transaction) -> Bytes {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.data;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.data;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.data;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.data;
     }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;

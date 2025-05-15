@@ -101,7 +101,7 @@ def build_entrypoint(
 
     for k, v in implicit_args.items():
         is_builtin = (
-            any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+            any(builtin == k.replace("_ptr", "") for builtin in ALL_BUILTINS)
             and k not in SEGMENT_PTR_NAMES
         )
         if is_builtin:

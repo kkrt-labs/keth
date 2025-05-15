@@ -10,24 +10,17 @@ from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
 from ethereum.cancun.fork import _apply_body_inner
-from ethereum_types.numeric import U64, Uint
-from ethereum.cancun.trie import (
-    TrieBytesOptionalUnionBytesLegacyTransaction,
-    TrieBytesOptionalUnionBytesReceipt,
-)
-from ethereum.cancun.fork_types import (
-    MappingAddressAccount,
-    MappingAddressAccountStruct,
-    ListHash32,
-)
+from ethereum.cancun.vm import BlockOutput, BlockOutput__hash__
+from ethereum.cancun.fork_types import MappingAddressAccount, MappingAddressAccountStruct
 from ethereum.cancun.state import State, StateStruct, finalize_state
 from ethereum.cancun.trie import TrieAddressOptionalAccount, TrieAddressOptionalAccountStruct
-from ethereum.cancun.blocks import (
-    Header,
-    Header__hash__,
-    TupleUnionBytesLegacyTransaction,
-    TupleLog,
+from ethereum.cancun.vm.env_impl import (
+    BlockEnvironment,
+    BlockEnvironmentStruct,
+    BlockEnv__hash__,
+    BlockEnvImpl,
 )
+from ethereum.cancun.blocks import Header, Header__hash__, TupleUnionBytesLegacyTransaction
 
 from ethereum.cancun.keth.commitments import body_commitments
 
@@ -49,15 +42,8 @@ func body{
     // Program inputs
     local block_header: Header;
     local block_transactions: TupleUnionBytesLegacyTransaction;
-    local state: State;
-    local transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction;
-    local receipts_trie: TrieBytesOptionalUnionBytesReceipt;
-    local block_logs: TupleLog;
-    local block_hashes: ListHash32;
-    local gas_available: Uint;
-    local chain_id: U64;
-    local blob_gas_used: Uint;
-    local excess_blob_gas: U64;
+    local block_env: BlockEnvironment;
+    local block_output: BlockOutput;
     local start_index: felt;
     local len: felt;
     %{ body_inputs %}
@@ -65,6 +51,7 @@ func body{
     // // Because in args_gen we want to generate a state with (prev, new) tuples, we pass an initial snapshot of the state.
     // // However we don't need this inside the cairo program, so we just set the parent dict of the state to an empty pointer.
     // // Otherwise, this would trigger an assertion error in state.cairo when computing the state root.
+    let state = block_env.value.state;
     tempvar main_trie_data = MappingAddressAccount(
         new MappingAddressAccountStruct(
             dict_ptr_start=state.value._main_trie.value._data.value.dict_ptr_start,
@@ -88,6 +75,22 @@ func body{
         ),
     );
 
+    tempvar block_env = BlockEnvironment(
+        new BlockEnvironmentStruct(
+            chain_id=block_env.value.chain_id,
+            state=state,
+            block_gas_limit=block_env.value.block_gas_limit,
+            block_hashes=block_env.value.block_hashes,
+            coinbase=block_env.value.coinbase,
+            number=block_env.value.number,
+            base_fee_per_gas=block_env.value.base_fee_per_gas,
+            time=block_env.value.time,
+            prev_randao=block_env.value.prev_randao,
+            excess_blob_gas=block_env.value.excess_blob_gas,
+            parent_beacon_block_root=block_env.value.parent_beacon_block_root,
+        ),
+    );
+
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
     let builtin_keccak_ptr = keccak_ptr;
@@ -96,53 +99,31 @@ func body{
 
     // Input Commitments
     let header_commitment = Header__hash__(block_header);
+    let input_block_env_commitment = BlockEnv__hash__(block_env);
+    let input_block_output_commitment = BlockOutput__hash__(block_output);
     let initial_args_commitment = body_commitments(
         header_commitment,
+        input_block_env_commitment,
+        input_block_output_commitment,
         block_transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain_id,
-        excess_blob_gas,
     );
 
     // Execution
-    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
-        state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
-    }(
-        index=start_index,
-        len=start_index + len,
-        transactions=block_transactions,
-        gas_available=gas_available,
-        chain_id=chain_id,
-        base_fee_per_gas=block_header.value.base_fee_per_gas,
-        excess_blob_gas=excess_blob_gas,
-        block_logs=block_logs,
-        block_hashes=block_hashes,
-        coinbase=block_header.value.coinbase,
-        block_number=block_header.value.number,
-        block_gas_limit=block_header.value.gas_limit,
-        block_time=block_header.value.timestamp,
-        prev_randao=block_header.value.prev_randao,
-        blob_gas_used=blob_gas_used,
+    _apply_body_inner{block_env=block_env, block_output=block_output}(
+        index=start_index, len=start_index + len, transactions=block_transactions
     );
+    let state = block_env.value.state;
     finalize_state{state=state}();
+    BlockEnvImpl.set_state{block_env=block_env}(state);
 
     // Output Commitments
+    let output_block_env_commitment = BlockEnv__hash__(block_env);
+    let output_block_output_commitment = BlockOutput__hash__(block_output);
     let post_exec_commitment = body_commitments(
         header_commitment,
+        output_block_env_commitment,
+        output_block_output_commitment,
         block_transactions,
-        state,
-        transactions_trie,
-        receipts_trie,
-        block_logs,
-        block_hashes,
-        gas_available,
-        chain_id,
-        excess_blob_gas,
     );
 
     assert [output_ptr] = initial_args_commitment.value.low;

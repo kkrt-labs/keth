@@ -1,6 +1,4 @@
-from ethereum.cancun.fork_types import VersionedHash
-from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import Environment, Evm
+from ethereum.cancun.vm import BlockEnvironment, Evm
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -23,7 +21,9 @@ from ethereum.cancun.vm.instructions.environment import (
     returndatasize,
     self_balance,
 )
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
@@ -45,32 +45,34 @@ from tests.utils.strategies import (
     memory_lite,
 )
 
-environment_empty_state = st.builds(
-    Environment,
-    caller=...,
-    block_hashes=st.builds(list, st.just([])),
-    origin=...,
+block_environment_empty_state = st.builds(
+    BlockEnvironment,
+    chain_id=...,
+    state=empty_state,
+    block_gas_limit=...,
+    block_hashes=...,
     coinbase=...,
     number=...,
     base_fee_per_gas=...,
-    gas_limit=...,
-    gas_price=...,
     time=...,
     prev_randao=...,
-    state=empty_state,
-    chain_id=...,
     excess_blob_gas=excess_blob_gas,
-    blob_versioned_hashes=st.lists(
-        st.from_type(VersionedHash), min_size=0, max_size=5
-    ).map(tuple),
-    transient_storage=st.just(TransientStorage()),
+    parent_beacon_block_root=st.just(Hash32(Bytes32(b"\x00" * 32))),
 )
 
 message_empty_except_calldata = MessageBuilder().with_data(code).build()
 
 
 evm_environment_strategy = (
-    EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
+    EvmBuilder()
+    .with_gas_left()
+    .with_message(
+        MessageBuilder()
+        .with_block_env(block_environment_empty_state)
+        .with_tx_env()
+        .build()
+    )
+    .build()
 )
 
 
@@ -139,10 +141,10 @@ def evm_accessed_addresses_strategy(draw):
         .with_stack()
         .with_accessed_addresses()
         .with_gas_left()
-        .with_env()
+        .with_message(MessageBuilder().with_block_env().with_tx_env().build())
         .build()
     )
-    state = evm.env.state
+    state = evm.message.block_env.state
 
     address_options = []
 
@@ -259,7 +261,12 @@ class TestEnvironmentInstructions:
         evm=EvmBuilder()
         .with_memory()
         .with_gas_left()
-        .with_env(environment_empty_state)
+        .with_message(
+            MessageBuilder()
+            .with_block_env(block_environment_empty_state)
+            .with_tx_env()
+            .build()
+        )
         .with_return_data()
         .with_capped_values_stack()
         .build()

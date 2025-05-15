@@ -5,45 +5,37 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ethereum.cancun import vm
 from ethereum.cancun.blocks import Block, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import (
     BEACON_ROOTS_ADDRESS,
-    MAX_BLOB_GAS_PER_BLOCK,
-    SYSTEM_ADDRESS,
-    SYSTEM_TRANSACTION_GAS,
     BlockChain,
-    check_transaction,
     get_last_256_block_hashes,
-    make_receipt,
+    process_system_transaction,
     process_transaction,
 )
 from ethereum.cancun.fork_types import (
     EMPTY_ACCOUNT,
     Account,
     Address,
-    Root,
 )
 from ethereum.cancun.state import (
     State,
     TransientStorage,
-    destroy_touched_empty_accounts,
-    get_account,
 )
 from ethereum.cancun.transactions import (
     LegacyTransaction,
     decode_transaction,
     encode_transaction,
 )
-from ethereum.cancun.trie import Trie, copy_trie, root, trie_get, trie_set
-from ethereum.cancun.vm import Message
+from ethereum.cancun.trie import Trie, copy_trie, root, trie_get
+from ethereum.cancun.vm import (
+    BlockEnvironment,
+    BlockOutput,
+)
 from ethereum.cancun.vm.gas import (
     calculate_excess_blob_gas,
-    calculate_total_blob_gas,
 )
-from ethereum.cancun.vm.interpreter import process_message_call
-from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.exceptions import InvalidBlock
+from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
     hex_to_bytes32,
@@ -51,11 +43,10 @@ from ethereum.utils.hexadecimal import (
     hex_to_u256,
     hex_to_uint,
 )
-from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32
+from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256, Uint
 
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
@@ -201,7 +192,20 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     load = LoadKethFixture("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
+
+    # TODO(zkpi): Remove requestsHash key if null from block header and all ancestors
     input_block = prover_inputs["blocks"][0]
+    if (
+        "requestsHash" in input_block["header"]
+        and input_block["header"]["requestsHash"] is None
+    ):
+        del input_block["header"]["requestsHash"]
+
+    # Also remove from ancestors
+    for ancestor in prover_inputs["witness"]["ancestors"]:
+        if "requestsHash" in ancestor and ancestor["requestsHash"] is None:
+            del ancestor["requestsHash"]
+
     block_transactions = input_block["transaction"]
     transactions = process_block_transactions(block_transactions)
 
@@ -312,147 +316,59 @@ def format_state_for_eels(state: State) -> State:
     return
 
 
+def transient_storage_for_eels() -> TransientStorage:
+    """
+    Format the transient storage to run with EELS.
+    """
+    return TransientStorage(_data=defaultdict(lambda: None, {}), _snapshots=[])
+
+
 def prepare_body_input(
-    state: State,
-    block_hashes: List[Hash32],
-    coinbase: Address,
-    block_number: Uint,
-    base_fee_per_gas: Uint,
-    block_gas_limit: Uint,
-    block_time: U256,
-    prev_randao: Bytes32,
+    block_env: BlockEnvironment,
     transactions: Tuple[Union[LegacyTransaction, Bytes], ...],
-    chain_id: U64,
-    withdrawals: Tuple[Withdrawal, ...],
-    parent_beacon_block_root: Root,
-    excess_blob_gas: U64,
 ) -> Dict[str, Any]:
     """
     Prepare the input for the body step.
     Runs the STF on the subset of transactions passed as argument.
     Outputs the state post-transactions (new state, remaining gas, etc.)
     """
-    blob_gas_used = Uint(0)
-    gas_available = block_gas_limit
     transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
         secured=False, default=None, _data=defaultdict(lambda: None)
     )
     receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
         secured=False, default=None, _data=defaultdict(lambda: None)
     )
-    Trie(secured=False, default=None, _data=defaultdict(lambda: None))
+    withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
+        secured=False, default=None, _data=defaultdict(lambda: None)
+    )
     block_logs: Tuple[Log, ...] = ()
 
-    format_state_for_eels(state)
-
-    beacon_block_roots_contract_code = get_account(state, BEACON_ROOTS_ADDRESS).code
-
-    system_tx_message = Message(
-        caller=SYSTEM_ADDRESS,
-        target=BEACON_ROOTS_ADDRESS,
-        gas=SYSTEM_TRANSACTION_GAS,
-        value=U256(0),
-        data=parent_beacon_block_root,
-        code=beacon_block_roots_contract_code,
-        depth=Uint(0),
-        current_target=BEACON_ROOTS_ADDRESS,
-        code_address=BEACON_ROOTS_ADDRESS,
-        should_transfer_value=False,
-        is_static=False,
-        accessed_addresses=set(),
-        accessed_storage_keys=set(),
-        parent_evm=None,
+    block_output = BlockOutput(
+        block_gas_used=Uint(0),
+        transactions_trie=transactions_trie,
+        receipts_trie=receipts_trie,
+        receipt_keys=[],
+        block_logs=block_logs,
+        withdrawals_trie=withdrawals_trie,
+        blob_gas_used=U64(0),
     )
 
-    system_tx_env = vm.Environment(
-        caller=SYSTEM_ADDRESS,
-        origin=SYSTEM_ADDRESS,
-        block_hashes=block_hashes,
-        coinbase=coinbase,
-        number=block_number,
-        gas_limit=block_gas_limit,
-        base_fee_per_gas=base_fee_per_gas,
-        gas_price=base_fee_per_gas,
-        time=block_time,
-        prev_randao=prev_randao,
-        state=state,
-        chain_id=chain_id,
-        traces=[],
-        excess_blob_gas=excess_blob_gas,
-        blob_versioned_hashes=(),
-        transient_storage=TransientStorage(),
-    )
+    format_state_for_eels(block_env.state)
 
-    system_tx_output = process_message_call(system_tx_message, system_tx_env)
-
-    destroy_touched_empty_accounts(
-        system_tx_env.state, system_tx_output.touched_accounts
+    process_system_transaction(
+        block_env=block_env,
+        target_address=BEACON_ROOTS_ADDRESS,
+        data=block_env.parent_beacon_block_root,
     )
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
-        trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
+        process_transaction(block_env, block_output, tx, Uint(i))
 
-        (
-            sender_address,
-            effective_gas_price,
-            blob_versioned_hashes,
-        ) = check_transaction(
-            state,
-            tx,
-            gas_available,
-            chain_id,
-            base_fee_per_gas,
-            excess_blob_gas,
-        )
-
-        env = vm.Environment(
-            caller=sender_address,
-            origin=sender_address,
-            block_hashes=block_hashes,
-            coinbase=coinbase,
-            number=block_number,
-            gas_limit=block_gas_limit,
-            base_fee_per_gas=base_fee_per_gas,
-            gas_price=effective_gas_price,
-            time=block_time,
-            prev_randao=prev_randao,
-            state=state,
-            chain_id=chain_id,
-            traces=[],
-            excess_blob_gas=excess_blob_gas,
-            blob_versioned_hashes=blob_versioned_hashes,
-            transient_storage=TransientStorage(),
-        )
-
-        gas_used, logs, error = process_transaction(env, tx)
-        gas_available -= gas_used
-
-        receipt = make_receipt(tx, error, (block_gas_limit - gas_available), logs)
-
-        trie_set(
-            receipts_trie,
-            rlp.encode(Uint(i)),
-            receipt,
-        )
-
-        block_logs += logs
-        blob_gas_used += calculate_total_blob_gas(tx)
-    if blob_gas_used > MAX_BLOB_GAS_PER_BLOCK:
-        raise InvalidBlock
-    block_gas_used = block_gas_limit - gas_available
-
-    # block_logs_bloom = logs_bloom(block_logs)
-
-    # for i, wd in enumerate(withdrawals):
-    #     trie_set(withdrawals_trie, rlp.encode(Uint(i)), rlp.encode(wd))
-
-    #     process_withdrawal(state, wd)
-
-    #     if account_exists_and_is_empty(state, wd.address):
-    #         destroy_account(state, wd.address)
+    # process_withdrawals(block_env, block_output, withdrawals)
 
     # Cairo expects code of accounts to be initially None, as they're lazily loaded
     # during execution.
+    state = block_env.state
     for address, account in state._main_trie._data.items():
         if account and account.code_hash == EMPTY_BYTES_HASH:
             state._main_trie._data[address] = Account(
@@ -469,17 +385,8 @@ def prepare_body_input(
                 storage_trie._data[storage_key] = None
 
     return {
-        "block_transactions": transactions,
-        "state": state,
-        "transactions_trie": transactions_trie,
-        "receipts_trie": receipts_trie,
-        "block_logs": block_logs,
-        "block_hashes": block_hashes,
-        "block_gas_used": block_gas_used,
-        "gas_available": gas_available,
-        "chain_id": chain_id,
-        "blob_gas_used": blob_gas_used,
-        "excess_blob_gas": excess_blob_gas,
+        "block_env": block_env,
+        "block_output": block_output,
     }
 
 
@@ -500,25 +407,30 @@ def load_body_input(
     main_trie_snapshot = copy_trie(chain.state._main_trie)
     storage_tries_snapshot = copy.deepcopy(chain.state._storage_tries)
 
+    block_env = BlockEnvironment(
+        chain_id=chain.chain_id,
+        state=chain.state,
+        block_gas_limit=block.header.gas_limit,
+        block_hashes=get_last_256_block_hashes(chain),
+        coinbase=block.header.coinbase,
+        number=block.header.number,
+        base_fee_per_gas=block.header.base_fee_per_gas,
+        time=block.header.timestamp,
+        prev_randao=block.header.prev_randao,
+        excess_blob_gas=excess_blob_gas,
+        parent_beacon_block_root=block.header.parent_beacon_block_root,
+    )
+
+    transactions = block.transactions[:start_index]
+
     body_input = prepare_body_input(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions[:start_index],
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        excess_blob_gas,
+        block_env,
+        transactions,
     )
     # One thing to keep in mind here is that running EELS will delete any value from the account /
     # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
     # must _manually_ put back an entry for each value that was deleted from the tries.
-    updated_state = body_input["state"]
+    updated_state = body_input["block_env"].state
     for address, account in main_trie_snapshot._data.items():
         if address not in updated_state._main_trie._data:
             updated_state._main_trie._data[address] = None
@@ -533,13 +445,13 @@ def load_body_input(
             if storage_key not in updated_state._storage_tries[address]._data:
                 updated_state._storage_tries[address]._data[storage_key] = None
     # Inject the original state as the first snapshot
-    body_input["state"]._snapshots = [
+    body_input["block_env"].state._snapshots = [
         (
             main_trie_snapshot,
             storage_tries_snapshot,
         )
     ]
-    code_hashes = map_code_hashes_to_code(body_input["state"])
+    code_hashes = map_code_hashes_to_code(body_input["block_env"].state)
     program_input = {
         **body_input,
         "codehash_to_code": code_hashes,
@@ -568,31 +480,35 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
 
     parent_header = chain.blocks[-1].header
     excess_blob_gas = calculate_excess_blob_gas(parent_header)
-    body_input = prepare_body_input(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions,
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        excess_blob_gas,
+
+    block_env = BlockEnvironment(
+        chain_id=chain.chain_id,
+        state=chain.state,
+        block_gas_limit=block.header.gas_limit,
+        block_hashes=get_last_256_block_hashes(chain),
+        coinbase=block.header.coinbase,
+        number=block.header.number,
+        base_fee_per_gas=block.header.base_fee_per_gas,
+        time=block.header.timestamp,
+        prev_randao=block.header.prev_randao,
+        excess_blob_gas=excess_blob_gas,
+        parent_beacon_block_root=block.header.parent_beacon_block_root,
     )
 
-    if body_input["block_gas_used"] != block.header.gas_used:
+    body_input = prepare_body_input(
+        block_env,
+        block.transactions,
+    )
+
+    if body_input["block_output"].block_gas_used != block.header.gas_used:
         raise ValueError(
-            f"Block gas used mismatch: {body_input['block_gas_used']} != {block.header.gas_used}"
+            f"Block gas used mismatch: {body_input['block_output'].block_gas_used} != {block.header.gas_used}"
         )
 
     # One thing to keep in mind here is that running EELS will delete any value from the account /
     # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
     # must _manually_ put back an entry for each value that was deleted from the tries.
-    updated_state = body_input["state"]
+    updated_state = body_input["block_env"].state
     for address in main_trie_snapshot._data.keys():
         if address not in updated_state._main_trie._data:
             updated_state._main_trie._data[address] = None
@@ -607,8 +523,8 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
             if storage_key not in updated_state._storage_tries[address]._data:
                 updated_state._storage_tries[address]._data[storage_key] = None
 
-    body_input["state"] = updated_state
-    body_input["state"]._snapshots = [
+    body_input["block_env"].state = updated_state
+    body_input["block_env"].state._snapshots = [
         (
             main_trie_snapshot,
             storage_tries_snapshot,

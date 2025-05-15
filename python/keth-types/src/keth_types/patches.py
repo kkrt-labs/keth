@@ -52,11 +52,12 @@ from ethereum_types.numeric import FixedUnsigned, Uint
 from keth_types.types import (
     EMPTY_ACCOUNT,
     Account,
-    Environment,
+    BlockEnvironment,
     Evm,
     Message,
     MessageCallOutput,
     Node,
+    TransactionEnvironment,
     account_exists_and_is_empty,
     encode_account,
     is_account_alive,
@@ -83,7 +84,8 @@ PATCHES: Dict[str, Dict[str, Any]] = {
     ethereum.cancun.vm: {
         "Evm": Evm,
         "Message": Message,
-        "Environment": Environment,
+        "BlockEnvironment": BlockEnvironment,
+        "TransactionEnvironment": TransactionEnvironment,
     },
     ethereum.cancun.trie: {
         "Node": Node,

@@ -5,15 +5,25 @@ from starkware.cairo.common.cairo_builtins import UInt384
 struct bool {
     value: felt,
 }
+
 using Bool = bool;
+
 struct U64 {
     value: felt,
 }
+
 struct U128 {
     value: felt,
 }
+
 struct Uint {
     value: felt,
+}
+
+struct OptionalUint {
+    // If `value` is the null ptr, the uint is treated as None, else, treat `value` as a felt
+    // that represents the underlying uint
+    value: felt*,
 }
 
 using U256Struct = Uint256;

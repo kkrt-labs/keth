@@ -3,10 +3,11 @@ from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Un
 
 import pytest
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
+from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
+    Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
@@ -21,7 +22,12 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
-from ethereum.cancun.vm import Environment, Evm, Message
+from ethereum.cancun.vm import (
+    BlockEnvironment,
+    Evm,
+    Message,
+    TransactionEnvironment,
+)
 from ethereum.cancun.vm.exceptions import (
     InvalidOpcode,
     Revert,
@@ -232,11 +238,14 @@ class TestSerde:
             bool,
             U64,
             Uint,
+            Optional[Uint],
             U256,
             Bytes0,
             Bytes8,
             Bytes20,
             Bytes32,
+            Optional[Bytes32],
+            Optional[Hash32],
             Tuple[Bytes32, ...],
             Bytes256,
             Bytes,
@@ -255,15 +264,15 @@ class TestSerde:
             Bloom,
             VersionedHash,
             Tuple[VersionedHash, ...],
-            Tuple[Address, Uint, Tuple[VersionedHash, ...]],
+            Tuple[Address, Uint, Tuple[VersionedHash, ...], U64],
             Union[Bytes0, Address],
+            Access,
+            Tuple[Access, ...],
             LegacyTransaction,
             AccessListTransaction,
             FeeMarketTransaction,
             BlobTransaction,
             Transaction,
-            Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
-            Tuple[Address, Tuple[Bytes32, ...]],
             MessageCallGas,
             LeafNode,
             ExtensionNode,
@@ -295,7 +304,8 @@ class TestSerde:
                 ]
             ],
             List[Hash32],
-            Environment,
+            BlockEnvironment,
+            TransactionEnvironment,
             Stack[U256],
             Memory,
             Evm,
@@ -319,7 +329,6 @@ class TestSerde:
             Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
             Trie[Bytes, Optional[Union[Bytes, Receipt]]],
             Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
-            ApplyBodyOutput,
             U384,
             Optional[U384],
             BNF12,

@@ -15,7 +15,7 @@ from ethereum.crypto.hash import Hash32, EMPTY_ROOT_KECCAK, EMPTY_HASH_KECCAK
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
 from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s
-
+from ethereum_types.numeric import U64
 using Address = Bytes20;
 
 struct OptionalAddress {
@@ -114,14 +114,15 @@ struct TupleVersionedHash {
     value: TupleVersionedHashStruct*,
 }
 
-struct TupleAddressUintTupleVersionedHashStruct {
+struct TupleAddressUintTupleVersionedHashU64Struct {
     address: Address,
     uint: Uint,
     tuple_versioned_hash: TupleVersionedHash,
+    u64: U64,
 }
 
-struct TupleAddressUintTupleVersionedHash {
-    value: TupleAddressUintTupleVersionedHashStruct*,
+struct TupleAddressUintTupleVersionedHashU64 {
+    value: TupleAddressUintTupleVersionedHashU64Struct*,
 }
 
 using Bloom = Bytes256;
