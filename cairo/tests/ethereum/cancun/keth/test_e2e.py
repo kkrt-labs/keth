@@ -212,16 +212,12 @@ class TestBody:
             initial_args_commitment_high,
             post_exec_commitment_low,
             post_exec_commitment_high,
-            start_index,
-            len_,
         ) = cairo_run("test_body", verify_squashed_dicts=True, **body_input)
 
         assert initial_args_commitment_low
         assert initial_args_commitment_high
         assert post_exec_commitment_low
         assert post_exec_commitment_high
-        assert start_index == 0
-        assert len_ == min(int(U64.MAX_VALUE), len(body_input["block_transactions"]))
 
 
 class TestTeardown:
