@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
 from ethereum_types.bytes import Bytes32
-from ethereum.cancun.fork_types import Address
+from ethereum.prague.fork_types import Address
 from cairo_ec.curve.secp256k1 import try_recover_public_key
 from cairo_ec.uint384 import uint256_to_uint384
 from ethereum_types.numeric import U256

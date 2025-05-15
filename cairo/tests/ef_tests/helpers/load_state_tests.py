@@ -8,8 +8,8 @@ from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
-from ethereum.cancun.fork import state_transition
-from ethereum.cancun.trie import Trie
+from ethereum.prague.fork import state_transition
+from ethereum.prague.trie import Trie
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException, StateWithEmptyAccount
 from ethereum.utils.hexadecimal import hex_to_bytes

@@ -5,9 +5,9 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
-from ethereum.cancun.fork_types import Account, Address
-from ethereum.cancun.state import State, set_account, set_storage
-from ethereum.cancun.trie import (
+from ethereum.prague.fork_types import Account, Address
+from ethereum.prague.state import State, set_account, set_storage
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,

@@ -8,7 +8,7 @@ from cairo_addons.hints.decorator import register_hint
 
 @register_hint
 def common_prefix_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
-    from ethereum.cancun.trie import common_prefix_length
+    from ethereum.prague.trie import common_prefix_length
 
     bytes_a = (
         bytes([memory[ids.a.value.data + i] for i in range(0, ids.a.value.len)]) or []
@@ -27,7 +27,7 @@ def bytes_to_nibble_list_hint(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
-    from ethereum.cancun.trie import bytes_to_nibble_list
+    from ethereum.prague.trie import bytes_to_nibble_list
 
     bytes_ = (
         bytes(

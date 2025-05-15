@@ -446,7 +446,7 @@ python's module system, and the patches would not be effective everywhere.
 ### Challenges with Python Module Loading
 
 Python's module loading order poses a challenge. Modules are cached in
-`sys.modules`, and if EELS modules (e.g., `ethereum.cancun.vm`) load before
+`sys.modules`, and if EELS modules (e.g., `ethereum.prague.vm`) load before
 patches, original types are used instead of Keth's. This did happen because of
 pytest plugins that initialized earlier than `conftest.py` hooks.
 
@@ -489,7 +489,7 @@ recalculation.
 
 ### Changes
 
-1. **cairo/ethereum/cancun/main.cairo (Entrypoint)**
+1. **cairo/ethereum/prague/main.cairo (Entrypoint)**
 
    - **Logic Shift**: Orchestrates diff comparison:
      - Runs STF (`state_transition`) to generate account/storage diffs.
@@ -510,7 +510,7 @@ recalculation.
    - **Rationale**: Validates state changes incrementally, reducing STF
      complexity by offloading root hash computation.
 
-2. **cairo/ethereum/cancun/fork.cairo (STF)**
+2. **cairo/ethereum/prague/fork.cairo (STF)**
 
    - **Change**: Removed `state_root` equality check
      (`output.value.state_root == block.value.header.value.state_root`).
@@ -518,7 +518,7 @@ recalculation.
    - **Rationale**: Avoids redundant root computation, relying on diff-based
      correctness.
 
-3. **cairo/ethereum/cancun/fork_types.cairo (Data Structures)**
+3. **cairo/ethereum/prague/fork_types.cairo (Data Structures)**
 
    - **New Function**: `account_eq_without_storage_root` compares
      `OptionalAccount` instances, ignoring `storage_root`.
@@ -527,7 +527,7 @@ recalculation.
      diffs for independent validation, as storage changes are tracked
      separately.
 
-4. **cairo/ethereum/cancun/state.cairo (State Management)**
+4. **cairo/ethereum/prague/state.cairo (State Management)**
 
    - **Change**: Replaced `default_dict_finalize` with `dict_squash` in
      `finalize_state` for `main_trie` and `storage_tries`.
@@ -551,9 +551,9 @@ recalculation.
      preparation, ensures Python-Cairo consistency. We want the pre-state to be
      loaded from zkpi, which contains all touched accounts / storage slots.
 
-6. **cairo/tests/ef_tests/cancun/test_state_transition.py (Tests)**
+6. **cairo/tests/ef_tests/prague/test_state_transition.py (Tests)**
 
-   - **Change**: Ignores `wrongStateRoot_Cancun` test, obsolete due to
+   - **Change**: Ignores `wrongStateRoot_Prague` test, obsolete due to
      diff-based validation;
    - **Rationale**: Tests focusing on state root mismatches are irrelevant as we
      don't recompute a new state root, we don't need to test for it: our

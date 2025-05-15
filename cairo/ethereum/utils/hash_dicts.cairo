@@ -3,7 +3,7 @@ from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
 
 from legacy.utils.dict import hashdict_read, hashdict_write
-from ethereum.cancun.fork_types import SetAddress, SetAddressStruct, SetAddressDictAccess, Address
+from ethereum.prague.fork_types import SetAddress, SetAddressStruct, SetAddressDictAccess, Address
 
 func set_address_contains{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, set: SetAddress}(
     address: Address

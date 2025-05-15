@@ -74,7 +74,7 @@ parser.add_argument(
 def main():
     parser.add_argument(
         "path",
-        default="cairo/ethereum/cancun/keth/main.cairo",
+        default="cairo/ethereum/prague/keth/main.cairo",
         help="The Cairo file to compile",
     )
     parser.add_argument(
@@ -108,19 +108,19 @@ def compile_keth():
 
     programs = [
         (
-            Path("cairo/ethereum/cancun/keth/init_main.cairo"),
+            Path("cairo/ethereum/prague/keth/init_main.cairo"),
             Path("build/init_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/main.cairo"),
+            Path("cairo/ethereum/prague/keth/main.cairo"),
             Path("build/main_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/body_main.cairo"),
+            Path("cairo/ethereum/prague/keth/body_main.cairo"),
             Path("build/body_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/teardown_main.cairo"),
+            Path("cairo/ethereum/prague/keth/teardown_main.cairo"),
             Path("build/teardown_compiled.json"),
         ),
         (
