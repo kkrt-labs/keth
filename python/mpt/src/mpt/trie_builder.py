@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List, Mapping, Optional, Union
 
 import ethereum_rlp as rlp
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.trie import (
+from ethereum.prague.fork_types import Address
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
@@ -203,7 +203,7 @@ class BranchNodeBuilder:
 
 def rlp_encode_internal_node(node: Optional[InternalNode]) -> rlp.Extended:
     """
-    Modified util from `ethereum.cancun.trie.encode_internal_node` to return RLP encoded
+    Modified util from `ethereum.prague.trie.encode_internal_node` to return RLP encoded
     node.
 
     This function also accepts `None`, representing the absence of a node,

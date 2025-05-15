@@ -41,7 +41,7 @@ for file in "$DATA_DIR"/*.json; do
 
 	# Run the command in the background and redirect output to a log file
 	(
-		uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet[$block_number]" --profile-cairo --no-skip-cached-tests -s >"log_${block_number}.out" 2>&1
+		uv run pytest cairo/tests/ethereum/prague/test_fork.py -k "test_state_transition_eth_mainnet[$block_number]" --profile-cairo --no-skip-cached-tests -s >"log_${block_number}.out" 2>&1
 		echo "Test for block $block_number completed. Output saved to log_${block_number}.out"
 	)
 done
