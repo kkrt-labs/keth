@@ -11,29 +11,29 @@ struct TaskOutputHeader {
 // Expected public outputs for each Keth segment.
 struct KethInitOutput {
     // Commitment to the inputs received by `body`.
-    body_commitment_0: felt,
-    body_commitment_1: felt,
+    body_commitment_low: felt,
+    body_commitment_high: felt,
     // Commitment to the inputs received by `teardown`.
-    teardown_commitment_0: felt,
-    teardown_commitment_1: felt,
+    teardown_commitment_low: felt,
+    teardown_commitment_high: felt,
 }
 
 struct KethBodyOutput {
     // Commitment to the inputs received by this `body` chunk.
-    input_commitment_0: felt,
-    input_commitment_1: felt,
+    input_commitment_low: felt,
+    input_commitment_high: felt,
     // Commitment to the outputs produced by this `body` chunk (state after its transactions).
-    post_exec_commitment_0: felt,
-    post_exec_commitment_1: felt,
+    post_exec_commitment_low: felt,
+    post_exec_commitment_high: felt,
 }
 
 struct KethTeardownOutput {
     // Commitment of inputs it expected from `init`.
-    init_args_commitment_check_0: felt,
-    init_args_commitment_check_1: felt,
+    init_args_commitment_check_low: felt,
+    init_args_commitment_check_high: felt,
     // Commitment of inputs it expected from the last `body` chunk.
-    body_args_commitment_check_0: felt,
-    body_args_commitment_check_1: felt,
+    body_args_commitment_check_low: felt,
+    body_args_commitment_check_high: felt,
 }
 
 // Core Keth STF Aggregator logic.
@@ -74,13 +74,12 @@ func aggregator{output_ptr: felt*, range_check_ptr}() {
     // --- Verify Commitments ---
     // 1. Check init output links to the first body input
     let first_body_output: KethBodyOutput* = cast(serialized_body_outputs[0], KethBodyOutput*);
-    assert init_output.body_commitment_0 = first_body_output.input_commitment_0;
-    assert init_output.body_commitment_1 = first_body_output.input_commitment_1;
+    assert init_output.body_commitment_low = first_body_output.input_commitment_low;
+    assert init_output.body_commitment_high = first_body_output.input_commitment_high;
 
     // 2. Check body chunk links recursively/iteratively
     // Only check internal links if there are more than 1 body chunk
-    let squared_n_body_chunks = n_body_chunks * n_body_chunks;
-    if (squared_n_body_chunks != n_body_chunks) {
+    if (n_body_chunks != 1) {
         check_body_chunk_links(
             body_outputs_ptr_array=serialized_body_outputs,
             current_chunk_index=0,
@@ -92,12 +91,12 @@ func aggregator{output_ptr: felt*, range_check_ptr}() {
     let last_body_output: KethBodyOutput* = cast(
         serialized_body_outputs[n_body_chunks - 1], KethBodyOutput*
     );
-    assert last_body_output.post_exec_commitment_0 = teardown_output.body_args_commitment_check_0;
-    assert last_body_output.post_exec_commitment_1 = teardown_output.body_args_commitment_check_1;
+    assert last_body_output.post_exec_commitment_low = teardown_output.body_args_commitment_check_low;
+    assert last_body_output.post_exec_commitment_high = teardown_output.body_args_commitment_check_high;
 
     // 4. Check init output links to teardown input
-    assert init_output.teardown_commitment_0 = teardown_output.init_args_commitment_check_0;
-    assert init_output.teardown_commitment_1 = teardown_output.init_args_commitment_check_1;
+    assert init_output.teardown_commitment_low = teardown_output.init_args_commitment_check_low;
+    assert init_output.teardown_commitment_high = teardown_output.init_args_commitment_check_high;
 
     // --- Construct Output ---
     // Write the output in the format expected by ApplicativeBootloader's memcpy check.
@@ -151,8 +150,8 @@ func check_body_chunk_links(
     );
 
     // Assert: Post-execution commitment of current chunk matches initial args of next chunk
-    assert current_body_output.post_exec_commitment_0 = next_body_output.input_commitment_0;
-    assert current_body_output.post_exec_commitment_1 = next_body_output.input_commitment_1;
+    assert current_body_output.post_exec_commitment_low = next_body_output.input_commitment_low;
+    assert current_body_output.post_exec_commitment_high = next_body_output.input_commitment_high;
 
     check_body_chunk_links(
         body_outputs_ptr_array=body_outputs_ptr_array,
