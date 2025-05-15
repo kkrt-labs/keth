@@ -9,6 +9,11 @@ from starkware.cairo.common.cairo_builtins import (
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
+from ethereum.cancun.fork_types import (
+    Address,
+    OptionalMappingAddressBytes32,
+    MappingAddressBytes32Struct,
+)
 from ethereum.cancun.fork import (
     BlockChain,
     Block,
@@ -17,7 +22,7 @@ from ethereum.cancun.fork import (
     process_system_transaction,
     BEACON_ROOTS_ADDRESS,
 )
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.trie import EthereumTriesImpl, root
 
 from ethereum.cancun.state import finalize_state
 
@@ -120,8 +125,11 @@ func init{
     );
 
     // Commit to the teardown program
+    let null_account_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
+    let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
     let teardown_commitment = teardown_commitments(
-        header_commitment, block_output_commitment, block.value.withdrawals
+        header_commitment, withdrawal_trie_commitment, block.value.withdrawals
     );
 
     assert [output_ptr] = body_commitment.value.low;

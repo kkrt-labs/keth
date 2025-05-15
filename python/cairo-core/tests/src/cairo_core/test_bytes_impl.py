@@ -45,6 +45,7 @@ class TestBytes256:
     def test_Bytes256__hash__(self, cairo_run, buffer: Bytes256):
         assert hashlib.blake2s(buffer).digest() == cairo_run("Bytes256__hash__", buffer)
 
+
 class TestTupleBytes:
     @given(buffer=...)
     def test_TupleBytes__hash__(self, cairo_run, buffer: Tuple[Bytes, ...]):

@@ -332,7 +332,6 @@ def prepare_body_input(
     Runs the STF on the subset of transactions passed as argument.
     Outputs the state post-transactions (new state, remaining gas, etc.)
     """
-    gas_available = block_env.block_gas_limit
     transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
         secured=False, default=None, _data=defaultdict(lambda: None)
     )

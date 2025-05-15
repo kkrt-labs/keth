@@ -45,22 +45,25 @@ def init_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 
 @register_hint
 def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
-    from typing import List, Mapping, Optional, Tuple, Union
+    from typing import Mapping, Optional, Tuple, Union
 
-    from ethereum.cancun.blocks import Log, Receipt, Withdrawal
+    from ethereum.cancun.blocks import Withdrawal
     from ethereum.cancun.fork import Block, BlockChain
     from ethereum.cancun.fork_types import Address
-    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum.cancun.transactions import LegacyTransaction
     from ethereum.cancun.trie import InternalNode, Trie
+    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum.crypto.hash import Hash32
     from ethereum_rlp import Extended
     from ethereum_types.bytes import Bytes, Bytes32
-    from ethereum_types.numeric import U64, Uint
 
     # Program inputs for init.cairo
     ids.chain = gen_arg(BlockChain, program_input["blockchain"])
     ids.block = gen_arg(Block, program_input["block"])
+    ids.init_withdrawals_trie = gen_arg(
+        Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+        program_input["withdrawals_trie"],
+    )
 
     #  Program inputs for body.cairo
     ids.block_transactions = gen_arg(
@@ -85,15 +88,12 @@ def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 
 @register_hint
 def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
-    from typing import List, Optional, Tuple, Union
+    from typing import Tuple, Union
 
-    from ethereum.cancun.blocks import Header, Log, Receipt
-    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
+    from ethereum.cancun.blocks import Header
     from ethereum.cancun.transactions import LegacyTransaction
-    from ethereum.cancun.trie import Trie
-    from ethereum.crypto.hash import Hash32
+    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum_types.bytes import Bytes
-    from ethereum_types.numeric import U64, Uint
 
     ids.block_header = gen_arg(Header, program_input["block_header"])
     ids.block_transactions = gen_arg(

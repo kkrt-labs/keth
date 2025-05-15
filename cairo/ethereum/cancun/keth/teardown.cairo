@@ -23,6 +23,7 @@ from ethereum.cancun.vm.env_impl import (
 from legacy.utils.dict import default_dict_finalize
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from ethereum.cancun.trie import (
+    EthereumTriesImpl,
     TrieAddressOptionalAccountStruct,
     root,
     EthereumTries,
@@ -84,6 +85,7 @@ func teardown{
     // Program inputs from the init.cairo program.
     local block: Block;
     local chain: BlockChain;
+    local init_withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal;
 
     // Program inputs from the body.cairo program.
     local block_header: Header;
@@ -154,8 +156,14 @@ func teardown{
     let block_env_commitment = BlockEnv__hash__(block_env);
     let block_output_commitment = BlockOutput__hash__(block_output);
 
+    // Commit to the teardown program
+    let null_account_roots = OptionalMappingAddressBytes32(
+            cast(0, MappingAddressBytes32Struct*)
+    );
+    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(init_withdrawals_trie);
+    let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
     let teardown_commitment = teardown_commitments(
-        header_commitment, block_output_commitment, block.value.withdrawals
+        header_commitment, withdrawal_trie_commitment, block.value.withdrawals
     );
 
     assert [output_ptr] = teardown_commitment.value.low;

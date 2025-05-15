@@ -21,8 +21,6 @@ from ethereum.cancun.vm.env_impl import (
     BlockEnvImpl,
 )
 from ethereum.cancun.blocks import Header, Header__hash__, TupleUnionBytesLegacyTransaction
-from legacy.utils.dict import default_dict_finalize
-from starkware.cairo.common.dict_access import DictAccess
 
 from ethereum.cancun.keth.commitments import body_commitments
 
@@ -42,7 +40,6 @@ func body{
     alloc_locals;
 
     // Program inputs
-    // TODO update the hints
     local block_header: Header;
     local block_transactions: TupleUnionBytesLegacyTransaction;
     local block_env: BlockEnvironment;
@@ -102,10 +99,13 @@ func body{
 
     // Input Commitments
     let header_commitment = Header__hash__(block_header);
-    let block_env_commitment = BlockEnv__hash__(block_env);
-    let block_output_commitment = BlockOutput__hash__(block_output);
+    let input_block_env_commitment = BlockEnv__hash__(block_env);
+    let input_block_output_commitment = BlockOutput__hash__(block_output);
     let initial_args_commitment = body_commitments(
-        header_commitment, block_env_commitment, block_output_commitment, block_transactions
+        header_commitment,
+        input_block_env_commitment,
+        input_block_output_commitment,
+        block_transactions,
     );
 
     // Execution
@@ -116,31 +116,14 @@ func body{
     finalize_state{state=state}();
     BlockEnvImpl.set_state{block_env=block_env}(state);
 
-    // Squash the receipts, transactions, and withdrawals dicts once they're no longer being modified.
-    let withdrawals_trie = block_output.value.withdrawals_trie;
-    let receipts_trie = block_output.value.receipts_trie;
-    let transactions_trie = block_output.value.transactions_trie;
-
-    default_dict_finalize(
-        cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
-        cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
-        0,
-    );
-    default_dict_finalize(
-        cast(receipts_trie.value._data.value.dict_ptr_start, DictAccess*),
-        cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
-        0,
-    );
-    default_dict_finalize(
-        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
-        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
-        0,
-    );
-
-
     // Output Commitments
+    let output_block_env_commitment = BlockEnv__hash__(block_env);
+    let output_block_output_commitment = BlockOutput__hash__(block_output);
     let post_exec_commitment = body_commitments(
-        header_commitment, block_env_commitment, block_output_commitment, block_transactions
+        header_commitment,
+        output_block_env_commitment,
+        output_block_output_commitment,
+        block_transactions,
     );
 
     assert [output_ptr] = initial_args_commitment.value.low;

@@ -42,14 +42,14 @@ func body_commitments{
 func teardown_commitments{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
-    header_commitment: Hash32, block_output_commitment: Hash32, withdrawals: TupleWithdrawal
+    header_commitment: Hash32, withdrawal_trie_commitment: Hash32, withdrawals: TupleWithdrawal
 ) -> Hash32 {
     alloc_locals;
 
     let (init_commitment_buffer) = alloc();
     let start = init_commitment_buffer;
     blake2s_add_uint256{data=init_commitment_buffer}([header_commitment.value]);
-    blake2s_add_uint256{data=init_commitment_buffer}([block_output_commitment.value]);
+    blake2s_add_uint256{data=init_commitment_buffer}([withdrawal_trie_commitment.value]);
 
     // Commit to the withdrawals
     let withdrawals_commitment = TupleWithdrawal__hash__(withdrawals);
