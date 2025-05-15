@@ -6,7 +6,8 @@ from ethereum.prague.fork_types import (
     Address,
     ListHash32__hash__,
     ListHash32,
-    TupleVersionedHash
+    TupleVersionedHash,
+    TupleAuthorization
 )
 from ethereum_types.numeric import OptionalUint, U256, U64, Uint
 from ethereum_types.bytes import Bytes32, OptionalHash32
@@ -101,6 +102,7 @@ struct TransactionEnvironmentStruct {
     access_list_storage_keys: SetTupleAddressBytes32,
     transient_storage: TransientStorage,
     blob_versioned_hashes: TupleVersionedHash,
+    authorizations: TupleAuthorization,
     index_in_block: OptionalUint,
     tx_hash: OptionalHash32,
 }
@@ -139,6 +141,7 @@ namespace TransactionEnvImpl {
                 access_list_storage_keys=tx_env.value.access_list_storage_keys,
                 transient_storage=new_transient_storage,
                 blob_versioned_hashes=tx_env.value.blob_versioned_hashes,
+                authorizations=tx_env.value.authorizations,
                 index_in_block=tx_env.value.index_in_block,
                 tx_hash=tx_env.value.tx_hash,
             ),
@@ -158,6 +161,7 @@ namespace TransactionEnvImpl {
                 access_list_storage_keys=tx_env.value.access_list_storage_keys,
                 transient_storage=tx_env.value.transient_storage,
                 blob_versioned_hashes=tx_env.value.blob_versioned_hashes,
+                authorizations=tx_env.value.authorizations,
                 index_in_block=tx_env.value.index_in_block,
                 tx_hash=tx_env.value.tx_hash,
             ),

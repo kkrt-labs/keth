@@ -2,9 +2,24 @@ from collections import ChainMap
 from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
+from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.exceptions import (
+    EthereumException,
+    InvalidSignatureError,
+    InvalidTransaction,
+)
 from ethereum.prague.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.prague.fork import BlockChain
-from ethereum.prague.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.prague.fork_types import (
+    Account,
+    Address,
+    Authorization,
+    Bloom,
+    Root,
+    VersionedHash,
+)
 from ethereum.prague.state import State, TransientStorage
 from ethereum.prague.transactions import (
     Access,
@@ -36,14 +51,6 @@ from ethereum.prague.vm.exceptions import (
 )
 from ethereum.prague.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.prague.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
-from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
-from ethereum.exceptions import (
-    EthereumException,
-    InvalidSignatureError,
-    InvalidTransaction,
-)
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -53,7 +60,7 @@ from ethereum_types.bytes import (
     Bytes48,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, Uint
+from ethereum_types.numeric import U8, U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
@@ -357,6 +364,9 @@ class TestSerde:
             BLSF12,
             Tuple[FQ, FQ2],
             Tuple[Tuple[FQ, FQ2], Tuple[FQ, FQ2]],
+            Authorization,
+            Tuple[Authorization, ...],
+            U8,
         ],
     ):
         assume(no_empty_sequence(b))

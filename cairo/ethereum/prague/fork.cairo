@@ -76,6 +76,8 @@ from ethereum.prague.fork_types import (
     VersionedHash,
     OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
+    TupleAuthorization,
+    TupleAuthorizationStruct,
 )
 
 from ethereum.prague.state import (
@@ -364,6 +366,7 @@ func process_system_transaction{
     let transient_storage = empty_transient_storage();
 
     let blob_versioned_hashes = TupleVersionedHash(cast(0, TupleVersionedHashStruct*));
+    let authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
 
     tempvar index_in_block = OptionalUint(new 0);
     tempvar tx_hash = OptionalHash32(cast(0, Bytes32Struct*));
@@ -377,6 +380,7 @@ func process_system_transaction{
             access_list_storage_keys=accessed_storage_keys,
             transient_storage=transient_storage,
             blob_versioned_hashes=blob_versioned_hashes,
+            authorizations=authorizations,
             index_in_block=index_in_block,
             tx_hash=tx_hash,
         ),
@@ -592,10 +596,13 @@ func process_transaction{
 
     let transient_storage = empty_transient_storage();
     let encoded_tx = encode_transaction(tx);
-    let transaction_hash = get_transaction_hash(encoded_tx);
+    // TODO: update this when implementing 7702
+    let authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
 
     tempvar index_in_block = OptionalUint(new index);
+    let transaction_hash = get_transaction_hash(encoded_tx);
     tempvar tx_hash = OptionalHash32(cast(transaction_hash.value, Bytes32Struct*));
+    // TODO: update this when implementing 7702
     tempvar tx_env = TransactionEnvironment(
         new TransactionEnvironmentStruct(
             origin=sender,
@@ -605,6 +612,7 @@ func process_transaction{
             access_list_storage_keys=access_list_storage_keys,
             transient_storage=transient_storage,
             blob_versioned_hashes=blob_versioned_hashes,
+            authorizations=authorizations,
             index_in_block=index_in_block,
             tx_hash=tx_hash,
         ),

@@ -10,7 +10,7 @@ from ethereum_types.bytes import (
     Bytes32Struct,
     OptionalBytes,
 )
-from ethereum_types.numeric import Uint, U256, U256Struct, bool
+from ethereum_types.numeric import Uint, U256, U256Struct, bool, U8
 from ethereum.crypto.hash import Hash32, EMPTY_ROOT_KECCAK, EMPTY_HASH_KECCAK
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
@@ -210,6 +210,28 @@ struct MappingTupleAddressBytes32U256Struct {
 
 struct MappingTupleAddressBytes32U256 {
     value: MappingTupleAddressBytes32U256Struct*,
+}
+
+struct AuthorizationStruct {
+    chain_id: U256,
+    address: Address,
+    nonce: U64,
+    y_parity: U8,
+    r: U256,
+    s: U256,
+}
+
+struct Authorization {
+    value: AuthorizationStruct*,
+}
+
+struct TupleAuthorizationStruct {
+    data: Authorization*,
+    len: felt,
+}
+
+struct TupleAuthorization {
+    value: TupleAuthorizationStruct*,
 }
 
 func EMPTY_ACCOUNT() -> Account {

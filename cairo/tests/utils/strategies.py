@@ -15,10 +15,23 @@ from typing import (
 )
 
 from eth_keys.datatypes import PrivateKey
+from ethereum.crypto.alt_bn128 import (
+    BNF,
+    BNF2,
+    BNF12,
+    BNP,
+    BNP2,
+)
+from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.finite_field import GaloisField
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.crypto.kzg import BLS_MODULUS, BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.prague.fork_types import (
     Account,
     Address,
+    Authorization,
     Bloom,
     Root,
     VersionedHash,
@@ -46,18 +59,6 @@ from ethereum.prague.vm import (
     Message,
     TransactionEnvironment,
 )
-from ethereum.crypto.alt_bn128 import (
-    BNF,
-    BNF2,
-    BNF12,
-    BNP,
-    BNP2,
-)
-from ethereum.crypto.elliptic_curve import SECP256K1N
-from ethereum.crypto.finite_field import GaloisField
-from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.crypto.kzg import BLS_MODULUS, BLSFieldElement, KZGCommitment, KZGProof
-from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
     Bytes0,
     Bytes4,
@@ -68,7 +69,7 @@ from ethereum_types.bytes import (
     Bytes64,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
+from ethereum_types.numeric import U8, U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from py_ecc.bls.hash_to_curve import (
     map_to_curve_G1,
@@ -761,6 +762,7 @@ assertion_error = st.builds(AssertionError, st.text())
 
 
 def register_type_strategies():
+    st.register_type_strategy(U8, uint8.map(U8))
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
     st.register_type_strategy(FixedUnsigned, uint)
@@ -885,3 +887,4 @@ def register_type_strategies():
     st.register_type_strategy(KZGProof, bytes48.map(KZGProof))
     st.register_type_strategy(ValueError, value_error)
     st.register_type_strategy(AssertionError, assertion_error)
+    st.register_type_strategy(Authorization, st.builds(Authorization))
