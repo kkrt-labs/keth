@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Mapping, Optional, Union
 
 import ethereum_rlp as rlp
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.prague.fork_types import Address
 from ethereum.prague.trie import (
     BranchNode,
@@ -11,10 +12,9 @@ from ethereum.prague.trie import (
     encode_internal_node,
     nibble_list_to_compact,
 )
-from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_types.bytes import Bytes, Bytes32
-from keth_types.types import EMPTY_TRIE_HASH
 
+from keth_types.types import EMPTY_TRIE_HASH
 from mpt.ethereum_tries import EthereumTries
 
 NodeBuilder = Union["LeafNodeBuilder", "ExtensionNodeBuilder", "BranchNodeBuilder"]

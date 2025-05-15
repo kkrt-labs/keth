@@ -1,5 +1,7 @@
 from typing import Tuple
 
+from ethereum.crypto.hash import Hash32
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import Log
 from ethereum.prague.state import TransientStorage
 from ethereum.prague.vm import BlockEnvironment, Evm, TransactionEnvironment
@@ -12,8 +14,6 @@ from ethereum.prague.vm.instructions.block import (
     prev_randao,
     timestamp,
 )
-from ethereum.crypto.hash import Hash32
-from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U64, Uint
 from hypothesis import given

@@ -1,6 +1,6 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.precompiled_contracts.identity import identity
-from ethereum.exceptions import EthereumException
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises

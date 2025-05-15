@@ -1,3 +1,4 @@
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.instructions.control_flow import (
     gas_left,
@@ -7,7 +8,6 @@ from ethereum.prague.vm.instructions.control_flow import (
     pc,
     stop,
 )
-from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
 

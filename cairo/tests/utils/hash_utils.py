@@ -1,9 +1,9 @@
 import hashlib
 from typing import List, Tuple, Union
 
+from ethereum.crypto.hash import Hash32
 from ethereum.prague.blocks import Header, Log, Withdrawal
 from ethereum.prague.transactions import LegacyTransaction
-from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import Bytes, Bytes32
 
 
