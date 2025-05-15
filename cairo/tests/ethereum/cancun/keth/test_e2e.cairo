@@ -12,6 +12,7 @@ from starkware.cairo.common.cairo_builtins import (
 from ethereum.cancun.keth.body import body
 from ethereum.cancun.keth.init import init
 from ethereum.cancun.keth.teardown import teardown
+from ethereum.cancun.keth.aggregator import aggregator
 from ethereum.cancun.keth.main import main
 
 func test_body{
@@ -90,5 +91,15 @@ func test_main{
     alloc_locals;
     local output_start: felt* = output_ptr;
     main();
+    return (output_start=output_start);
+}
+
+func test_aggregator{
+    output_ptr: felt*,
+    range_check_ptr,
+}() -> (output_start: felt*) {
+    alloc_locals;
+    local output_start: felt* = output_ptr;
+    aggregator();
     return (output_start=output_start);
 }

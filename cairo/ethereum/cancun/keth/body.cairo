@@ -130,11 +130,9 @@ func body{
     assert [output_ptr + 1] = initial_args_commitment.value.high;
     assert [output_ptr + 2] = post_exec_commitment.value.low;
     assert [output_ptr + 3] = post_exec_commitment.value.high;
-    assert [output_ptr + 4] = start_index;
-    assert [output_ptr + 5] = len;
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
     let keccak_ptr = builtin_keccak_ptr;
-    let output_ptr = output_ptr + 6;
+    let output_ptr = output_ptr + 4;
     return ();
 }
