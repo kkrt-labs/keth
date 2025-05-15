@@ -50,7 +50,7 @@ def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from ethereum.cancun.blocks import Log, Receipt, Withdrawal
     from ethereum.cancun.fork import Block, BlockChain
     from ethereum.cancun.fork_types import Address
-    from ethereum.cancun.state import State
+    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum.cancun.transactions import LegacyTransaction
     from ethereum.cancun.trie import InternalNode, Trie
     from ethereum.crypto.hash import Hash32
@@ -61,30 +61,14 @@ def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     # Program inputs for init.cairo
     ids.chain = gen_arg(BlockChain, program_input["blockchain"])
     ids.block = gen_arg(Block, program_input["block"])
-    ids.withdrawals_trie = gen_arg(
-        Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
-        program_input["withdrawals_trie"],
-    )
 
     #  Program inputs for body.cairo
     ids.block_transactions = gen_arg(
         Tuple[Union[LegacyTransaction, Bytes], ...],
         program_input["block_transactions"],
     )
-    ids.state = gen_arg(State, program_input["state"])
-    ids.transactions_trie = gen_arg(
-        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
-        program_input["transactions_trie"],
-    )
-    ids.receipts_trie = gen_arg(
-        Trie[Bytes, Optional[Union[Bytes, Receipt]]], program_input["receipts_trie"]
-    )
-    ids.block_logs = gen_arg(Tuple[Log, ...], program_input["block_logs"])
-    ids.block_hashes = gen_arg(List[Hash32], program_input["block_hashes"])
-    ids.gas_available = gen_arg(Uint, program_input["gas_available"])
-    ids.chain_id = gen_arg(U64, program_input["chain_id"])
-    ids.blob_gas_used = gen_arg(Uint, program_input["blob_gas_used"])
-    ids.excess_blob_gas = gen_arg(U64, program_input["excess_blob_gas"])
+    ids.block_env = gen_arg(BlockEnvironment, program_input["block_env"])
+    ids.block_output = gen_arg(BlockOutput, program_input["block_output"])
 
     # Program inputs for Trie diffs
     ids.node_store = gen_arg(Mapping[Hash32, Bytes], program_input["node_store"])
@@ -104,7 +88,7 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from typing import List, Optional, Tuple, Union
 
     from ethereum.cancun.blocks import Header, Log, Receipt
-    from ethereum.cancun.state import State
+    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum.cancun.transactions import LegacyTransaction
     from ethereum.cancun.trie import Trie
     from ethereum.crypto.hash import Hash32
@@ -116,19 +100,7 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
         Tuple[Union[LegacyTransaction, Bytes], ...],
         program_input["block_transactions"],
     )
-    ids.state = gen_arg(State, program_input["state"])
-    ids.transactions_trie = gen_arg(
-        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
-        program_input["transactions_trie"],
-    )
-    ids.receipts_trie = gen_arg(
-        Trie[Bytes, Optional[Union[Bytes, Receipt]]], program_input["receipts_trie"]
-    )
-    ids.block_logs = gen_arg(Tuple[Log, ...], program_input["block_logs"])
-    ids.block_hashes = gen_arg(List[Hash32], program_input["block_hashes"])
-    ids.gas_available = gen_arg(Uint, program_input["gas_available"])
-    ids.chain_id = gen_arg(U64, program_input["chain_id"])
-    ids.blob_gas_used = gen_arg(Uint, program_input["blob_gas_used"])
-    ids.excess_blob_gas = gen_arg(U64, program_input["excess_blob_gas"])
+    ids.block_env = gen_arg(BlockEnvironment, program_input["block_env"])
+    ids.block_output = gen_arg(BlockOutput, program_input["block_output"])
     ids.start_index = program_input["start_index"]
     ids.len = program_input["len"]

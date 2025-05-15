@@ -21,6 +21,8 @@ from ethereum.cancun.vm.env_impl import (
     BlockEnvImpl,
 )
 from ethereum.cancun.blocks import Header, Header__hash__, TupleUnionBytesLegacyTransaction
+from legacy.utils.dict import default_dict_finalize
+from starkware.cairo.common.dict_access import DictAccess
 
 from ethereum.cancun.keth.commitments import body_commitments
 
@@ -76,7 +78,6 @@ func body{
         ),
     );
 
-    // TODO add block_gas_limit to input hint
     tempvar block_env = BlockEnvironment(
         new BlockEnvironmentStruct(
             chain_id=block_env.value.chain_id,
@@ -114,6 +115,28 @@ func body{
     let state = block_env.value.state;
     finalize_state{state=state}();
     BlockEnvImpl.set_state{block_env=block_env}(state);
+
+    // Squash the receipts, transactions, and withdrawals dicts once they're no longer being modified.
+    let withdrawals_trie = block_output.value.withdrawals_trie;
+    let receipts_trie = block_output.value.receipts_trie;
+    let transactions_trie = block_output.value.transactions_trie;
+
+    default_dict_finalize(
+        cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(receipts_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+
 
     // Output Commitments
     let post_exec_commitment = body_commitments(

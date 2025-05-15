@@ -5,6 +5,7 @@ from ethereum.cancun.blocks import Header, Log, Withdrawal
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import Bytes, Bytes32
+from ethereum.cancun.vm import BlockOutput, BlockEnvironment
 
 
 def LegacyTransaction__hash__(tx: LegacyTransaction) -> Hash32:
@@ -115,4 +116,10 @@ def TupleWithdrawal__hash__(tuple_withdrawal: Tuple[Withdrawal, ...]) -> Hash32:
     acc = []
     for item in tuple_withdrawal:
         acc.append(Withdrawal__hash__(item))
+    return hashlib.blake2s(b"".join(acc)).digest()
+
+def TupleBytes__hash__(tuple_bytes: Tuple[Bytes, ...]) -> Hash32:
+    acc = []
+    for item in tuple_bytes:
+        acc.append(hashlib.blake2s(item).digest())
     return hashlib.blake2s(b"".join(acc)).digest()

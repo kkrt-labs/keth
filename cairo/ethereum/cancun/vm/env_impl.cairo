@@ -42,7 +42,7 @@ func BlockEnv__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 ) -> Hash32 {
     alloc_locals;
     let (block_env_commitment_inputs) = alloc();
-    let start = block_env_commitment_inputs;
+    let start_block_env_commitment = block_env_commitment_inputs;
     blake2s_add_felt{data=block_env_commitment_inputs}(block_env.value.chain_id.value, bigend=0);
 
     // Commit to the state. Expects the input state to be finalized.
@@ -50,10 +50,10 @@ func BlockEnv__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let state_account_diff = hash_state_account_diff(state);
     let state_storage_diff = hash_state_storage_diff(state);
     let (state_commitment_inputs) = alloc();
-    let start = state_commitment_inputs;
+    let start_state_commitment = state_commitment_inputs;
     blake2s_add_felt{data=state_commitment_inputs}(state_account_diff, bigend=0);
     blake2s_add_felt{data=state_commitment_inputs}(state_storage_diff, bigend=0);
-    let (state_commitment) = blake2s(data=start, n_bytes=64);
+    let (state_commitment) = blake2s(data=start_state_commitment, n_bytes=64);
 
     blake2s_add_uint256{data=block_env_commitment_inputs}(state_commitment);
     blake2s_add_felt{data=block_env_commitment_inputs}(
@@ -81,7 +81,9 @@ func BlockEnv__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     );
     blake2s_add_uint256{data=block_env_commitment_inputs}([parent_beacon_block_root_commitment.value]);
 
-    let (block_env_commitment) = blake2s(data=start, n_bytes=BlockEnvironmentStruct.SIZE * 32);
+    let (block_env_commitment) = blake2s(
+        data=start_block_env_commitment, n_bytes=BlockEnvironmentStruct.SIZE * 32
+    );
 
     tempvar res = Hash32(new block_env_commitment);
     return res;

@@ -386,17 +386,8 @@ def prepare_body_input(
                 storage_trie._data[storage_key] = None
 
     return {
-        "block_transactions": transactions,
-        "state": state,
-        "transactions_trie": transactions_trie,
-        "receipts_trie": receipts_trie,
-        "block_logs": block_logs,
-        "block_hashes": block_env.block_hashes,
-        "block_gas_used": block_output.block_gas_used,
-        "gas_available": gas_available,
-        "chain_id": block_env.chain_id,
-        "blob_gas_used": block_output.blob_gas_used,
-        "excess_blob_gas": block_env.excess_blob_gas,
+        "block_env": block_env,
+        "block_output": block_output,
     }
 
 
@@ -440,7 +431,7 @@ def load_body_input(
     # One thing to keep in mind here is that running EELS will delete any value from the account /
     # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
     # must _manually_ put back an entry for each value that was deleted from the tries.
-    updated_state = body_input["state"]
+    updated_state = body_input["block_env"].state
     for address, account in main_trie_snapshot._data.items():
         if address not in updated_state._main_trie._data:
             updated_state._main_trie._data[address] = None
@@ -455,13 +446,13 @@ def load_body_input(
             if storage_key not in updated_state._storage_tries[address]._data:
                 updated_state._storage_tries[address]._data[storage_key] = None
     # Inject the original state as the first snapshot
-    body_input["state"]._snapshots = [
+    body_input["block_env"].state._snapshots = [
         (
             main_trie_snapshot,
             storage_tries_snapshot,
         )
     ]
-    code_hashes = map_code_hashes_to_code(body_input["state"])
+    code_hashes = map_code_hashes_to_code(body_input["block_env"].state)
     program_input = {
         **body_input,
         "codehash_to_code": code_hashes,
@@ -499,8 +490,7 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         coinbase=block.header.coinbase,
         number=block.header.number,
         base_fee_per_gas=block.header.base_fee_per_gas,
-        gas_limit=block.header.gas_limit,
-        timestamp=block.header.timestamp,
+        time=block.header.timestamp,
         prev_randao=block.header.prev_randao,
         excess_blob_gas=excess_blob_gas,
         parent_beacon_block_root=block.header.parent_beacon_block_root,
@@ -511,15 +501,15 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         block.transactions,
     )
 
-    if body_input["block_gas_used"] != block.header.gas_used:
+    if body_input["block_output"].block_gas_used != block.header.gas_used:
         raise ValueError(
-            f"Block gas used mismatch: {body_input['block_gas_used']} != {block.header.gas_used}"
+            f"Block gas used mismatch: {body_input['block_output'].block_gas_used} != {block.header.gas_used}"
         )
 
     # One thing to keep in mind here is that running EELS will delete any value from the account /
     # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
     # must _manually_ put back an entry for each value that was deleted from the tries.
-    updated_state = body_input["state"]
+    updated_state = body_input["block_env"].state
     for address in main_trie_snapshot._data.keys():
         if address not in updated_state._main_trie._data:
             updated_state._main_trie._data[address] = None
@@ -534,8 +524,8 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
             if storage_key not in updated_state._storage_tries[address]._data:
                 updated_state._storage_tries[address]._data[storage_key] = None
 
-    body_input["state"] = updated_state
-    body_input["state"]._snapshots = [
+    body_input["block_env"].state = updated_state
+    body_input["block_env"].state._snapshots = [
         (
             main_trie_snapshot,
             storage_tries_snapshot,
