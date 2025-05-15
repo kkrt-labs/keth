@@ -43,6 +43,7 @@ empty_transaction_environment = st.builds(
     transient_storage=st.just(TransientStorage()),
     blob_versioned_hashes=st.just(tuple()),  # Tuple[VersionedHash, ...]
     index_in_block=st.just(None),  # Optional[Uint]
+    authorizations=st.just(tuple()),  # Tuple[Authorization, ...]
     tx_hash=st.just(None),  # Optional[Hash32]
 )
 
