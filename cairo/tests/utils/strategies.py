@@ -417,6 +417,9 @@ transaction_environment_lite = st.builds(
     blob_versioned_hashes=st.lists(
         st.from_type(VersionedHash), max_size=MAX_TUPLE_SIZE
     ).map(tuple),
+    authorizations=st.lists(st.from_type(Authorization), max_size=MAX_TUPLE_SIZE).map(
+        tuple
+    ),
     index_in_block=st.none() | uint,
     tx_hash=st.none() | hash32,
 )
