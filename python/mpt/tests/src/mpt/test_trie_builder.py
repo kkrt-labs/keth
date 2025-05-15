@@ -1,4 +1,4 @@
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     ExtensionNode,
     LeafNode,
     bytes_to_nibble_list,

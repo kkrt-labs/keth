@@ -2,11 +2,11 @@ from collections import ChainMap
 from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import BlockChain
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
+from ethereum.prague.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.prague.fork import BlockChain
+from ethereum.prague.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.transactions import (
     Access,
     AccessListTransaction,
     BlobTransaction,
@@ -14,7 +14,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
@@ -22,20 +22,20 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
-from ethereum.cancun.vm import (
+from ethereum.prague.vm import (
     BlockEnvironment,
     Evm,
     Message,
     TransactionEnvironment,
 )
-from ethereum.cancun.vm.exceptions import (
+from ethereum.prague.vm.exceptions import (
     InvalidOpcode,
     Revert,
     StackOverflowError,
     StackUnderflowError,
 )
-from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
-from ethereum.cancun.vm.interpreter import MessageCallOutput
+from ethereum.prague.vm.gas import ExtendMemory, MessageCallGas
+from ethereum.prague.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
 from ethereum.crypto.hash import Hash32
 from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof

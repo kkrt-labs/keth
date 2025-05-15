@@ -2,16 +2,16 @@ import logging
 from pathlib import Path
 
 import pytest
-from ethereum.cancun.blocks import Block, Header, Withdrawal
-from ethereum.cancun.fork import (
+from ethereum.prague.blocks import Block, Header, Withdrawal
+from ethereum.prague.fork import (
     BlockChain,
     apply_body,
     calculate_excess_blob_gas,
     get_last_256_block_hashes,
     state_transition,
 )
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
+from ethereum.prague.fork_types import Address
+from ethereum.prague.transactions import LegacyTransaction, encode_transaction
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
@@ -68,7 +68,7 @@ class TestEthereumTries:
     @pytest.mark.slow
     def test_to_state(self, zkpi, ethereum_tries: EthereumTries):
 
-        load = LoadKethFixture("Cancun", "cancun")
+        load = LoadKethFixture("Prague", "prague")
         # Create blockchain from ancestors
         blocks = [
             Block(
@@ -90,7 +90,7 @@ class TestEthereumTries:
 
         block = zkpi["blocks"][0]
         transactions = tuple(
-            TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
+            TransactionLoad(normalize_transaction(tx), ForkLoad("Prague")).read()
             for tx in block["transaction"]
         )
 

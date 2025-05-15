@@ -14,13 +14,13 @@ from tests.ef_tests.helpers.load_state_tests import (
 from utils.fixture_loader import LoadKethFixture
 
 pytestmark = [
-    pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo"),
+    pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/prague/fork.cairo"),
     pytest.mark.max_steps(100_000_000),
 ]
 
-fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
+fetch_prague_tests = partial(fetch_state_test_files, network="Prague")
 
-FIXTURES_LOADER = LoadKethFixture("Cancun", "cancun")
+FIXTURES_LOADER = LoadKethFixture("Prague", "prague")
 
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
 ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"]["fixture_path"]
@@ -35,8 +35,8 @@ SLOW_TESTS = (
     "stTimeConsuming/static_Call50000_sha256.json",
     "vmPerformance/loopExp.json",
     "vmPerformance/loopMul.json",
-    "QuadraticComplexitySolidity_CallDataCopy_d0g1v0_Cancun",
-    "CALLBlake2f_d9g0v0_Cancun",
+    "QuadraticComplexitySolidity_CallDataCopy_d0g1v0_Prague",
+    "CALLBlake2f_d9g0v0_Prague",
     "CALLCODEBlake2f_d9g0v0",
     # GeneralStateTests
     "stRandom/randomStatetest177.json",
@@ -67,10 +67,10 @@ IGNORE_TESTS = (
     # InvalidBlockTest
     "bcForgedTest",
     "bcMultiChainTest",
-    "GasLimitHigherThan2p63m1_Cancun",
+    "GasLimitHigherThan2p63m1_Prague",
     # Tests on state root - we don't implement state root computations in our approach
-    "wrongCoinbase_Cancun",
-    "wrongStateRoot_Cancun",
+    "wrongCoinbase_Prague",
+    "wrongStateRoot_Prague",
 )
 
 # All tests that recursively create a large number of frames (50000)
@@ -93,7 +93,7 @@ with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
 
 
 fetch_state_tests = partial(
-    fetch_cancun_tests,
+    fetch_prague_tests,
     test_dir,
     ignore_list=IGNORE_TESTS + SKIPPED_TESTS,
     slow_list=SLOW_TESTS,
@@ -126,7 +126,7 @@ test_dir = f"{ETHEREUM_SPEC_TESTS_PATH}/fixtures/withdrawals"
 
 @pytest.mark.parametrize(
     "test_case",
-    fetch_cancun_tests(test_dir),
+    fetch_prague_tests(test_dir),
     ids=idfn,
 )
 def test_execution_specs_generated_tests(

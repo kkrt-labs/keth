@@ -5,8 +5,8 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from ethereum.cancun.fork_types import Account, Address
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
+from ethereum.prague.fork_types import Account, Address
+from ethereum.prague.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
 from ethereum.crypto.hash import Hash32
 from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended

@@ -57,7 +57,7 @@ def print_maybe_relocatable_hint(ids: VmConsts):
 @register_hint
 def precompile_index_from_address(ids: VmConsts):
 
-    from ethereum.cancun.vm.precompiled_contracts import (
+    from ethereum.prague.vm.precompiled_contracts import (
         ALT_BN128_ADD_ADDRESS,
         ALT_BN128_MUL_ADDRESS,
         ALT_BN128_PAIRING_CHECK_ADDRESS,
@@ -98,7 +98,7 @@ def initialize_jumpdests(
 ):
     from collections import defaultdict
 
-    from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+    from ethereum.prague.vm.runtime import get_valid_jump_destinations
     from starkware.cairo.common.dict import DictTracker
 
     bytecode = bytes(

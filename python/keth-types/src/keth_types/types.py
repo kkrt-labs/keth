@@ -11,22 +11,22 @@ from typing import (
     Union,
 )
 
-from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
+from ethereum.prague.blocks import Receipt, Withdrawal
+from ethereum.prague.fork_types import Address
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.transactions import (
     LegacyTransaction,
 )
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     Trie,
     trie_get,
     trie_set,
 )
-from ethereum.cancun.vm import BlockEnvironment as BlockEnvironmentBase
-from ethereum.cancun.vm import Evm as EvmBase
-from ethereum.cancun.vm import Message as MessageBase
-from ethereum.cancun.vm import TransactionEnvironment as TransactionEnvironmentBase
-from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
+from ethereum.prague.vm import BlockEnvironment as BlockEnvironmentBase
+from ethereum.prague.vm import Evm as EvmBase
+from ethereum.prague.vm import Message as MessageBase
+from ethereum.prague.vm import TransactionEnvironment as TransactionEnvironmentBase
+from ethereum.prague.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
@@ -297,7 +297,7 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
 
 
 def account_exists_and_is_empty(state: State, address: Address) -> bool:
-    from ethereum.cancun.state import get_account_optional
+    from ethereum.prague.state import get_account_optional
 
     account = get_account_optional(state, address)
     # The storage root is intended not to be taken into account here.
@@ -306,7 +306,7 @@ def account_exists_and_is_empty(state: State, address: Address) -> bool:
 
 # TODO PR in EELS?
 def is_account_alive(state: State, address: Address) -> bool:
-    from ethereum.cancun.state import get_account_optional
+    from ethereum.prague.state import get_account_optional
 
     account = get_account_optional(state, address)
     if account is None:
@@ -318,7 +318,7 @@ def is_account_alive(state: State, address: Address) -> bool:
 
 
 def set_code(state: State, address: Address, code: Bytes) -> None:
-    from ethereum.cancun.state import modify_state
+    from ethereum.prague.state import modify_state
 
     def write_code(sender: Account) -> None:
         from ethereum.crypto.hash import keccak256
@@ -340,7 +340,7 @@ EMPTY_ACCOUNT = Account(
 
 
 # Re-definition of the Node type to be used in the tests.
-# This is required for the `encode_node` function in `ethereum.cancun.trie` to work.
+# This is required for the `encode_node` function in `ethereum.prague.trie` to work.
 Node = Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None]
 
 _field_mapping = {

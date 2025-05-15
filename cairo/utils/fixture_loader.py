@@ -5,34 +5,34 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ethereum.cancun.blocks import Block, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import (
+from ethereum.prague.blocks import Block, Log, Receipt, Withdrawal
+from ethereum.prague.fork import (
     BEACON_ROOTS_ADDRESS,
     BlockChain,
     get_last_256_block_hashes,
     process_system_transaction,
     process_transaction,
 )
-from ethereum.cancun.fork_types import (
+from ethereum.prague.fork_types import (
     EMPTY_ACCOUNT,
     Account,
     Address,
 )
-from ethereum.cancun.state import (
+from ethereum.prague.state import (
     State,
     TransientStorage,
 )
-from ethereum.cancun.transactions import (
+from ethereum.prague.transactions import (
     LegacyTransaction,
     decode_transaction,
     encode_transaction,
 )
-from ethereum.cancun.trie import Trie, copy_trie, root, trie_get
-from ethereum.cancun.vm import (
+from ethereum.prague.trie import Trie, copy_trie, root, trie_get
+from ethereum.prague.vm import (
     BlockEnvironment,
     BlockOutput,
 )
-from ethereum.cancun.vm.gas import (
+from ethereum.prague.vm.gas import (
     calculate_excess_blob_gas,
 )
 from ethereum.crypto.hash import keccak256
@@ -57,7 +57,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CANCUN_FORK_BLOCK = 19426587  # First Cancun block
+PRAGUE_FORK_BLOCK = 22431084  # First Prague block
 
 
 class LoadKethFixture(Load):
@@ -189,7 +189,7 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
         raise e
 
-    load = LoadKethFixture("Cancun", "cancun")
+    load = LoadKethFixture("prague", "prague")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
 
@@ -558,7 +558,7 @@ def process_block_transactions(
 ) -> Tuple[Tuple[LegacyTransaction, ...], Tuple[Dict[str, Any], ...]]:
 
     transactions = tuple(
-        TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
+        TransactionLoad(normalize_transaction(tx), ForkLoad("Prague")).read()
         for tx in block_transactions
     )
     encoded_transactions = tuple(

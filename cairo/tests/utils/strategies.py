@@ -15,22 +15,22 @@ from typing import (
 )
 
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import (
+from ethereum.prague.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.prague.fork_types import (
     Account,
     Address,
     Bloom,
     Root,
     VersionedHash,
 )
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.transactions import (
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
 )
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     LeafNode,
@@ -38,8 +38,8 @@ from ethereum.cancun.trie import (
     copy_trie,
     encode_internal_node,
 )
-from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.vm import (
+from ethereum.prague.trie import root as compute_root
+from ethereum.prague.vm import (
     BlockEnvironment,
     BlockOutput,
     Evm,

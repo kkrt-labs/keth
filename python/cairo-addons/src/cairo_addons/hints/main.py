@@ -9,10 +9,10 @@ from cairo_addons.hints.decorator import register_hint
 def main_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from typing import Mapping, Optional, Union
 
-    from ethereum.cancun.fork import Block, BlockChain
-    from ethereum.cancun.fork_types import Address
-    from ethereum.cancun.trie import InternalNode
     from ethereum.crypto.hash import Hash32
+    from ethereum.prague.fork import Block, BlockChain
+    from ethereum.prague.fork_types import Address
+    from ethereum.prague.trie import InternalNode
     from ethereum_rlp import Extended
     from ethereum_types.bytes import Bytes, Bytes32
 
@@ -36,7 +36,7 @@ def main_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 @register_hint
 def init_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 
-    from ethereum.cancun.fork import Block, BlockChain
+    from ethereum.prague.fork import Block, BlockChain
 
     # Program inputs for STF function
     ids.chain = gen_arg(BlockChain, program_input["blockchain"])
@@ -47,13 +47,13 @@ def init_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from typing import Mapping, Optional, Tuple, Union
 
-    from ethereum.cancun.blocks import Withdrawal
-    from ethereum.cancun.fork import Block, BlockChain
-    from ethereum.cancun.fork_types import Address
-    from ethereum.cancun.transactions import LegacyTransaction
-    from ethereum.cancun.trie import InternalNode, Trie
-    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
     from ethereum.crypto.hash import Hash32
+    from ethereum.prague.blocks import Withdrawal
+    from ethereum.prague.fork import Block, BlockChain
+    from ethereum.prague.fork_types import Address
+    from ethereum.prague.transactions import LegacyTransaction
+    from ethereum.prague.trie import InternalNode, Trie
+    from ethereum.prague.vm import BlockEnvironment, BlockOutput
     from ethereum_rlp import Extended
     from ethereum_types.bytes import Bytes, Bytes32
 
@@ -90,9 +90,9 @@ def teardown_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from typing import Tuple, Union
 
-    from ethereum.cancun.blocks import Header
-    from ethereum.cancun.transactions import LegacyTransaction
-    from ethereum.cancun.vm import BlockEnvironment, BlockOutput
+    from ethereum.prague.blocks import Header
+    from ethereum.prague.transactions import LegacyTransaction
+    from ethereum.prague.vm import BlockEnvironment, BlockOutput
     from ethereum_types.bytes import Bytes
 
     ids.block_header = gen_arg(Header, program_input["block_header"])

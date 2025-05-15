@@ -1,6 +1,6 @@
 from typing import List, Optional, Sequence, Tuple, Union
 
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
