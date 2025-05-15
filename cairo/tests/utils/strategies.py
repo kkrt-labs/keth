@@ -417,6 +417,9 @@ transaction_environment_lite = st.builds(
     blob_versioned_hashes=st.lists(
         st.from_type(VersionedHash), max_size=MAX_TUPLE_SIZE
     ).map(tuple),
+    authorizations=st.lists(st.from_type(Authorization), max_size=MAX_TUPLE_SIZE).map(
+        tuple
+    ),
     index_in_block=st.none() | uint,
     tx_hash=st.none() | hash32,
 )
@@ -438,6 +441,7 @@ message_lite = st.builds(
     is_static=st.booleans(),
     accessed_addresses=st.builds(set, st.just(set())),
     accessed_storage_keys=st.builds(set, st.just(set())),
+    disable_precompiles=st.just(False),
     parent_evm=st.none(),
 )
 
@@ -477,6 +481,7 @@ message = st.builds(
     is_static=st.booleans(),
     accessed_addresses=accessed_addresses,
     accessed_storage_keys=accessed_storage_keys,
+    disable_precompiles=st.booleans(),
     parent_evm=st.none() | evm_strategy,
 )
 
@@ -697,6 +702,7 @@ header = st.builds(
     prev_randao=bytes32,
     nonce=bytes8,
     base_fee_per_gas=uint,
+    requests_hash=hash32,
 )
 
 
