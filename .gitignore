@@ -45,6 +45,7 @@ codecov
 
 # EF-Tests fixtures
 cairo/tests/ef_tests/fixtures/
+tests/fixtures/*
 
 # zk-pig default output directory
 data

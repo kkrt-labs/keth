@@ -11,7 +11,7 @@ from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
 from ethereum.cancun.trie import Trie
 from ethereum.crypto.hash import keccak256
-from ethereum.exceptions import EthereumException
+from ethereum.exceptions import EthereumException, StateWithEmptyAccount
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException
@@ -51,6 +51,9 @@ def run_blockchain_st_test(
     if hasattr(genesis_header, "withdrawals_root"):
         parameters.append(())
 
+    if hasattr(genesis_header, "requests_root"):
+        parameters.append(())
+
     genesis_block = load.fork.Block(*parameters)
 
     genesis_header_hash = hex_to_bytes(json_data["genesisBlockHeader"]["hash"])
@@ -58,9 +61,14 @@ def run_blockchain_st_test(
     genesis_rlp = hex_to_bytes(json_data["genesisRLP"])
     assert rlp.encode(genesis_block) == genesis_rlp
 
+    try:
+        state = load.json_to_state(json_data["pre"])
+    except StateWithEmptyAccount as e:
+        pytest.xfail(str(e))
+
     chain = load.fork.BlockChain(
         blocks=[genesis_block],
-        state=load.json_to_state(json_data["pre"]),
+        state=state,
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
@@ -184,9 +192,7 @@ def fetch_state_test_files(
             files_to_iterate.append(os.path.join(test_dir, test_path))
     else:
         # If there isn't a custom list, iterate over the test_dir
-        all_jsons = [
-            y for x in os.walk(test_dir) for y in glob(os.path.join(x[0], "*.json"))
-        ]
+        all_jsons = glob(os.path.join(test_dir, "**/*.json"), recursive=True)
 
         for full_path in all_jsons:
             if not any(x.search(full_path) for x in all_ignore):
