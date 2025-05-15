@@ -12,7 +12,7 @@
 //
 // This is an error:
 // ```
-// from ethereum.cancun.vm.exceptions import StackUnderflowError
+// from ethereum.prague.vm.exceptions import StackUnderflowError
 // tempvar error = new EthereumException(StackUnderflowError);
 // ```
 

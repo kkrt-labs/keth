@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from typing import Dict, Iterable, Tuple, Union
 
-from ethereum.cancun.vm.instructions import Ops
+from ethereum.prague.vm.instructions import Ops
 from starkware.cairo.common.dict import DictTracker
 
 from cairo_addons.rust_bindings.vm import Relocatable

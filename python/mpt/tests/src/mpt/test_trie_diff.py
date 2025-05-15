@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
-from ethereum.cancun.trie import (
+from ethereum.prague.fork_types import EMPTY_ACCOUNT, Account, Address
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
