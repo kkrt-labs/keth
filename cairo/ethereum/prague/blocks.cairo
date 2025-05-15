@@ -99,6 +99,7 @@ struct HeaderStruct {
     blob_gas_used: U64,
     excess_blob_gas: U64,
     parent_beacon_block_root: Root,
+    requests_hash: Hash32,
 }
 
 struct Header {
