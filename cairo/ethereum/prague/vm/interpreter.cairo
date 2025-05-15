@@ -70,6 +70,7 @@ struct MessageCallOutputStruct {
     logs: TupleLog,
     accounts_to_delete: SetAddress,
     error: EthereumException*,
+    return_data: Bytes,
     accessed_storage_keys: SetTupleAddressBytes32,
 }
 
@@ -575,6 +576,7 @@ func process_message_call{
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             error=squashed_evm.value.error,
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
+            return_data=squashed_evm.value.return_data,
         ),
     );
     return msg;
@@ -606,6 +608,8 @@ func create_empty_message_call_output(
         ),
     );
 
+    tempvar return_data = Bytes(new BytesStruct(cast(0, felt*), 0));
+
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=gas_left,
@@ -614,6 +618,7 @@ func create_empty_message_call_output(
             accounts_to_delete=empty_set1,
             error=error,
             accessed_storage_keys=empty_set3,
+            return_data=return_data,
         ),
     );
     return msg;
