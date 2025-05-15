@@ -76,3 +76,66 @@ def bls12_g1_add_hint(
             write_error(memory, ap, segments, e)
 
     inner()
+
+
+@register_hint
+def bls12_g1_msm_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.gas import GAS_BLS_G1_MUL
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        G1_K_DISCOUNT,
+        G1_MAX_DISCOUNT,
+        MULTIPLIER,
+        G1_to_bytes,
+        decode_G1_scalar_pair,
+    )
+    from ethereum_types.numeric import Uint
+    from py_ecc.bls12_381.bls12_381_curve import add, multiply
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            # Each pair consists of a G1 point (128 bytes) and a scalar (32 bytes)
+            LENGTH_PER_PAIR = 160
+            if len(data) == 0 or len(data) % LENGTH_PER_PAIR != 0:
+                raise ValueError("Invalid Input Length")
+
+            k = len(data) // LENGTH_PER_PAIR
+            if k <= 128:
+                discount = Uint(G1_K_DISCOUNT[k - 1])
+            else:
+                discount = Uint(G1_MAX_DISCOUNT)
+            # TODO
+            # gas_cost = Uint(k) * GAS_BLS_G1_MUL * discount // MULTIPLIER
+            # charge_gas(evm, gas_cost)
+
+            # OPERATION
+            for i in range(k):
+                start_index = i * LENGTH_PER_PAIR
+                end_index = start_index + LENGTH_PER_PAIR
+
+                p, m = decode_G1_scalar_pair(data[start_index:end_index])
+                product = multiply(p, m)
+
+                if i == 0:
+                    result = product
+                else:
+                    result = add(result, product)
+
+            # Convert final result to bytes
+            output = G1_to_bytes(result)
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()

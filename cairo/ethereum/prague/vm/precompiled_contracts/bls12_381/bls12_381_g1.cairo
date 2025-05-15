@@ -48,3 +48,28 @@ func bls12_g1_add{
     return ok;
 
 }
+
+func bls12_g1_msm{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: felt*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
+    tempvar data = evm.value.message.value.data;
+    tempvar error: EthereumException*;
+    tempvar output: Bytes;
+
+    %{ bls12_g1_msm_hint %}
+    if (cast(error, felt) != 0) {
+        return error;
+    }
+
+    EvmImpl.set_output(output);
+    tempvar ok = cast(0, EthereumException*);
+    return ok;
+}

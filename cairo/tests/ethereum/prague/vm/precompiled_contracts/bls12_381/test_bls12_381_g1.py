@@ -2,6 +2,7 @@ from ethereum.prague.vm import Evm
 from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
     G1_to_bytes,
     bls12_g1_add,
+    bls12_g1_msm,
 )
 from ethereum_types.bytes import Bytes
 from hypothesis import given
@@ -23,6 +24,11 @@ def bls12_g1_add_data(draw):
     return G1_to_bytes((p1[0], p1[1])) + G1_to_bytes((p2[0], p2[1]))
 
 
+@st.composite
+def bls12_g1_msm_data(draw):
+    return draw(st.lists(blsp_strategy, min_size=1, max_size=128))
+
+
 @given(
     evm=EvmBuilder().with_gas_left().with_message().build(), data=bls12_g1_add_data()
 )
@@ -35,4 +41,19 @@ def test_bls12_g1_add(cairo_run, evm: Evm, data: Bytes):
             bls12_g1_add(evm)
         return
     bls12_g1_add(evm)
+    assert evm_cairo == evm
+
+
+@given(
+    evm=EvmBuilder().with_gas_left().with_message().build(), data=bls12_g1_msm_data()
+)
+def test_bls12_g1_msm(cairo_run, evm: Evm, data: Bytes):
+    evm.message.data = data
+    try:
+        evm_cairo = cairo_run("bls12_g1_msm", evm, data)
+    except Exception as e:
+        with strict_raises(type(e)):
+            bls12_g1_msm(evm)
+        return
+    bls12_g1_msm(evm)
     assert evm_cairo == evm
