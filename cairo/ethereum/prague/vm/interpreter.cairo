@@ -575,8 +575,8 @@ func process_message_call{
             logs=squashed_evm.value.logs,
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             error=squashed_evm.value.error,
-            accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
             return_data=squashed_evm.value.return_data,
+            accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );
     return msg;
@@ -617,8 +617,8 @@ func create_empty_message_call_output(
             logs=empty_tuple_log,
             accounts_to_delete=empty_set1,
             error=error,
-            accessed_storage_keys=empty_set3,
             return_data=return_data,
+            accessed_storage_keys=empty_set3,
         ),
     );
     return msg;
