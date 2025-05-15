@@ -6,228 +6,13 @@ from starkware.cairo.lang.vm.vm_consts import VmConsts
 from cairo_addons.hints.decorator import register_hint
 
 
-@register_hint
-def modexp_gas(
-    ids: VmConsts,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-):
-    from ethereum.prague.vm.precompiled_contracts.modexp import gas_cost
-    from ethereum_types.numeric import U256, Uint
-
-    from cairo_addons.utils.uint256 import uint256_to_int
-
-    base_length = U256(
-        uint256_to_int(ids.base_length.value.low, ids.base_length.value.high)
-    )
-    modulus_length = U256(
-        uint256_to_int(ids.modulus_length.value.low, ids.modulus_length.value.high)
-    )
-    exp_length = U256(
-        uint256_to_int(ids.exp_length.value.low, ids.exp_length.value.high)
-    )
-    exp_head = Uint(uint256_to_int(ids.exp_head.value.low, ids.exp_head.value.high))
-
-    modexp_gas = gas_cost(base_length, modulus_length, exp_length, exp_head)
-    memory[ap - 1] = int(modexp_gas)
-
-
-@register_hint
-def modexp_output(
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-):
-    from ethereum_types.numeric import Uint
-
-    from cairo_addons.hints.precompiles import write_output
-
-    base = Uint.from_be_bytes(
-        bytes(
-            [memory[ids.base.value.data + i] for i in range(ids.base_length.value.low)]
-        )
-    )
-    exp = Uint.from_be_bytes(
-        bytes([memory[ids.exp.value.data + i] for i in range(ids.exp_length.value.low)])
-    )
-    modulus = Uint.from_be_bytes(
-        bytes(
-            [
-                memory[ids.modulus.value.data + i]
-                for i in range(ids.modulus_length.value.low)
-            ]
-        )
-    )
-    result = pow(base, exp, modulus) if modulus != 0 else 0
-    if result == 0:
-        result_bytes = b"\x00" * ids.modulus_length.value.low
-    else:
-        result_bytes = result.to_bytes(ids.modulus_length.value.low, "big")
-
-    write_output(memory, ap, segments, result_bytes)
-
-
-@register_hint
-def alt_bn128_pairing_check_hint(
-    ids: VmConsts,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-    segments: MemorySegmentManager,
-):
-
-    from ethereum.crypto.alt_bn128 import (
-        ALT_BN128_CURVE_ORDER,
-        ALT_BN128_PRIME,
-        BNF,
-        BNF2,
-        BNF12,
-        BNP,
-        BNP2,
-        pairing,
-    )
-    from ethereum.prague.vm.exceptions import OutOfGasError
-    from ethereum_types.numeric import U256
-
-    from cairo_addons.hints.precompiles import write_error, write_output
-
-    def inner():
-        data = [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-
-        # Adapted execution specs
-        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
-        result = BNF12.from_int(1)
-        for i in range(len(data) // 192):
-            values = []
-            for j in range(6):
-                value = int(
-                    U256.from_be_bytes(data[i * 192 + 32 * j : i * 192 + 32 * (j + 1)])
-                )
-                if value >= ALT_BN128_PRIME:
-                    write_error(memory, ap, segments, OutOfGasError)
-                    return
-                values.append(value)
-
-            try:
-                p = BNP(BNF(values[0]), BNF(values[1]))
-                q = BNP2(BNF2((values[3], values[2])), BNF2((values[5], values[4])))
-            except ValueError:
-                write_error(memory, ap, segments, OutOfGasError)
-                return
-            if p.mul_by(ALT_BN128_CURVE_ORDER) != BNP.point_at_infinity():
-                write_error(memory, ap, segments, OutOfGasError)
-                return
-            if q.mul_by(ALT_BN128_CURVE_ORDER) != BNP2.point_at_infinity():
-                write_error(memory, ap, segments, OutOfGasError)
-                return
-            if p != BNP.point_at_infinity() and q != BNP2.point_at_infinity():
-                result = result * pairing(q, p)
-
-        if result == BNF12.from_int(1):
-            output = U256(1).to_be_bytes32()
-        else:
-            output = U256(0).to_be_bytes32()
-
-        # No error
-        memory[ap - 2] = 0
-        write_output(memory, ap, segments, output)
-
-    inner()
-
-
-@register_hint
-def alt_bn128_add_hint(
-    ids: VmConsts,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-    segments: MemorySegmentManager,
-):
-    from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
-    from ethereum.prague.vm.exceptions import OutOfGasError
-
-    from cairo_addons.hints.precompiles import write_error, write_output
-    from cairo_addons.utils.uint256 import uint256_to_int
-
-    def inner():
-        x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
-        y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
-        x1_value = uint256_to_int(ids.x1_value.value.low, ids.x1_value.value.high)
-        y1_value = uint256_to_int(ids.y1_value.value.low, ids.y1_value.value.high)
-
-        # Adapted execution specs
-        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
-        for i in (x0_value, y0_value, x1_value, y1_value):
-            if i >= ALT_BN128_PRIME:
-                write_error(memory, ap, segments, OutOfGasError)
-                return
-
-        try:
-            p0 = BNP(BNF(x0_value), BNF(y0_value))
-            p1 = BNP(BNF(x1_value), BNF(y1_value))
-        except ValueError:
-            write_error(memory, ap, segments, OutOfGasError)
-            return
-
-        p = p0 + p1
-
-        output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
-
-        # No error
-        memory[ap - 2] = 0
-        write_output(memory, ap, segments, output)
-
-    inner()
-
-
-@register_hint
-def alt_bn128_mul_hint(
-    ids: VmConsts,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-    segments: MemorySegmentManager,
-):
-    from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
-    from ethereum.prague.vm.exceptions import OutOfGasError
-
-    from cairo_addons.hints.precompiles import write_error, write_output
-    from cairo_addons.utils.uint256 import uint256_to_int
-
-    def inner():
-        x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
-        y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
-        n_value = uint256_to_int(ids.n_value.value.low, ids.n_value.value.high)
-
-        # Adapted execution specs
-        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
-        for i in (x0_value, y0_value):
-            if i >= ALT_BN128_PRIME:
-                write_error(memory, ap, segments, OutOfGasError)
-                return
-
-        try:
-            p0 = BNP(BNF(x0_value), BNF(y0_value))
-        except ValueError:
-            write_error(memory, ap, segments, OutOfGasError)
-            return
-
-        p = p0.mul_by(n_value)
-
-        output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
-
-        # No error
-        memory[ap - 2] = 0
-        write_output(memory, ap, segments, output)
-
-    inner()
-
-
 def write_error(
     memory: MemoryDict,
     ap: RelocatableValue,
     segments: MemorySegmentManager,
     error: Exception,
 ):
-    error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
+    error_int = int.from_bytes(error.__class__.__name__.encode("ascii"), "big")
     data_ptr = segments.add()
     segments.load_data(data_ptr, [error_int])
     memory[ap - 2] = data_ptr
@@ -255,3 +40,153 @@ def bit_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
 @register_hint
 def bytes_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
     memory[ap - 1] = (ids.value.bit_length() + 7) // 8
+
+
+@register_hint
+def bls12_g1_add_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+
+    from ethereum.prague.vm.memory import buffer_read
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        G1_to_bytes,
+        bytes_to_G1,
+    )
+    from ethereum_types.numeric import U256
+    from py_ecc.bls12_381.bls12_381_curve import add
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            p1 = bytes_to_G1(buffer_read(data, U256(0), U256(128)))
+            p2 = bytes_to_G1(buffer_read(data, U256(128), U256(128)))
+
+            result = G1_to_bytes(add(p1, p2))
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, result)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
+
+
+@register_hint
+def bls12_g1_msm_gas_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.gas import GAS_BLS_G1_MUL
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        G1_K_DISCOUNT,
+        G1_MAX_DISCOUNT,
+        MULTIPLIER,
+    )
+    from ethereum_types.numeric import Uint
+
+    LENGTH_PER_PAIR = 160
+    data = bytes([memory[ids.data.value.data + i] for i in range(ids.data.value.len)])
+    k = len(data) // LENGTH_PER_PAIR
+    if k <= 128:
+        discount = Uint(G1_K_DISCOUNT[k - 1])
+    else:
+        discount = Uint(G1_MAX_DISCOUNT)
+
+    gas_cost = Uint(k) * GAS_BLS_G1_MUL * discount // MULTIPLIER
+    memory[ap - 1] = gas_cost
+
+
+@register_hint
+def bls12_g1_msm_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        G1_to_bytes,
+        decode_G1_scalar_pair,
+    )
+    from py_ecc.bls12_381.bls12_381_curve import add, multiply
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            # Each pair consists of a G1 point (128 bytes) and a scalar (32 bytes)
+            LENGTH_PER_PAIR = 160
+            k = len(data) // LENGTH_PER_PAIR
+
+            # OPERATION
+            for i in range(k):
+                start_index = i * LENGTH_PER_PAIR
+                end_index = start_index + LENGTH_PER_PAIR
+
+                p, m = decode_G1_scalar_pair(data[start_index:end_index])
+                product = multiply(p, m)
+
+                if i == 0:
+                    result = product
+                else:
+                    result = add(result, product)
+
+            # Convert final result to bytes
+            output = G1_to_bytes(result)
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
+
+
+@register_hint
+def bls12_map_fp_to_g1_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        G1_to_bytes,
+        bytes_to_FQ,
+    )
+    from py_ecc.bls.hash_to_curve import clear_cofactor_G1, map_to_curve_G1
+    from py_ecc.fields.field_elements import FQ as OPTIMIZED_FQ
+    from py_ecc.optimized_bls12_381.optimized_curve import normalize
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        if len(data) != 64:
+            raise ValueError("Invalid Input Length")
+        try:
+            field_element = bytes_to_FQ(data, True)
+            assert isinstance(field_element, OPTIMIZED_FQ)
+
+            g1_uncompressed = clear_cofactor_G1(map_to_curve_G1(field_element))
+            g1_normalised = normalize(g1_uncompressed)
+
+            output = G1_to_bytes(g1_normalised)
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
