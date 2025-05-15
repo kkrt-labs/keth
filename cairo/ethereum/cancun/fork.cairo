@@ -630,10 +630,17 @@ func process_transaction{
     let range_check_ptr = range_check_ptr + 1;
 
     let gas_refund_amount = tx_gas_left * effective_gas_price.value;
+    assert [range_check_ptr] = gas_refund_amount;
+    let range_check_ptr = range_check_ptr + 1;
 
     // Calculate priority fee
     let priority_fee_per_gas = effective_gas_price.value - block_env.value.base_fee_per_gas.value;
+    assert [range_check_ptr] = priority_fee_per_gas;
+    let range_check_ptr = range_check_ptr + 1;
+
     let transaction_fee = tx_gas_used_after_refund * priority_fee_per_gas;
+    assert [range_check_ptr] = transaction_fee;
+    let range_check_ptr = range_check_ptr + 1;
 
     let sender_account = get_account{state=state}(sender);
     let (high, low) = split_felt(gas_refund_amount);
@@ -944,8 +951,16 @@ func check_transaction{
         let priority_fee_per_gas = min(
             max_priority_fee_per_gas.value, max_fee_per_gas.value - base_fee_per_gas.value
         );
-        tempvar effective_gas_price = Uint(base_fee_per_gas.value + priority_fee_per_gas);
-        tempvar max_gas_fee = Uint(gas.value * max_fee_per_gas.value);
+        let effective_gas_price_ = base_fee_per_gas.value + priority_fee_per_gas;
+        assert [range_check_ptr] = effective_gas_price_;
+        let range_check_ptr = range_check_ptr + 1;
+
+        let max_gas_fee_ = gas.value * max_fee_per_gas.value;
+        assert [range_check_ptr] = max_gas_fee_;
+        let range_check_ptr = range_check_ptr + 1;
+
+        tempvar effective_gas_price = Uint(effective_gas_price_);
+        tempvar max_gas_fee = Uint(max_gas_fee_);
         tempvar range_check_ptr = range_check_ptr;
     } else {
         let gas_price = get_gas_price(tx);
@@ -953,8 +968,13 @@ func check_transaction{
         with_attr error_message("InvalidBlock") {
             assert gas_price_valid = 1;
         }
+
+        let max_gas_fee_ = gas.value * gas_price.value;
+        assert [range_check_ptr] = max_gas_fee_;
+        let range_check_ptr = range_check_ptr + 1;
+
         tempvar effective_gas_price = gas_price;
-        tempvar max_gas_fee = Uint(gas.value * gas_price.value);
+        tempvar max_gas_fee = Uint(max_gas_fee_);
         tempvar range_check_ptr = range_check_ptr;
     }
     let range_check_ptr = [ap - 1];

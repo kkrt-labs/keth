@@ -44,7 +44,6 @@ class TestE2E:
         "zkpi_path",
         [Path("test_data/22188088.json")],
     )
-    @pytest.mark.slow
     def test_e2e(self, cairo_run, zkpi_path, program_input):
         [
             init_body_commitment_low,
@@ -121,7 +120,6 @@ class TestInit:
         "zkpi_path",
         [Path("test_data/22188088.json")],
     )
-    @pytest.mark.slow
     def test_init(self, cairo_run, zkpi_path, program_input):
         [
             body_commitment_low,
@@ -141,7 +139,6 @@ class TestBody:
         "zkpi_path",
         [Path("test_data/22188088.json")],
     )
-    @pytest.mark.slow
     def test_body(self, cairo_run, zkpi_path):
         # Run all transactions of the body
         body_input = load_body_input(
@@ -171,7 +168,6 @@ class TestTeardown:
             Path("test_data/22188088.json"),
         ],
     )
-    @pytest.mark.slow
     def test_teardown(self, cairo_run, zkpi_path):
         # Run all transactions of the body
         teardown_input = load_teardown_input(zkpi_path)
