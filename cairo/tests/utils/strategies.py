@@ -702,6 +702,7 @@ header = st.builds(
     prev_randao=bytes32,
     nonce=bytes8,
     base_fee_per_gas=uint,
+    requests_hash=hash32,
 )
 
 
