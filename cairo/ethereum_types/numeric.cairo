@@ -4,6 +4,7 @@ from cairo_core.numeric import (
     U256Struct,
     U128,
     U64,
+    U8,
     bool,
     Bool,
     SetUint,
