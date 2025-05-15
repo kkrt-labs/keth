@@ -66,6 +66,7 @@ class MessageBuilder:
         self._accessed_addresses = st.builds(set, st.just(set()))
         self._accessed_storage_keys = st.builds(set, st.just(set()))
         self._parent_evm = st.none()
+        self._disable_precompiles = st.just(False)
 
     def with_caller(self, strategy=st.from_type(Address)):
         self._caller = strategy
@@ -134,6 +135,10 @@ class MessageBuilder:
         self._tx_env = strategy
         return self
 
+    def with_disable_precompiles(self, strategy=st.booleans()):
+        self._disable_precompiles = strategy
+        return self
+
     def build(self):
         return st.builds(
             Message,
@@ -152,5 +157,6 @@ class MessageBuilder:
             is_static=self._is_static,
             accessed_addresses=self._accessed_addresses,
             accessed_storage_keys=self._accessed_storage_keys,
+            disable_precompiles=self._disable_precompiles,
             parent_evm=self._parent_evm,
         )

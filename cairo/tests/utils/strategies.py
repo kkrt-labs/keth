@@ -438,6 +438,7 @@ message_lite = st.builds(
     is_static=st.booleans(),
     accessed_addresses=st.builds(set, st.just(set())),
     accessed_storage_keys=st.builds(set, st.just(set())),
+    disable_precompiles=st.just(False),
     parent_evm=st.none(),
 )
 
@@ -477,6 +478,7 @@ message = st.builds(
     is_static=st.booleans(),
     accessed_addresses=accessed_addresses,
     accessed_storage_keys=accessed_storage_keys,
+    disable_precompiles=st.booleans(),
     parent_evm=st.none() | evm_strategy,
 )
 
