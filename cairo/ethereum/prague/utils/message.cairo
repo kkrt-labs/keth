@@ -133,6 +133,7 @@ func prepare_message{
     );
 
     let tx_value = get_value(tx);
+    // TODO: temporary disable_precompiles until eoa delegation is implemented
     tempvar res = Message(
         new MessageStruct(
             block_env=block_env,
@@ -150,6 +151,7 @@ func prepare_message{
             is_static=bool(0),
             accessed_addresses=accessed_addresses,
             accessed_storage_keys=accessed_storage_keys,
+            disable_precompiles=bool(0),
             parent_evm=Evm(cast(0, EvmStruct*)),
         ),
     );

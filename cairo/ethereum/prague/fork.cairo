@@ -406,6 +406,7 @@ func process_system_transaction{
             is_static=bool(0),
             accessed_addresses=accessed_addresses,
             accessed_storage_keys=accessed_storage_keys,
+            disable_precompiles=bool(0),
             parent_evm=Evm(cast(0, EvmStruct*)),
         ),
     );

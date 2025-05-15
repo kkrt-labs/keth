@@ -31,6 +31,7 @@ struct MessageStruct {
     is_static: bool,
     accessed_addresses: SetAddress,
     accessed_storage_keys: SetTupleAddressBytes32,
+    disable_precompiles: bool,
     parent_evm: OptionalEvm,
 }
 
@@ -196,6 +197,7 @@ namespace EvmImpl {
                 is_static=evm.value.message.value.is_static,
                 accessed_addresses=evm.value.message.value.accessed_addresses,
                 accessed_storage_keys=evm.value.message.value.accessed_storage_keys,
+                disable_precompiles=evm.value.message.value.disable_precompiles,
                 parent_evm=evm.value.message.value.parent_evm,
             ),
         );
@@ -241,6 +243,7 @@ namespace EvmImpl {
                 is_static=evm.value.message.value.is_static,
                 accessed_addresses=evm.value.message.value.accessed_addresses,
                 accessed_storage_keys=evm.value.message.value.accessed_storage_keys,
+                disable_precompiles=evm.value.message.value.disable_precompiles,
                 parent_evm=evm.value.message.value.parent_evm,
             ),
         );
@@ -600,6 +603,7 @@ namespace MessageImpl {
                 is_static=message.value.is_static,
                 accessed_addresses=message.value.accessed_addresses,
                 accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=message.value.disable_precompiles,
                 parent_evm=message.value.parent_evm,
             ),
         );
@@ -624,6 +628,7 @@ namespace MessageImpl {
                 is_static=message.value.is_static,
                 accessed_addresses=message.value.accessed_addresses,
                 accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=message.value.disable_precompiles,
                 parent_evm=message.value.parent_evm,
             ),
         );

@@ -157,6 +157,7 @@ func generic_call{
     );
 
     tempvar maybe_address = OptionalAddress(&code_address);
+    // TODO: temporary disable_precompiles until function signature is updated
     tempvar child_message = Message(
         new MessageStruct(
             block_env=block_env,
@@ -174,6 +175,7 @@ func generic_call{
             is_static=is_static,
             accessed_addresses=child_accessed_addresses,
             accessed_storage_keys=child_accessed_storage_keys,
+            disable_precompiles=bool(0),
             parent_evm=evm,
         ),
     );
@@ -1116,6 +1118,7 @@ func generic_create{
             is_static=bool(0),
             accessed_addresses=child_accessed_addresses,
             accessed_storage_keys=child_accessed_storage_keys,
+            disable_precompiles=bool(0),
             parent_evm=evm,
         ),
     );
