@@ -172,7 +172,7 @@ def get_cairo_program(
     all_identifiers = list(program.identifiers.dict.items())
     # when running the tests, the main file is the test file
     # and the compiler is not able to find struct defined therein
-    # in a breakpoint, looking for, e.g. ethereum.cancun.trie.InternalNode
+    # in a breakpoint, looking for, e.g. ethereum.prague.trie.InternalNode
     # while only __main__.InternalNode exists.
     # There is probably a better way to solve this at the IdentifierManager level.
     for k, v in all_identifiers:

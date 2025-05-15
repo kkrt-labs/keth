@@ -2,8 +2,8 @@ import hashlib
 from typing import Optional
 
 import pytest
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm.gas import (
+from ethereum.prague.fork_types import Address
+from ethereum.prague.vm.gas import (
     BLOB_BASE_FEE_UPDATE_FRACTION,
     MIN_BLOB_GASPRICE,
     TARGET_BLOB_GAS_PER_BLOCK,

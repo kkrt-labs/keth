@@ -14,8 +14,8 @@ from mpt.trie_diff import (
     NodeStore,
 )
 from ethereum_types.bytes import Bytes32
-from ethereum.cancun.trie import OptionalLeafNode
-from ethereum.cancun.fork_types import Address
+from ethereum.prague.trie import OptionalLeafNode
+from ethereum.prague.fork_types import Address
 
 func test__process_account_diff{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*

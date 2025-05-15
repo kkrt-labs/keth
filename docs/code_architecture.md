@@ -31,7 +31,7 @@ the cairo type to the python type in `_cairo_struct_to_python_type` inside
 
 Error types should:
 
-1. Be defined in the separate `cairo/ethereum/cancun/vm/exceptions.cairo` file.
+1. Be defined in the separate `cairo/ethereum/prague/vm/exceptions.cairo` file.
 2. Follow the Bytes pattern for error messages:
 
 ```cairo
@@ -378,7 +378,7 @@ The TransientStorage implementation demonstrates how these patterns come
 together in a real-world component. TransientStorage is a key part of the EVM,
 managing temporary storage that persists between message calls within a
 transaction. We will base our implementation on the `ethereum/execution-specs`
-repository, in `ethereum/cancun/state.py`.
+repository, in `ethereum/prague/state.py`.
 
 In Python, TransientStorage is a dataclass with two fields:
 
@@ -401,7 +401,7 @@ Here is the Cairo implementation:
 1. Type Wrapping Pattern: Following the complex wrapper pattern, we define the
    TransientStorage structure with nested pointer-based types:
 
-```cairo:cairo/ethereum/cancun/state.cairo
+```cairo:cairo/ethereum/prague/state.cairo
 struct TransientStorage {
     value: TransientStorageStruct*,
 }
@@ -415,7 +415,7 @@ struct TransientStorageStruct {
 2. Mappings Pattern: The `_tries` field uses the dictionary-based mapping
    pattern to store key-value pairs for each address:
 
-```cairo:cairo/ethereum/cancun/state.cairo
+```cairo:cairo/ethereum/prague/state.cairo
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
     prev_value: TrieBytes32U256,
@@ -435,7 +435,7 @@ struct MappingAddressTrieBytes32U256 {
 3. Write-once Collections Pattern: The `_snapshots` field uses the collection
    pattern to maintain a history of storage states:
 
-```cairo:cairo/ethereum/cancun/state.cairo
+```cairo:cairo/ethereum/prague/state.cairo
 struct TransientStorageSnapshotsStruct {
     data: MappingAddressTrieBytes32U256*,  // Array of mappings
     len: felt,
@@ -453,11 +453,11 @@ We integrate the new external types to the Cairo <> Python type mapping:
 ```python:tests/utils/args_gen.py
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     # ... existing mappings ...
-    ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingAddressTrieBytes32U256"): Mapping[
+    ("ethereum", "prague", "state", "TransientStorage"): TransientStorage,
+    ("ethereum", "prague", "state", "MappingAddressTrieBytes32U256"): Mapping[
         Address, Trie[Bytes32, U256]
     ],
-    ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
+    ("ethereum", "prague", "state", "TransientStorageSnapshots"): List[
         Dict[Address, Trie[Bytes32, U256]]
     ],
 }

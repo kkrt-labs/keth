@@ -110,7 +110,7 @@ directory. For now, only the State Transition tests are implemented. You can run
 them with:
 
 ```bash
-uv run pytest cairo/tests/ef_tests/cancun/test_state_transition.py
+uv run pytest cairo/tests/ef_tests/prague/test_state_transition.py
 ```
 
 #### Ethereum Mainnet Tests
@@ -129,7 +129,7 @@ This will generate the ZK-PI for the given block and save it in the
 Then, you can run the tests with:
 
 ```bash
-uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet"
+uv run pytest cairo/tests/ethereum/prague/test_fork.py -k "test_state_transition_eth_mainnet"
 ```
 
 ### Proving a Block
@@ -147,7 +147,7 @@ usage: prove-block [-h] [--output-dir OUTPUT_DIR] [--data-dir DATA_DIR] [--compi
 
 Requirements:
 
-- Block must be post-Cancun fork (block number ≥ 19426587)
+- Block must be post-prague fork (block number ≥ 19426587)
 - ZKPI data must be available as a JSON file
 - Compiled Cairo program must exist at the specified path (you can run
   `uv run compile_keth`)

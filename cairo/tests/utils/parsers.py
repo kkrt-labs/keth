@@ -1,7 +1,7 @@
 import re
 from typing import Annotated, Optional, Union
 
-from ethereum.cancun.fork_types import Address
+from ethereum.prague.fork_types import Address
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from pydantic import BeforeValidator
