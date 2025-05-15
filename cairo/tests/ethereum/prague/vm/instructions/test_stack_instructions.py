@@ -1,7 +1,7 @@
 import ethereum.prague.vm.instructions.stack as stack
 import pytest
-from ethereum.prague.vm import Evm
 from ethereum.exceptions import EthereumException
+from ethereum.prague.vm import Evm
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises

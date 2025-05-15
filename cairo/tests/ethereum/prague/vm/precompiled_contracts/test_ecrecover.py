@@ -1,8 +1,8 @@
-from ethereum.prague.vm import Evm
-from ethereum.prague.vm.precompiled_contracts.ecrecover import ecrecover
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
+from ethereum.prague.vm import Evm
+from ethereum.prague.vm.precompiled_contracts.ecrecover import ecrecover
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st

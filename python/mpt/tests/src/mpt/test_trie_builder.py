@@ -4,8 +4,8 @@ from ethereum.prague.trie import (
     bytes_to_nibble_list,
     encode_internal_node,
 )
-from keth_types.types import EMPTY_TRIE_HASH
 
+from keth_types.types import EMPTY_TRIE_HASH
 from mpt.trie_builder import TrieTestBuilder, rlp_encode_internal_node
 
 

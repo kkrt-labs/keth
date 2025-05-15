@@ -1,3 +1,5 @@
+from ethereum.crypto.hash import Hash32
+from ethereum.exceptions import EthereumException
 from ethereum.prague.vm import BlockEnvironment, Evm
 from ethereum.prague.vm.instructions.environment import (
     address,
@@ -21,8 +23,6 @@ from ethereum.prague.vm.instructions.environment import (
     returndatasize,
     self_balance,
 )
-from ethereum.crypto.hash import Hash32
-from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given

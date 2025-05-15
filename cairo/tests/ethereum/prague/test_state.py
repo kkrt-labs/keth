@@ -2,6 +2,7 @@ import copy
 from typing import Mapping, Optional
 
 import pytest
+from ethereum.crypto.hash import keccak256
 from ethereum.prague.fork_types import Account, Address
 from ethereum.prague.state import (
     account_exists,
@@ -32,7 +33,6 @@ from ethereum.prague.state import (
     storage_root,
 )
 from ethereum.prague.trie import Trie, copy_trie
-from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given, settings
