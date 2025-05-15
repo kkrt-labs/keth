@@ -280,20 +280,20 @@ def _calculate_refund_counter_current_eq_new(
 ):
     if original_value != 0 and current_value != 0 and new_value == 0:
         # Storage is cleared for the first time in the transaction
-        current_refund_counter += GAS_STORAGE_CLEAR_REFUND
+        current_refund_counter += int(GAS_STORAGE_CLEAR_REFUND)
 
     if original_value != 0 and current_value == 0:
         # Gas refund issued earlier to be reversed
-        current_refund_counter -= GAS_STORAGE_CLEAR_REFUND
+        current_refund_counter -= int(GAS_STORAGE_CLEAR_REFUND)
 
     if original_value == new_value:
         # Storage slot being restored to its original value
         if original_value == 0:
             # Slot was originally empty and was SET earlier
-            current_refund_counter += GAS_STORAGE_SET - GAS_WARM_ACCESS
+            current_refund_counter += int(GAS_STORAGE_SET - GAS_WARM_ACCESS)
         else:
             # Slot was originally non-empty and was UPDATED earlier
-            current_refund_counter += (
+            current_refund_counter += int(
                 GAS_STORAGE_UPDATE - GAS_COLD_SLOAD - GAS_WARM_ACCESS
             )
 

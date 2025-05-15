@@ -1,7 +1,8 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
-from ethereum.cancun.blocks import TupleLog, TupleLogStruct
+from starkware.cairo.common.alloc import alloc
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
@@ -17,13 +18,14 @@ from ethereum.cancun.vm.stack import Stack
 from starkware.cairo.common.memcpy import memcpy
 from legacy.utils.dict import dict_update, squash_and_update, default_dict_finalize, dict_squash
 from ethereum.cancun.trie import (
+    init_tries,
     TrieBytesOptionalUnionBytesLegacyTransaction,
     TrieBytesOptionalUnionBytesReceipt,
     TrieBytesOptionalUnionBytesWithdrawal,
 )
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
 from ethereum_types.numeric import U64
-from ethereum_types.bytes import TupleBytes
+from ethereum_types.bytes import TupleBytes, TupleBytesStruct, Bytes
 
 struct BlockOutputStruct {
     block_gas_used: Uint,
@@ -37,6 +39,29 @@ struct BlockOutputStruct {
 
 struct BlockOutput {
     value: BlockOutputStruct*,
+}
+
+func empty_block_output() -> BlockOutput {
+    let (transactions_trie, receipts_trie, withdrawals_trie) = init_tries();
+    let (logs: Log*) = alloc();
+    tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
+    let (receipt_keys: Bytes*) = alloc();
+    tempvar tuple_receipt_keys = TupleBytes(new TupleBytesStruct(data=receipt_keys, len=0));
+
+
+    tempvar block_output = BlockOutput(
+        new BlockOutputStruct(
+            block_gas_used=Uint(0),
+            transactions_trie=transactions_trie,
+            receipts_trie=receipts_trie,
+            receipt_keys=tuple_receipt_keys,
+            block_logs=block_logs,
+            withdrawals_trie=withdrawals_trie,
+            blob_gas_used=U64(0),
+        ),
+    );
+
+    return block_output;
 }
 
 // @notice Incorporates the child EVM in its parent in case of a successful execution.

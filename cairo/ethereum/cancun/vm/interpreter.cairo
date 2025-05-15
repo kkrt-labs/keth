@@ -91,6 +91,7 @@ func process_create_message{
 
     // take snapshot of state before processing the message
     begin_transaction{state=state, transient_storage=transient_storage}();
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
 
     // If the address where the account is being created has storage, it is
     // destroyed. This can only happen in the following highly unlikely
@@ -127,7 +128,6 @@ func process_create_message{
 
     increment_nonce{state=state}(message.value.current_target);
     BlockEnvImpl.set_state{block_env=block_env}(state);
-    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
     MessageImpl.set_block_env{message=message}(block_env);
     MessageImpl.set_tx_env{message=message}(tx_env);
     let evm = process_message(message);
@@ -227,6 +227,7 @@ func process_message{
     let tx_env = message.value.tx_env;
     let transient_storage = tx_env.value.transient_storage;
     begin_transaction{state=state, transient_storage=transient_storage}();
+    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
 
     // Handle value transfer if needed
     let value_eq_zero = U256__eq__(message.value.value, U256(new U256Struct(0, 0)));
@@ -246,7 +247,6 @@ func process_message{
 
     // Execute the code
     BlockEnvImpl.set_state{block_env=block_env}(state);
-    TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
     MessageImpl.set_block_env{message=message}(block_env);
     MessageImpl.set_tx_env{message=message}(tx_env);
     let evm = execute_code(message);
@@ -479,16 +479,14 @@ func process_message_call{
     alloc_locals;
 
     let block_env = message.value.block_env;
-    let tx_env = message.value.tx_env;
     let state = block_env.value.state;
-    let transient_storage = tx_env.value.transient_storage;
 
     // Check if this is a contract creation (target is empty)
     if (cast(message.value.target.value.address, felt) == 0) {
         let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
         let has_storage = account_has_storage{state=state}(message.value.current_target);
         BlockEnvImpl.set_state{block_env=block_env}(state);
-        TransactionEnvImpl.set_transient_storage{tx_env=tx_env}(transient_storage);
+        MessageImpl.set_block_env{message=message}(block_env);
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
@@ -556,7 +554,7 @@ func process_message_call{
 
     let squashed_evm = evm;
     %{
-        initial_gas = serialize(ids.message.value.gas)
+        initial_gas = serialize(ids.evm.value.message.value.gas)
         final_gas = serialize(ids.squashed_evm.value.gas_left)
         output = serialize(ids.squashed_evm.value.output)
         error_int = serialize(ids.squashed_evm.value.error)["value"]
@@ -767,10 +765,11 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
     // INVARIANT: there should not be a parent_dict to the main_trie at this point.
     assert cast(state.value._main_trie.value._data.value.parent_dict, felt) = 0;
 
-    // Ensure the state in the block_env is properly updated
+    // Ensure the state in the block_env and tx_env is properly updated
     let message = evm.value.message;
     BlockEnvImpl.set_state{block_env=block_env}(state);
     MessageImpl.set_block_env{message=message}(block_env);
+    MessageImpl.set_tx_env{message=message}(tx_env);
 
     // Rebind all dicts to the evm struct
     tempvar evm = Evm(

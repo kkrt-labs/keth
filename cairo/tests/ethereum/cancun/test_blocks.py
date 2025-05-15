@@ -1,6 +1,11 @@
 from typing import Tuple, Union
 
-from ethereum.cancun.blocks import Header, LegacyTransaction, Log, Withdrawal
+from ethereum.cancun.blocks import (
+    Header,
+    LegacyTransaction,
+    Log,
+    Withdrawal,
+)
 from ethereum_types.bytes import Bytes
 from hypothesis import given
 

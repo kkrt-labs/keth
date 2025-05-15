@@ -348,7 +348,7 @@ from mpt.types import EMPTY_TRIE_HASH_LOW, EMPTY_TRIE_HASH_HIGH
 // @notice Destroys an account
 // @dev This function should only be called to destroy accounts whose storage has not been mutated in the current transaction.
 //      We rely on checks on the pre-block storage root to check whether we need to do the expensive operation of iterating over all storage keys to delete them.
-func destroy_account{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+func destroy_account{range_check_ptr, state: State}(
     address: Address
 ) {
     alloc_locals;
@@ -1073,14 +1073,22 @@ func set_code{
         ),
     );
 
-    // Set the updated account
+    // Inlining logic of modify_state: an empty account should be destroyed
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = account_eq_without_storage_root(new_account, empty_account);
+    if (is_empty_account.value != 0) {
+        destroy_account(address);
+        return();
+    }
     set_account(address, new_account);
-    return ();
+    return();
 }
 
 func set_account_balance{range_check_ptr, state: State}(
     address: Address, amount: U256
 ) {
+    alloc_locals;
     let account = get_account(address);
 
     tempvar new_account = OptionalAccount(
@@ -1093,7 +1101,16 @@ func set_account_balance{range_check_ptr, state: State}(
         ),
     );
 
+    // Inlining logic of modify_state: an empty account should be destroyed
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = account_eq_without_storage_root(new_account, empty_account);
+    if (is_empty_account.value != 0) {
+        destroy_account(address);
+        return();
+    }
     set_account(address, new_account);
+
     return ();
 }
 

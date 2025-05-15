@@ -31,11 +31,10 @@ func test_generic_create{
     contract_address: Address,
     memory_start_position: U256,
     memory_size: U256,
-    init_code_gas: Uint,
 ) -> EthereumException* {
     let (process_create_message_label) = get_label_location(process_create_message);
     let res = generic_create{process_create_message_label=process_create_message_label, evm=evm}(
-        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+        endowment, contract_address, memory_start_position, memory_size
     );
     return res;
 }

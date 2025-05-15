@@ -79,4 +79,23 @@ namespace TransactionEnvImpl {
         );
         return ();
     }
+
+    func set_access_list_addresses{tx_env: TransactionEnvironment}(
+        new_access_list_addresses: SetAddress
+    ) {
+        tempvar tx_env = TransactionEnvironment(
+            new TransactionEnvironmentStruct(
+                origin=tx_env.value.origin,
+                gas_price=tx_env.value.gas_price,
+                gas=tx_env.value.gas,
+                access_list_addresses=new_access_list_addresses,
+                access_list_storage_keys=tx_env.value.access_list_storage_keys,
+                transient_storage=tx_env.value.transient_storage,
+                blob_versioned_hashes=tx_env.value.blob_versioned_hashes,
+                index_in_block=tx_env.value.index_in_block,
+                tx_hash=tx_env.value.tx_hash,
+            ),
+        );
+        return ();
+    }
 }

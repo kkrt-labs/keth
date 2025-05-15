@@ -986,7 +986,6 @@ func generic_create{
     contract_address: Address,
     memory_start_position: U256,
     memory_size: U256,
-    init_code_gas: Uint,
 ) -> EthereumException* {
     alloc_locals;
 
@@ -1003,17 +1002,6 @@ func generic_create{
         return err;
     }
 
-    let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    hashdict_write{dict_ptr=accessed_addresses_end}(1, &contract_address, 1);
-
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
     let create_message_gas = max_message_call_gas(evm.value.gas_left);
     let new_gas_left = evm.value.gas_left.value - create_message_gas.value;
@@ -1052,6 +1040,18 @@ func generic_create{
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
+
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    hashdict_write{dict_ptr=accessed_addresses_end}(1, &contract_address, 1);
+
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            accessed_addresses.value.dict_ptr_start,
+            cast(accessed_addresses_end, SetAddressDictAccess*),
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
     let account_has_code_or_nonce_ = account_has_code_or_nonce{state=state}(contract_address);
     let account_has_storage_ = account_has_storage{state=state}(contract_address);
@@ -1258,7 +1258,7 @@ func create{
     let contract_address = compute_contract_address(current_target, sender.value.nonce);
 
     let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+        endowment, contract_address, memory_start_position, memory_size
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -1364,7 +1364,7 @@ func create2{
     );
 
     let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+        endowment, contract_address, memory_start_position, memory_size
     );
     if (cast(err, felt) != 0) {
         return err;

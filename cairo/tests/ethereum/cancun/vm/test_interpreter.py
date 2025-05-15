@@ -1,7 +1,6 @@
 import pytest
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm import (  # TODO: adapt the tests to new types
-    BlockEnvironment,
+from ethereum.cancun.vm import (
     Message,
 )
 from ethereum.cancun.vm.interpreter import (
@@ -16,19 +15,14 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import block_environment_lite
+from tests.utils.strategies import block_environment_lite, transaction_environment_lite
 
-# TODO: enable execution of these precompiles
-unimplemented_precompiles = [
-    1,
-    8,
-]
-
-message_without_precompile = (
+message_strategy = (
     MessageBuilder()
+    .with_block_env(block_environment_lite)
+    .with_tx_env(transaction_environment_lite)
     .with_current_target(
         st.integers(min_value=0, max_value=2**160 - 1)
-        .filter(lambda x: x not in unimplemented_precompiles)
         .map(lambda x: Bytes20(x.to_bytes(20, "little")))
         .map(Address)
     )
@@ -49,70 +43,63 @@ message_without_precompile = (
 
 class TestInterpreter:
     @given(
-        message=message_without_precompile,
-        env=block_environment_lite,
+        message=message_strategy,
     )
     @pytest.mark.slow
-    def test_execute_code(self, cairo_run, message: Message, env: BlockEnvironment):
+    def test_execute_code(self, cairo_run, message: Message):
         try:
-            evm_cairo = cairo_run("execute_code", message, env)
+            evm_cairo = cairo_run("execute_code", message)
         except Exception as e:
             with strict_raises(type(e)):
-                execute_code(message, env)
+                execute_code(message)
             return
 
-        evm_python = execute_code(message, env)
+        evm_python = execute_code(message)
         assert evm_python == evm_cairo
 
     @given(
-        message=message_without_precompile,
-        env=block_environment_lite,
+        message=message_strategy,
     )
     @pytest.mark.slow
-    def test_process_message(self, cairo_run, message: Message, env: BlockEnvironment):
+    def test_process_message(self, cairo_run, message: Message):
         try:
-            evm_cairo = cairo_run("process_message", message, env)
+            evm_cairo = cairo_run("process_message", message)
         except Exception as e:
             with strict_raises(type(e)):
-                process_message(message, env)
+                process_message(message)
             return
 
-        evm_python = process_message(message, env)
+        evm_python = process_message(message)
         assert evm_python == evm_cairo
 
     @given(
-        message=message_without_precompile,
-        env=block_environment_lite,
+        message=message_strategy,
     )
-    def test_process_create_message(
-        self, cairo_run, message: Message, env: BlockEnvironment
-    ):
+    @pytest.mark.slow
+    def test_process_create_message(self, cairo_run, message: Message):
         try:
-            evm_cairo = cairo_run("process_create_message", message, env)
+            evm_cairo = cairo_run("process_create_message", message)
         except Exception as e:
             with strict_raises(type(e)):
-                process_create_message(message, env)
+                process_create_message(message)
             return
 
-        evm_python = process_create_message(message, env)
+        evm_python = process_create_message(message)
         assert evm_python == evm_cairo
 
     @given(
-        env=block_environment_lite,
-        message=message_without_precompile,
+        message=message_strategy,
     )
     @pytest.mark.slow
-    def test_process_message_call(
-        self, cairo_run, env: BlockEnvironment, message: Message
-    ):
+    def test_process_message_call(self, cairo_run, message: Message):
         # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
         # This only applies to the entrypoint of a transaction.
-        env.state._snapshots = []
+        message.block_env.state._snapshots = []
         try:
-            _, messageCallOutput = cairo_run("process_message_call", env, message)
+            _, messageCallOutput = cairo_run("process_message_call", message)
         except Exception as e:
             with strict_raises(type(e)):
-                process_message_call(message, env)
+                process_message_call(message)
             return
 
-        assert messageCallOutput == process_message_call(message, env)
+        assert messageCallOutput == process_message_call(message)

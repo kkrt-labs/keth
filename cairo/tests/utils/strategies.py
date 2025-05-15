@@ -39,7 +39,13 @@ from ethereum.cancun.trie import (
     encode_internal_node,
 )
 from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.vm import BlockEnvironment, Evm, Message, TransactionEnvironment
+from ethereum.cancun.vm import (
+    BlockEnvironment,
+    BlockOutput,
+    Evm,
+    Message,
+    TransactionEnvironment,
+)
 from ethereum.crypto.alt_bn128 import (
     BNF,
     BNF2,
@@ -398,6 +404,7 @@ block_environment_lite = st.integers(
     )
 )
 
+
 transaction_environment_lite = st.builds(
     TransactionEnvironment,
     origin=address,
@@ -552,6 +559,32 @@ empty_state = st.builds(
         max_size=1,
     ),
     created_accounts=st.builds(set, st.just(set())),
+)
+
+empty_block_output = st.builds(
+    BlockOutput,
+    block_gas_used=st.just(Uint(0)),
+    transactions_trie=st.builds(
+        Trie,
+        secured=st.just(False),
+        default=st.just(None),
+        _data=st.just(defaultdict(lambda: None)),
+    ),
+    receipts_trie=st.builds(
+        Trie,
+        secured=st.just(False),
+        default=st.just(None),
+        _data=st.just(defaultdict(lambda: None)),
+    ),
+    receipt_keys=st.just(set()),
+    block_logs=st.just(list()),
+    withdrawals_trie=st.builds(
+        Trie,
+        secured=st.just(False),
+        default=st.just(None),
+        _data=st.just(defaultdict(lambda: None)),
+    ),
+    blob_gas_used=st.just(U64(0)),
 )
 
 # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md

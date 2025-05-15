@@ -1,5 +1,5 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
-from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
@@ -128,7 +128,7 @@ func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessStruct
     return cost;
 }
 
-func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
+func validate_transaction{range_check_ptr}(tx: Transaction) -> Uint {
     alloc_locals;
 
     local tx_gas: Uint;
@@ -167,25 +167,21 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
     let intrinsic_cost = calculate_intrinsic_cost(tx);
     let is_gas_insufficient = is_le_felt(tx_gas.value, intrinsic_cost.value - 1);
     if (is_gas_insufficient != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
     let is_nonce_out_of_range = is_le_felt(2 ** 64 - 1, tx_nonce.value.low);
     if (is_nonce_out_of_range + tx_nonce.value.high != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
     let is_data_not_zero = is_not_zero(tx_data.value.len);
     let is_data_too_large = is_le_felt(2 * MAX_CODE_SIZE, tx_data.value.len - 1);
     if (tx_to_ptr == 0 and is_data_not_zero != FALSE and is_data_too_large != FALSE) {
-        tempvar res = bool(FALSE);
-        return res;
+        raise('InvalidTransaction');
     }
 
-    tempvar res = bool(TRUE);
-    return res;
+    return intrinsic_cost;
 }
 
 func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
@@ -273,7 +269,7 @@ func recover_sender{
             let hash = signing_hash_pre155(tx.value.legacy_transaction);
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -287,7 +283,7 @@ func recover_sender{
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
             let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
             if (cast(error, felt) != 0) {
-                raise('ValueError');
+                raise('InvalidSignatureError');
             }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
@@ -304,7 +300,7 @@ func recover_sender{
         let hash = signing_hash_2930(tx.value.access_list_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -321,7 +317,7 @@ func recover_sender{
         let hash = signing_hash_1559(tx.value.fee_market_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
@@ -337,7 +333,7 @@ func recover_sender{
         let hash = signing_hash_4844(tx.value.blob_transaction);
         let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
         if (cast(error, felt) != 0) {
-            raise('ValueError');
+            raise('InvalidSignatureError');
         }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;

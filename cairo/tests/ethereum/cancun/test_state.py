@@ -33,7 +33,7 @@ from ethereum.cancun.state import (
 )
 from ethereum.cancun.trie import Trie, copy_trie
 from ethereum.crypto.hash import keccak256
-from ethereum_types.bytes import Bytes32
+from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -292,7 +292,7 @@ class TestStateAccounts:
         code=st.binary(min_size=1, max_size=256),
     )
     def test_account_has_code_or_nonce_with_code_non_empty(
-        self, cairo_run, data, code: bytes
+        self, cairo_run, data, code: Bytes
     ):
         state, address = data
         account = get_account(state, address)
@@ -370,7 +370,7 @@ class TestStateAccounts:
         data=state_and_address_and_optional_key(),
         code=code,
     )
-    def test_set_code(self, cairo_run, data, code: bytes):
+    def test_set_code(self, cairo_run, data, code: Bytes):
         state, address = data
         state_cairo = cairo_run("set_code", state, address, code)
         set_code(state, address, code)
@@ -595,7 +595,7 @@ class TestGetAccountCode:
             storage_root=account.storage_root,
         )
 
-    def _prepare_codehash_input(self, code_hash: Bytes32, code: bytes) -> dict:
+    def _prepare_codehash_input(self, code_hash: Bytes32, code: Bytes) -> dict:
         """Helper function to prepare the codehash_to_code input dictionary."""
         # Convert Bytes32 code_hash to the low/high u128 pair expected by Cairo
         code_hash_int = int.from_bytes(code_hash, "little")

@@ -9,7 +9,7 @@ from ethereum.crypto.hash import Hash32
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_keccak.keccak import cairo_keccak_uint256s
 from cairo_core.maths import unsigned_div_rem
-from ethereum.exceptions import EthereumException, ValueError
+from ethereum.exceptions import EthereumException, InvalidSignatureError
 
 // @notice Recovers the public key from a given signature.
 // @param r The r value of the signature.
@@ -46,7 +46,7 @@ func secp256k1_recover{
     );
 
     if (success != 1) {
-        tempvar err = new EthereumException(ValueError);
+        tempvar err = new EthereumException(InvalidSignatureError);
         return (public_key_point_x, public_key_point_y, err);
     }
 
