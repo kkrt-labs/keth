@@ -1,7 +1,7 @@
 from typing import List, Optional
 
-from ethereum.prague.fork_types import EMPTY_ACCOUNT, Account
 from ethereum.crypto.hash import Hash32
+from ethereum.prague.fork_types import EMPTY_ACCOUNT, Account
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
 from hypothesis import example, given

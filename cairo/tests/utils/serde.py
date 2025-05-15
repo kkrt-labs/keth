@@ -37,13 +37,13 @@ from typing import (
     get_origin,
 )
 
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
+from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.prague.fork_types import Account, Address
 from ethereum.prague.state import State, TransientStorage
 from ethereum.prague.trie import Trie
 from ethereum.prague.vm.exceptions import InvalidOpcode
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
-from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,

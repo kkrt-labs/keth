@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import product
 
+from ethereum.crypto.hash import keccak256
 from ethereum.prague.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.prague.state import set_account, set_storage
 from ethereum.prague.trie import Trie, copy_trie, root
@@ -13,7 +14,6 @@ from ethereum.prague.vm.gas import (
     GAS_WARM_ACCESS,
 )
 from ethereum.prague.vm.instructions.storage import sload, sstore, tload, tstore
-from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given

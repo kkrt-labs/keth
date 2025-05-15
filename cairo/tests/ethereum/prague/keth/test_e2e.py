@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-from ethereum.prague.fork import state_transition
 from ethereum.exceptions import InvalidBlock
+from ethereum.prague.fork import state_transition
 from ethereum_types.numeric import U64
 from starkware.cairo.bootloaders.hash_program import compute_program_hash_chain
 
