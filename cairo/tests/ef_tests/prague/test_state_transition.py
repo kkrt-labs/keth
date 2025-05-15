@@ -5,7 +5,7 @@ from typing import Dict
 
 import pytest
 
-from tests.ef_tests.helpers import TEST_FIXTURES
+from tests.ef_tests.helpers import EEST_TESTS_PATH, ETHEREUM_TESTS_PATH
 from tests.ef_tests.helpers.load_state_tests import (
     fetch_state_test_files,
     idfn,
@@ -20,14 +20,12 @@ pytestmark = [
 
 fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 
-FIXTURES_LOADER = LoadKethFixture("Cancun", "cancun")
 
-ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
-ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"]["fixture_path"]
+ETHEREUM_BLOCKCHAIN_TESTS_DIR = f"{ETHEREUM_TESTS_PATH}/BlockchainTests/"
+EEST_BLOCKCHAIN_TESTS_DIR = f"{EEST_TESTS_PATH}/blockchain_tests/"
 
-
-# Run state tests
-test_dir = f"{ETHEREUM_TESTS_PATH}/BlockchainTests/"
+NETWORK = "Prague"
+PACKAGE = "prague"
 
 SLOW_TESTS = (
     # GeneralStateTests
@@ -92,13 +90,24 @@ with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
     SKIPPED_TESTS = tuple(json.load(f))
 
 
+<<<<<<< HEAD:cairo/tests/ef_tests/cancun/test_state_transition.py
 fetch_state_tests = partial(
     fetch_cancun_tests,
     test_dir,
     ignore_list=IGNORE_TESTS + SKIPPED_TESTS,
+=======
+# Define Tests
+fetch_tests = partial(
+    fetch_state_test_files,
+    network=NETWORK,
+    ignore_list=IGNORE_TESTS,
+>>>>>>> e458a096 (update EELS ef-tests loader):cairo/tests/ef_tests/prague/test_state_transition.py
     slow_list=SLOW_TESTS,
     big_memory_list=BIG_MEMORY_TESTS,
 )
+
+
+FIXTURES_LOADER = LoadKethFixture(NETWORK, PACKAGE)
 
 
 @pytest.fixture(scope="module")
@@ -111,22 +120,24 @@ def cairo_state_transition(cairo_run, request: pytest.FixtureRequest):  # noqa
     )
 
 
+# Run tests from ethereum/tests
 @pytest.mark.parametrize(
     "test_case",
-    fetch_state_tests(),
+    fetch_tests(ETHEREUM_BLOCKCHAIN_TESTS_DIR),
     ids=idfn,
 )
 def test_general_state_tests(test_case: Dict, cairo_state_transition) -> None:
     cairo_state_transition(test_case)
 
 
-# Run execution-spec-generated-tests
-test_dir = f"{ETHEREUM_SPEC_TESTS_PATH}/fixtures/withdrawals"
-
-
+# Run EEST test fixtures
 @pytest.mark.parametrize(
     "test_case",
+<<<<<<< HEAD:cairo/tests/ef_tests/cancun/test_state_transition.py
     fetch_cancun_tests(test_dir),
+=======
+    fetch_prague_tests(EEST_BLOCKCHAIN_TESTS_DIR),
+>>>>>>> e458a096 (update EELS ef-tests loader):cairo/tests/ef_tests/prague/test_state_transition.py
     ids=idfn,
 )
 def test_execution_specs_generated_tests(

@@ -321,3 +321,5 @@ scarb
 bootloaders
 tempvar
 dhat
+EEST
+exitstatus

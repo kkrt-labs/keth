@@ -25,6 +25,7 @@ dependencies = [
   "pytest-timeout>=2.3.1",
   "ethereum-execution",
   "garaga-zero",
+  "requests-cache>=1.2.1",
 ]
 
 [tool.uv]
