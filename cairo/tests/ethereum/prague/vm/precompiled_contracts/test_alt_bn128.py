@@ -1,3 +1,4 @@
+from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNP
 from ethereum.prague.vm import Evm
 from ethereum.prague.vm.exceptions import OutOfGasError
 from ethereum.prague.vm.precompiled_contracts.alt_bn128 import (
@@ -5,7 +6,6 @@ from ethereum.prague.vm.precompiled_contracts.alt_bn128 import (
     alt_bn128_mul,
     alt_bn128_pairing_check,
 )
-from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNP
 from ethereum_types.bytes import Bytes
 from hypothesis import given
 from hypothesis import strategies as st
