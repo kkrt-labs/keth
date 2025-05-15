@@ -8,6 +8,10 @@ struct bool {
 
 using Bool = bool;
 
+struct U8 {
+    value: felt,
+}
+
 struct U64 {
     value: felt,
 }

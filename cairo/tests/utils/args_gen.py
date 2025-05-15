@@ -73,11 +73,16 @@ from typing import (
     get_origin,
 )
 
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
+from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.exceptions import EthereumException
 from ethereum.prague.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.prague.fork import BlockChain
 from ethereum.prague.fork_types import (
     Account,
     Address,
+    Authorization,
     Bloom,
     Root,
     VersionedHash,
@@ -107,10 +112,6 @@ from ethereum.prague.vm import (
 )
 from ethereum.prague.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.prague.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
-from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
-from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
     Bytes,
@@ -123,7 +124,7 @@ from ethereum_types.bytes import (
     Bytes48,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, Uint
+from ethereum_types.numeric import U8, U64, U256, Uint
 from py_ecc.bls.typing import G1Uncompressed
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
@@ -254,6 +255,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     **builtins_exception_mappings,
     ("ethereum_types", "others", "None"): type(None),
     ("cairo_core", "numeric", "bool"): bool,
+    ("cairo_core", "numeric", "U8"): U8,
     ("cairo_core", "numeric", "U64"): U64,
     ("cairo_core", "numeric", "Uint"): Uint,
     ("cairo_core", "numeric", "OptionalUint"): Optional[Uint],
@@ -345,6 +347,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum", "prague", "fork_types", "SetTupleAddressBytes32"): Set[
         Tuple[Address, Bytes32]
+    ],
+    ("ethereum", "prague", "fork_types", "Authorization"): Authorization,
+    ("ethereum", "prague", "fork_types", "TupleAuthorization"): Tuple[
+        Authorization, ...
     ],
     ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
     ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
@@ -907,7 +913,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, [bytes_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
+    if arg_type in (int, bool, U8, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
         # Case short string: arg type is int but actual type is str
         if type(arg) is str:
             arg = int.from_bytes(arg.encode(), "big")
