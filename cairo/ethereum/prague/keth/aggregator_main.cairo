@@ -10,7 +10,7 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from ethereum.cancun.keth.aggregator import aggregator
+from ethereum.prague.keth.aggregator import aggregator
 
 //@notice Main entry point for the Keth STF Aggregator.
 //@params program_input: dict
