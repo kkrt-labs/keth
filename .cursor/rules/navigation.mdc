@@ -1,6 +1,6 @@
 ---
 description: Navigation Guide
-globs: 
+globs:
 ---
 # Navigation Rules for Keth Codebase
 
@@ -9,7 +9,7 @@ globs:
 The Keth codebase is an EVM implementation written in Cairo Zero with the following organization:
 
 - `cairo/ethereum/`: Core EVM implementation files
-  - `cancun/`: Cancun fork-specific EVM components
+  - `prague/`: prague fork-specific EVM components
   - `crypto/`: Cryptographic primitives implementation specifically for Ethereum
   - `utils/`: Utility functions for the EVM
 
@@ -24,17 +24,17 @@ The Keth codebase is an EVM implementation written in Cairo Zero with the follow
 ## Key Directories and Files
 
 ### Core EVM Components
-- `cairo/ethereum/cancun/vm/`: Virtual machine implementation
+- `cairo/ethereum/prague/vm/`: Virtual machine implementation
   - `stack.cairo`: EVM stack implementation
   - `memory.cairo`: EVM memory implementation
   - `instructions.cairo`: EVM opcode implementations
   - `exceptions.cairo`: Error type definitions
   - `interpreter.cairo`: Core EVM interpreter
 
-- `cairo/ethereum/cancun/state.cairo`: State implementation
-- `cairo/ethereum/cancun/trie.cairo`: Merkle Patricia Trie implementation
-- `cairo/ethereum/cancun/transactions.cairo`: Transaction processing
-- `cairo/ethereum/cancun/fork.cairo`: Entrypoint to the STF function with `state_transition`
+- `cairo/ethereum/prague/state.cairo`: State implementation
+- `cairo/ethereum/prague/trie.cairo`: Merkle Patricia Trie implementation
+- `cairo/ethereum/prague/transactions.cairo`: Transaction processing
+- `cairo/ethereum/prague/fork.cairo`: Entrypoint to the STF function with `state_transition`
 
 ### Type System
 - `cairo/tests/utils/args_gen.py`: Type generation from Python to Cairo
@@ -49,10 +49,10 @@ The Keth codebase is an EVM implementation written in Cairo Zero with the follow
    - See how types are serialized back in `cairo/tests/utils/serde.py`
 
 2. **Following the EVM Execution Flow**:
-   - Start at the virtual machine implementation in `cairo/ethereum/cancun/vm.cairo`
-   - Examine the instruction interpretation in `cairo/ethereum/cancun/vm/interpreter.cairo`
-   - Explore state in `cairo/ethereum/cancun/state.cairo`
-   - Check error handling in `cairo/ethereum/cancun/vm/exceptions.cairo`
+   - Start at the virtual machine implementation in `cairo/ethereum/prague/vm.cairo`
+   - Examine the instruction interpretation in `cairo/ethereum/prague/vm/interpreter.cairo`
+   - Explore state in `cairo/ethereum/prague/state.cairo`
+   - Check error handling in `cairo/ethereum/prague/vm/exceptions.cairo`
 
 3. **Exploring Test Structure**:
    - Tests mirror the source directory structure

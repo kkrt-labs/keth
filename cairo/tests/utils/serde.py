@@ -37,13 +37,13 @@ from typing import (
     get_origin,
 )
 
-from ethereum.cancun.fork_types import Account, Address
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.trie import Trie
-from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.prague.fork_types import Account, Address
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.trie import Trie
+from ethereum.prague.vm.exceptions import InvalidOpcode
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -731,7 +731,7 @@ class Serde:
         """
         value_ptr = self.memory.get(ptr)
         raw_state = self.serialize_pointers(
-            ("ethereum", "cancun", "state", "StateStruct"), value_ptr
+            ("ethereum", "prague", "state", "StateStruct"), value_ptr
         )
 
         # Don't fill the snapshots yet
@@ -741,7 +741,7 @@ class Serde:
                     self.get_cairo_type_from_path(
                         (
                             "ethereum",
-                            "cancun",
+                            "prague",
                             "trie",
                             "TrieAddressOptionalAccountStruct",
                         )
@@ -754,7 +754,7 @@ class Serde:
                     self.get_cairo_type_from_path(
                         (
                             "ethereum",
-                            "cancun",
+                            "prague",
                             "trie",
                             "TrieTupleAddressBytes32U256Struct",
                         )
@@ -765,7 +765,7 @@ class Serde:
             _snapshots=[],
             created_accounts=set(
                 self._serialize_mapping_struct(
-                    ("ethereum", "cancun", "fork_types", "SetAddressStruct"),
+                    ("ethereum", "prague", "fork_types", "SetAddressStruct"),
                     raw_state["created_accounts"],
                     Set[Address],
                 ).keys()
@@ -780,13 +780,13 @@ class Serde:
 
             parent_main_dict = self._get_mapping_parent_ptr(
                 current_main_dict,
-                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+                ("ethereum", "prague", "fork_types", "MappingAddressAccountStruct"),
             )
             parent_storage_dict = self._get_mapping_parent_ptr(
                 current_storage_dict,
                 (
                     "ethereum",
-                    "cancun",
+                    "prague",
                     "fork_types",
                     "MappingTupleAddressBytes32U256Struct",
                 ),
@@ -800,7 +800,7 @@ class Serde:
                     self._serialize_mapping_struct(
                         (
                             "ethereum",
-                            "cancun",
+                            "prague",
                             "fork_types",
                             "MappingAddressAccountStruct",
                         ),
@@ -814,7 +814,7 @@ class Serde:
                     self._serialize_mapping_struct(
                         (
                             "ethereum",
-                            "cancun",
+                            "prague",
                             "fork_types",
                             "MappingTupleAddressBytes32U256Struct",
                         ),
@@ -840,7 +840,7 @@ class Serde:
         """
         value_ptr = self.memory.get(ptr)
         raw_transient_storage = self.serialize_pointers(
-            ("ethereum", "cancun", "state", "TransientStorageStruct"), value_ptr
+            ("ethereum", "prague", "state", "TransientStorageStruct"), value_ptr
         )
 
         flat_transient_storage = FlatTransientStorage(
@@ -849,7 +849,7 @@ class Serde:
                     self.get_cairo_type_from_path(
                         (
                             "ethereum",
-                            "cancun",
+                            "prague",
                             "trie",
                             "TrieTupleAddressBytes32U256Struct",
                         )
@@ -869,7 +869,7 @@ class Serde:
                 self._serialize_mapping_struct(
                     (
                         "ethereum",
-                        "cancun",
+                        "prague",
                         "fork_types",
                         "MappingTupleAddressBytes32U256Struct",
                     ),
@@ -883,7 +883,7 @@ class Serde:
                 parent_dict,
                 (
                     "ethereum",
-                    "cancun",
+                    "prague",
                     "fork_types",
                     "MappingTupleAddressBytes32U256Struct",
                 ),
@@ -912,13 +912,13 @@ class Serde:
             return None
 
         trie_data = self.serialize_pointers(
-            ("ethereum", "cancun", "trie", "TrieAddressOptionalAccountStruct"), trie_ptr
+            ("ethereum", "prague", "trie", "TrieAddressOptionalAccountStruct"), trie_ptr
         )
 
         # All tries have the same mapping layout thus the type passed here doesn't matter
         return self._get_mapping_parent_ptr(
             trie_data["_data"],
-            ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+            ("ethereum", "prague", "fork_types", "MappingAddressAccountStruct"),
         )
 
     def get_cairo_type_from_path(self, path: Tuple[str, ...]) -> CairoType:

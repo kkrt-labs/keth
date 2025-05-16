@@ -17,7 +17,7 @@ from ethereum_types.bytes import (
     TupleBytes32,
     TupleBytes32Struct,
 )
-from ethereum.cancun.blocks import (
+from ethereum.prague.blocks import (
     Log,
     TupleLog,
     Receipt,
@@ -26,7 +26,7 @@ from ethereum.cancun.blocks import (
     UnionBytesLegacyTransactionEnum,
     UnionBytesLegacyTransaction,
 )
-from ethereum.cancun.fork_types import (
+from ethereum.prague.fork_types import (
     Address,
     Account,
     AccountStruct,
@@ -35,7 +35,7 @@ from ethereum.cancun.fork_types import (
     TupleVersionedHash,
     TupleVersionedHashStruct,
 )
-from ethereum.cancun.transactions_types import (
+from ethereum.prague.transactions_types import (
     LegacyTransaction,
     To,
     Access,

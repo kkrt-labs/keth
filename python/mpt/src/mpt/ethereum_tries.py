@@ -5,16 +5,16 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
-from ethereum.cancun.fork_types import Account, Address
-from ethereum.cancun.state import State, set_account, set_storage
-from ethereum.cancun.trie import (
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.prague.fork_types import Account, Address
+from ethereum.prague.state import State, set_account, set_storage
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
     LeafNode,
     Trie,
 )
-from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint

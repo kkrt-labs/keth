@@ -1,13 +1,13 @@
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import OptionalU256, U256
 from ethereum.utils.numeric import OptionalU256__eq__
-from ethereum.cancun.fork_types import (
+from ethereum.prague.fork_types import (
     OptionalAccount,
     AddressAccountDictAccess,
     TupleAddressBytes32U256DictAccess,
     account_eq_without_storage_root,
 )
-from ethereum.cancun.state import State
+from ethereum.prague.state import State
 from cairo_core.comparison import is_ptr_equal
 from mpt.types import (
     AccountDiff,

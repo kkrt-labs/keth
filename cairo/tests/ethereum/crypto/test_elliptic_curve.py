@@ -1,7 +1,7 @@
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.fork_types import Address
 from ethereum.crypto.elliptic_curve import secp256k1_recover
 from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.prague.fork_types import Address
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256
 from hypothesis import given

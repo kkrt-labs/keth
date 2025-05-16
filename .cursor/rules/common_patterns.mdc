@@ -71,7 +71,7 @@ All error types returned are of type EthereumException* (if null - no error).
 - Document function behavior with natspec-compliant documentation. Minimize comments inside the function body.
 - Some functions require __builtins__ to operate: pass them as implicit args `func
 felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}`
-- Examples in [stack.cairo](mdc:cairo/ethereum/cancun/vm/stack.cairo)
+- Examples in [stack.cairo](mdc:cairo/ethereum/prague/vm/stack.cairo)
 
 ## Memory Management
 - Cairo has a single memory split in segments.
@@ -96,14 +96,14 @@ struct CollectionStruct {
 
 ## Copying mutable data structures
 - When copying mutable data structures implemented with a dict, we use the
-%{ copy_tracker_to_new_ptr %} hint that allocates a new empty memory segment, but 
+%{ copy_tracker_to_new_ptr %} hint that allocates a new empty memory segment, but
 the underlying tracker has the copied data
 - When this new memory segment is disposed, we MUST merge it to the parent segment with `dict_update`
-- Examples in [vm.cairo](mdc:cairo/ethereum/cancun/vm.cairo)
+- Examples in [vm.cairo](mdc:cairo/ethereum/prague/vm.cairo)
 
 ## Optional Values Pattern
 - Null values implemented using pointer semantics
 - Simple types: A null value is represented by a pointer with value 0
 - Complex types: A null value is represented by the inner struct pointer being 0
 - Use type aliases for clarity: `using OptionalAddress = Address*`
-- Examples in [trie.cairo](mdc:cairo/ethereum/cancun/trie.cairo)
+- Examples in [trie.cairo](mdc:cairo/ethereum/prague/trie.cairo)

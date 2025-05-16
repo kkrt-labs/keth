@@ -38,7 +38,7 @@ namespace secp256k1 {
     const N3 = 0x0;
     const N_LOW_128 = 0xbaaedce6af48a03bbfd25e8cd0364141;
     const N_HIGH_128 = 0xfffffffffffffffffffffffffffffffe;
-    // Used in <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L263>
+    // Used in <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L263>
     const N_DIVIDED_BY_2_LOW_128 = 0x5d576e7357a4501ddfe92f46681b20a0;
     const N_DIVIDED_BY_2_HIGH_128 = 0x7fffffffffffffffffffffffffffffff;
     const A0 = 0x0;
