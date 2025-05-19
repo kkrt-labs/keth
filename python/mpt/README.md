@@ -9,7 +9,7 @@ This library provides the ability to:
 - ✅ derive Ethereum partial state tries from
   [prover inputs](https://github.com/kkrt-labs/zk-pig).
 - ⌛ transform an Ethereum partial state trie into an
-  [EELS](https://github.com/ethereum/execution-specs/tree/master/src/ethereum/cancun)
+  [EELS](https://github.com/ethereum/execution-specs/tree/master/src/ethereum/prague)
   `State` object
 - ⌛ compute the difference between two Ethereum partial state tries
 

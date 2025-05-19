@@ -45,7 +45,7 @@ import logging
 from typing import Any, Dict, Sequence, Union
 
 import ethereum
-import ethereum.cancun
+import ethereum.prague
 import ethereum_rlp
 from ethereum_types.numeric import FixedUnsigned, Uint
 
@@ -71,26 +71,26 @@ logger = logging.getLogger()
 
 # Dictionary mapping modules to their attributes and patched values for explicit patching
 PATCHES: Dict[str, Dict[str, Any]] = {
-    ethereum.cancun.fork_types: {
+    ethereum.prague.fork_types: {
         "Account": Account,
         "EMPTY_ACCOUNT": EMPTY_ACCOUNT,
         "encode_account": encode_account,
     },
-    ethereum.cancun.state: {
+    ethereum.prague.state: {
         "account_exists_and_is_empty": account_exists_and_is_empty,
         "is_account_alive": is_account_alive,
         "set_code": set_code,
     },
-    ethereum.cancun.vm: {
+    ethereum.prague.vm: {
         "Evm": Evm,
         "Message": Message,
         "BlockEnvironment": BlockEnvironment,
         "TransactionEnvironment": TransactionEnvironment,
     },
-    ethereum.cancun.trie: {
+    ethereum.prague.trie: {
         "Node": Node,
     },
-    ethereum.cancun.vm.interpreter: {
+    ethereum.prague.vm.interpreter: {
         "MessageCallOutput": MessageCallOutput,
     },
     ethereum_rlp.rlp: {

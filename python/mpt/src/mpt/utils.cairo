@@ -1,6 +1,6 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     InternalNode,
     OptionalInternalNode,
     LeafNode,

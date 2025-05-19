@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
