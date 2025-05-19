@@ -190,3 +190,155 @@ def bls12_map_fp_to_g1_hint(
             write_error(memory, ap, segments, e)
 
     inner()
+
+
+@register_hint
+def bls12_g2_add_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+
+    from ethereum.prague.vm.memory import buffer_read
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        G2_to_bytes,
+        bytes_to_G2,
+    )
+    from ethereum_types.numeric import U256
+    from py_ecc.bls12_381.bls12_381_curve import add
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            p1 = bytes_to_G2(buffer_read(data, U256(0), U256(256)))
+            p2 = bytes_to_G2(buffer_read(data, U256(256), U256(256)))
+
+            result = G2_to_bytes(add(p1, p2))
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, result)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
+
+
+@register_hint
+def bls12_g2_msm_gas_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.gas import GAS_BLS_G2_MUL
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        G2_K_DISCOUNT,
+        G2_MAX_DISCOUNT,
+        MULTIPLIER,
+    )
+    from ethereum_types.numeric import Uint
+
+    LENGTH_PER_PAIR = 256
+    data = bytes([memory[ids.data.value.data + i] for i in range(ids.data.value.len)])
+    k = len(data) // LENGTH_PER_PAIR
+    if k <= 128:
+        discount = Uint(G2_K_DISCOUNT[k - 1])
+    else:
+        discount = Uint(G2_MAX_DISCOUNT)
+
+    gas_cost = Uint(k) * GAS_BLS_G2_MUL * discount // MULTIPLIER
+    memory[ap - 1] = gas_cost
+
+
+@register_hint
+def bls12_g2_msm_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        G2_to_bytes,
+        decode_G2_scalar_pair,
+    )
+    from py_ecc.bls12_381.bls12_381_curve import add, multiply
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            # Each pair consists of a G2 point (256 bytes) and a scalar (32 bytes)
+            LENGTH_PER_PAIR = 288
+            k = len(data) // LENGTH_PER_PAIR
+
+            # OPERATION
+            for i in range(k):
+                start_index = i * LENGTH_PER_PAIR
+                end_index = start_index + LENGTH_PER_PAIR
+
+                p, m = decode_G2_scalar_pair(data[start_index:end_index])
+                product = multiply(p, m)
+
+                if i == 0:
+                    result = product
+                else:
+                    result = add(result, product)
+
+            # Convert final result to bytes
+            output = G2_to_bytes(result)
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
+
+
+@register_hint
+def bls12_map_fp2_to_g2_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        G2_to_bytes,
+        bytes_to_FQ2,
+    )
+    from py_ecc.bls.hash_to_curve import clear_cofactor_G2, map_to_curve_G2
+    from py_ecc.fields.field_elements import FQ2 as OPTIMIZED_FQ2
+    from py_ecc.optimized_bls12_381.optimized_curve import normalize
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        if len(data) != 64:
+            raise ValueError("Invalid Input Length")
+        try:
+            field_element = bytes_to_FQ2(data, True)
+            assert isinstance(field_element, OPTIMIZED_FQ2)
+
+            g2_uncompressed = clear_cofactor_G2(map_to_curve_G2(field_element))
+            g2_normalised = normalize(g2_uncompressed)
+
+            output = G2_to_bytes(g2_normalised)
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
