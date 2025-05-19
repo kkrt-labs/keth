@@ -342,3 +342,56 @@ def bls12_map_fp2_to_g2_hint(
             write_error(memory, ap, segments, e)
 
     inner()
+
+
+@register_hint
+def bls12_pairing_hint(
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from ethereum.prague.vm.exceptions import InvalidParameter
+    from ethereum.prague.vm.memory import buffer_read
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+        bytes_to_G1,
+    )
+    from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        bytes_to_G2,
+    )
+    from ethereum_types.numeric import U256, Uint
+    from py_ecc.bls12_381.bls12_381_curve import FQ12, curve_order, multiply
+    from py_ecc.bls12_381.bls12_381_pairing import pairing
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = bytes(
+            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+        )
+        try:
+            result = FQ12.one()
+            k = len(data) // 384
+            for i in range(k):
+                g1_start = Uint(384 * i)
+                g2_start = Uint(384 * i + 128)
+
+                g1_point = bytes_to_G1(buffer_read(data, U256(g1_start), U256(128)))
+                if multiply(g1_point, curve_order) is not None:
+                    raise InvalidParameter("Sub-group check failed.")
+
+                g2_point = bytes_to_G2(buffer_read(data, U256(g2_start), U256(256)))
+                if multiply(g2_point, curve_order) is not None:
+                    raise InvalidParameter("Sub-group check failed.")
+
+                result *= pairing(g2_point, g1_point)
+            if result == FQ12.one():
+                output = b"\x00" * 31 + b"\x01"
+            else:
+                output = b"\x00" * 32
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output)
+        except Exception as e:
+            write_error(memory, ap, segments, e)
+
+    inner()
