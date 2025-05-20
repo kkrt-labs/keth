@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Python tests
         run: |
-          uv run pytest -n ${{ inputs.parallelism }} --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests ${{ inputs.pytest-add-params }}
+          uv run pytest -n ${{ inputs.parallelism }} --durations=0 -v -s --log-cli-level=WARNING --no-skip-cached-tests ${{ inputs.pytest-add-params }}
 
       - name: Upload coverage
         if: inputs.coverage-flags != ''
