@@ -193,7 +193,48 @@ Run `uv run keth --help` for more information.
 
 ## Architecture Diagram
 
-Coming soon 🏗️.
+Keth is composed of several key components that work together to provide provable Ethereum state transitions:
+
+```
+┌─────────────────────────┐       ┌───────────────────────┐
+│                         │       │                       │
+│    External Sources     │       │   ZK-PIG              │
+│    (Ethereum Node)      │──────▶│   (Input Generator)   │
+│                         │       │                       │
+└─────────────────────────┘       └───────────┬───────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                         KETH CORE                               │
+│                                                                 │
+│  ┌─────────────────┐      ┌─────────────────┐      ┌────────┐   │
+│  │                 │      │                 │      │        │   │
+│  │  Input Parser   │─────▶│  EVM Executor   │─────▶│ Prover │   │
+│  │                 │      │  (Kakarot Core) │      │        │   │
+│  └─────────────────┘      └─────────────────┘      └────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                                              │
+                                              ▼
+                                     ┌─────────────────┐
+                                     │                 │
+                                     │  Proof Output   │
+                                     │                 │
+                                     └─────────────────┘
+```
+
+### Components:
+
+1. **External Sources**: Ethereum node providing block data and state for proofs
+2. **ZK-PIG (Zero-Knowledge Proof Input Generator)**: Extracts and formats the required data from Ethereum
+3. **Keth Core**:
+   - **Input Parser**: Processes ZK-PIG outputs into formats suitable for the EVM executor
+   - **EVM Executor (Kakarot Core)**: Cairo-based EVM implementation that executes transactions
+   - **Prover**: Generates cryptographic proofs of the state transitions
+4. **Proof Output**: The final verified state transition proof
+
+This architecture enables Keth to produce provable state transitions for Ethereum blocks in an asynchronous manner, leveraging Cairo's provability features.
 
 ## Acknowledgements
 
