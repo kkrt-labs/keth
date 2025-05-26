@@ -14,9 +14,20 @@ from ethereum.prague.vm.precompiled_contracts.ecrecover import ecrecover
 from ethereum.prague.vm.precompiled_contracts.blake2f import blake2f
 from ethereum.prague.vm.precompiled_contracts.point_evaluation import point_evaluation
 from ethereum.prague.vm.precompiled_contracts.ripemd160 import ripemd160
+from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
+    bls12_g1_add,
+    bls12_g1_msm,
+    bls12_map_fp_to_g1,
+)
+from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+    bls12_g2_add,
+    bls12_g2_msm,
+    bls12_map_fp2_to_g2,
+)
+from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_pairing import bls12_pairing
 from cairo_core.control_flow import raise
-// currently 10 precompiles.
-const N_PRECOMPILES = 10;
+// currently 17 precompiles.
+const N_PRECOMPILES = 17;
 const HIGHEST_PRECOMPILE_LEADING_BYTE = 0x0a;
 
 // count 3 steps per index: precompile_address, call, precompile_fn
@@ -104,6 +115,20 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     call blake2f;  // BLAKE2F
     dw 0xa00000000000000000000000000000000000000;
     call point_evaluation;  // POINT_EVALUATION
+    dw 0xb00000000000000000000000000000000000000;
+    call bls12_g1_add;  // BLS12_G1ADD
+    dw 0xc00000000000000000000000000000000000000;
+    call bls12_g1_msm;  // BLS12_G1MSM
+    dw 0xd00000000000000000000000000000000000000;
+    call bls12_g2_add;  // BLS12_G2ADD
+    dw 0xe00000000000000000000000000000000000000;
+    call bls12_g2_msm;  // BLS12_G2MSM
+    dw 0xf00000000000000000000000000000000000000;
+    call bls12_pairing;  // BLS12_PAIRING_CHECK
+    dw 0x100000000000000000000000000000000000000;
+    call bls12_map_fp_to_g1;  // BLS12_MAP_FP_TO_G1
+    dw 0x110000000000000000000000000000000000000;
+    call bls12_map_fp2_to_g2;  // BLS12_MAP_FP2_TO_G2
     // not reached.
     ret;
 }

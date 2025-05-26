@@ -104,7 +104,7 @@ def init_tracer():
     setattr(logging.getLoggerClass(), "debug_cairo", debug_cairo)
 
 
-collect_ignore_glob = ["cairo/tests/ef_tests/fixtures/*"]
+collect_ignore_glob = ["tests/fixtures/*"]
 
 
 def pytest_configure(config):
