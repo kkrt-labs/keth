@@ -285,6 +285,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Mapping[Bytes, Bytes], ...
     ],
     ("cairo_core", "bytes", "ListBytes4"): List[Bytes4],
+    ("cairo_core", "bytes", "ListBytes"): List[Bytes],
     ("cairo_ec", "curve", "g1_point", "G1Point"): ECBase,
     ("ethereum", "prague", "blocks", "Header"): Header,
     ("ethereum", "prague", "blocks", "TupleHeader"): Tuple[Header, ...],

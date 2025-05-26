@@ -3,7 +3,12 @@ from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt, assert_not_equal
+from starkware.cairo.common.math import (
+    assert_not_zero,
+    split_felt,
+    assert_le_felt,
+    assert_not_equal,
+)
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 
@@ -14,7 +19,16 @@ from ethereum_rlp.rlp import (
     encode_withdrawal,
     encode_transaction,
 )
-from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32, TupleBytes, TupleBytesStruct, OptionalHash32, Bytes32Struct
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    BytesStruct,
+    TupleBytes32,
+    TupleBytes,
+    TupleBytesStruct,
+    OptionalHash32,
+    Bytes32Struct,
+)
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64, OptionalUint
 from ethereum.prague.blocks import (
     UnionBytesReceipt,
@@ -79,6 +93,7 @@ from ethereum.prague.fork_types import (
     TupleAuthorization,
     TupleAuthorizationStruct,
 )
+from ethereum.prague.requests import compute_requests_hash, parse_deposit_requests, DEPOSIT_REQUEST_TYPE, WITHDRAWAL_REQUEST_TYPE, CONSOLIDATION_REQUEST_TYPE
 
 from ethereum.prague.state import (
     set_storage,
@@ -180,8 +195,12 @@ struct BlockChain {
 
 using Root = Hash32;
 
-// Source: <https://eips.ethereum.org/EIPS/eip-4844#specification>
-const MAX_BLOB_GAS_PER_BLOCK = 786432;
+const MAX_BLOB_GAS_PER_BLOCK = 1179648;
+
+const WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
+const CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
+const HISTORY_STORAGE_ADDRESS = 0x0000F90827F1C53a10cb7A02335B175320002935;
+const HISTORY_SERVE_WINDOW = 8192;
 
 func calculate_base_fee_per_gas{range_check_ptr}(
     block_gas_limit: Uint,
@@ -388,9 +407,7 @@ func process_system_transaction{
 
     tempvar u256_zero = U256(new U256Struct(0, 0));
 
-    tempvar target_to = To(
-        new ToStruct(bytes0=cast(0, Bytes0*), address=new target_address)
-    );
+    tempvar target_to = To(new ToStruct(bytes0=cast(0, Bytes0*), address=new target_address));
     tempvar optional_code_address = OptionalAddress(new target_address.value);
 
     tempvar system_tx_message = Message(
@@ -418,6 +435,44 @@ func process_system_transaction{
     let system_tx_output = process_message_call(system_tx_message);
     return system_tx_output;
 }
+
+// @notice Process a system transaction and raise an error if the contract does not
+// contain code or if the transaction fails.
+// @param block_env The block scoped environment.
+// @param target_address The address of the contract to call.
+// @param data The data to pass to the contract.
+// @return system_tx_output The output of processing the system transaction.
+func process_checked_system_transaction{block_env: BlockEnvironment}(target_address: Address, data: Bytes) -> MessageCallOutput {
+    alloc_locals;
+    let state = block_env.value.state;
+    let system_contract_code = get_account{state=state}(target_address);
+    if (system_contract_code.value.len == 0) {
+        raise('InvalidBlock');
+    }
+
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    let system_tx_output = process_system_transaction{block_env=block_env}(target_address, data);
+    if (cast(system_tx_output.error, felt) != 0) {
+        raise('InvalidBlock');
+    }
+    return system_tx_output;
+}
+
+// @notice Process a system transaction without checking if the contract contains code
+// or if the transaction fails.
+// @param block_env The block scoped environment.
+// @param target_address The address of the contract to call.
+// @param data The data to pass to the contract.
+// @return system_tx_output The output of processing the system transaction.
+func process_unchecked_system_transaction{block_env: BlockEnvironment}(target_address: Address, data: Bytes) -> MessageCallOutput {
+    alloc_locals;
+    let state = block_env.value.state;
+    let system_contract_code = get_account{state=state}(target_address);
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    let system_tx_output = process_system_transaction{block_env=block_env}(target_address, data);
+    return system_tx_output;
+}
+
 
 func process_transaction{
     range_check_ptr,
@@ -447,8 +502,10 @@ func process_transaction{
     // Validate transaction
     let intrinsic_gas = validate_transaction(tx);
 
-    let tuple_address_uint_tuple_versioned_hash_u64 = check_transaction{block_env=block_env}(block_output, tx);
-    let sender= tuple_address_uint_tuple_versioned_hash_u64.value.address;
+    let tuple_address_uint_tuple_versioned_hash_u64 = check_transaction{block_env=block_env}(
+        block_output, tx
+    );
+    let sender = tuple_address_uint_tuple_versioned_hash_u64.value.address;
     let effective_gas_price = tuple_address_uint_tuple_versioned_hash_u64.value.uint;
     let blob_versioned_hashes = tuple_address_uint_tuple_versioned_hash_u64.value.tuple_versioned_hash;
     let tx_blob_gas_used = tuple_address_uint_tuple_versioned_hash_u64.value.u64;
@@ -722,7 +779,6 @@ func process_transaction{
         receipt_key, OptionalUnionBytesReceipt(receipt.value)
     );
 
-
     let block_logs = block_output.value.block_logs;
     _append_logs{logs=block_logs}(tx_output.value.logs);
 
@@ -735,6 +791,7 @@ func process_transaction{
             block_logs=block_logs,
             withdrawals_trie=block_output.value.withdrawals_trie,
             blob_gas_used=U64(new_blob_gas_used),
+            requests=block_output.value.requests,
         ),
     );
 
@@ -923,7 +980,6 @@ func check_transaction{
         let tx_gas_within_bounds = is_le_felt(gas.value, gas_available);
         assert tx_gas_within_bounds = 1;
     }
-
 
     with_attr error_message("InvalidBlock") {
         let blob_gas_available = MAX_BLOB_GAS_PER_BLOCK - block_output.value.blob_gas_used.value;
@@ -1196,11 +1252,19 @@ func apply_body{
     let block_output = empty_block_output();
 
     let data_bytes = Bytes32_to_Bytes(block_env.value.parent_beacon_block_root);
-    process_system_transaction{block_env=block_env}(
+    process_unchecked_system_transaction{block_env=block_env}(
         target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
     );
 
-    _apply_body_inner{block_env=block_env, block_output=block_output}(0, transactions.value.len, transactions);
+    let last_block_hash = block_env.value.block_hashes.value.data[block_env.value.block_hashes.value.len - 1];
+    let last_block_hash_bytes = Bytes32_to_Bytes(last_block_hash);
+    process_unchecked_system_transaction{block_env=block_env}(
+        target_address=Address(LAST_BLOCK_HASH_ADDRESS), data=last_block_hash_bytes
+    );
+
+    _apply_body_inner{block_env=block_env, block_output=block_output}(
+        0, transactions.value.len, transactions
+    );
 
     _process_withdrawals_inner{block_env=block_env, block_output=block_output}(0, withdrawals);
 
@@ -1223,7 +1287,7 @@ func _apply_body_inner{
     mul_mod_ptr: ModBuiltin*,
     block_env: BlockEnvironment,
     block_output: BlockOutput,
-}(index: felt, len: felt, transactions: TupleUnionBytesLegacyTransaction){
+}(index: felt, len: felt, transactions: TupleUnionBytesLegacyTransaction) {
     alloc_locals;
     if (index == len) {
         return ();
@@ -1236,6 +1300,87 @@ func _apply_body_inner{
         index + 1, len, transactions
     );
 }
+
+// @notice Process all the requests in the block.
+// @param block_env The block scoped environment.
+// @param block_output The block output for the current block.
+func process_general_purpose_requests{
+    block_env: BlockEnvironment,
+    block_output: BlockOutput,
+}() {
+    alloc_locals;
+
+    let DEPOSIT_REQUEST_TYPE_BYTES = Bytes(new BytesStruct(DEPOSIT_REQUEST_TYPE, 1));
+
+    let deposit_requests = parse_deposit_requests{block_output=block_output}();
+    let requests_from_execution = block_output.value.requests;
+    if (deposit_requests.value.len != 0) {
+        let (data_to_add) = alloc();
+        assert [data_to_add] = DEPOSIT_REQUEST_TYPE;
+        tempvar prefix = Bytes(new BytesStruct(data_to_add, 1));
+        Bytes__extend__{self=prefix}(deposit_requests);
+        assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
+        tempvar requests_from_execution = ListBytes(
+            new ListBytesStruct(
+                data=requests_from_execution.value.data,
+                len=requests_from_execution.value.len + 1,
+            ),
+        );
+    }
+
+    let (empty_bytes_data: Bytes*) = alloc();
+    tempvar empty_bytes = Bytes(new BytesStruct(empty_bytes_data, 0));
+    let system_withdrawal_tx_output = process_checked_system_transaction{block_env=block_env}(
+        target_address=WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS, data=empty_bytes
+    );
+    if (system_withdrawal_tx_output.return_data.value.len != 0) {
+        let (data_to_add) = alloc();
+        assert [data_to_add] = WITHDRAWAL_REQUEST_TYPE;
+        tempvar prefix = Bytes(new BytesStruct(data_to_add, 1));
+        Bytes__extend__{self=prefix}(system_withdrawal_tx_output.return_data);
+        assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
+        tempvar requests_from_execution = ListBytes(
+            new ListBytesStruct(
+                data=requests_from_execution.value.data,
+                len=requests_from_execution.value.len + 1,
+            ),
+        );
+    }
+
+    let system_consolidation_tx_output = process_checked_system_transaction{block_env=block_env}(
+        target_address=CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS, data=empty_bytes
+    );
+
+    if (system_consolidation_tx_output.return_data.value.len != 0) {
+        let (data_to_add) = alloc();
+        assert [data_to_add] = CONSOLIDATION_REQUEST_TYPE;
+        tempvar prefix = Bytes(new BytesStruct(data_to_add, 1));
+        Bytes__extend__{self=prefix}(system_consolidation_tx_output.return_data);
+        assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
+        tempvar requests_from_execution = ListBytes(
+            new ListBytesStruct(
+                data=requests_from_execution.value.data,
+                len=requests_from_execution.value.len + 1,
+            ),
+        );
+    }
+
+    tempvar block_output = BlockOutput(
+        new BlockOutputStruct(
+            block_gas_used=block_output.value.block_gas_used,
+            transactions_trie=block_output.value.transactions_trie,
+            receipts_trie=block_output.value.receipts_trie,
+            receipt_keys=block_output.value.receipt_keys,
+            block_logs=block_output.value.block_logs,
+            withdrawals_trie=block_output.value.withdrawals_trie,
+            blob_gas_used=block_output.value.blob_gas_used,
+            requests=requests_from_execution,
+        ),
+    );
+
+    return ();
+}
+
 
 func _process_withdrawals_inner{
     range_check_ptr,
@@ -1284,6 +1429,7 @@ func _process_withdrawals_inner{
             block_logs=block_output.value.block_logs,
             withdrawals_trie=withdrawal_trie,
             blob_gas_used=block_output.value.blob_gas_used,
+            requests=block_output.value.requests,
         ),
     );
 
@@ -1403,14 +1549,12 @@ func state_transition{
 
     let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
     // Diff with EELS: we don't compute the full state root here - because we have a diff-based approach with the hinted sparse MPT
-    let transactions_root = root(
-        transaction_eth_trie, none_storage_roots, 'keccak256'
-    );
+    let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
     let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
-    let withdrawals_root = root(
-        withdrawals_eth_trie, none_storage_roots, 'keccak256'
-    );
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
     let block_logs_bloom = logs_bloom(block_output.value.block_logs);
+
+    let requests_hash = compute_requests_hash(block_output.value.requests);
 
     // Rebind state
     let state = block_env.value.state;
@@ -1431,7 +1575,9 @@ func state_transition{
         // Instead, we assert that the State Transition is correct by ensuring the diffs it produces
         // are the same as the one of the expected post-MPT.
 
-        let receipt_root_equal = Bytes32__eq__(receipts_root, block.value.header.value.receipt_root);
+        let receipt_root_equal = Bytes32__eq__(
+            receipts_root, block.value.header.value.receipt_root
+        );
         assert receipt_root_equal.value = 1;
 
         let logs_bloom_equal = Bytes256__eq__(block_logs_bloom, block.value.header.value.bloom);
@@ -1443,6 +1589,8 @@ func state_transition{
         assert withdrawals_root_equal.value = 1;
 
         assert block_output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
+
+        assert requests_hash = block.value.header.value.requests_hash;
     }
 
     _append_block{chain=chain}(block);

@@ -25,7 +25,10 @@ from ethereum.prague.fork import (
     check_transaction,
     get_last_256_block_hashes,
     make_receipt,
+    process_checked_system_transaction,
+    process_system_transaction,
     process_transaction,
+    process_unchecked_system_transaction,
     validate_header,
 )
 from ethereum.prague.fork_types import Account, Address, VersionedHash
@@ -564,6 +567,71 @@ class TestFork:
     ):
         assert make_receipt(tx, error, cumulative_gas_used, logs) == cairo_run(
             "make_receipt", tx, error, cumulative_gas_used, logs
+        )
+
+    @given(block_env=..., target_address=..., data=...)
+    def test_process_system_transaction(
+        self,
+        cairo_run,
+        block_env: BlockEnvironment,
+        target_address: Address,
+        data: Bytes,
+    ):
+        try:
+            cairo_result = cairo_run(
+                "process_system_transaction", block_env, target_address, data
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_system_transaction(block_env, target_address, data)
+            return
+
+        assert (
+            process_system_transaction(block_env, target_address, data) == cairo_result
+        )
+
+    @given(block_env=..., target_address=..., data=...)
+    def test_process_checked_system_transaction(
+        self,
+        cairo_run,
+        block_env: BlockEnvironment,
+        target_address: Address,
+        data: Bytes,
+    ):
+        try:
+            cairo_result = cairo_run(
+                "process_checked_system_transaction", block_env, target_address, data
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_checked_system_transaction(block_env, target_address, data)
+            return
+
+        assert (
+            process_checked_system_transaction(block_env, target_address, data)
+            == cairo_result
+        )
+
+    @given(block_env=..., target_address=..., data=...)
+    def test_process_unchecked_system_transaction(
+        self,
+        cairo_run,
+        block_env: BlockEnvironment,
+        target_address: Address,
+        data: Bytes,
+    ):
+        try:
+            cairo_result = cairo_run(
+                "process_unchecked_system_transaction", block_env, target_address, data
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_unchecked_system_transaction(block_env, target_address, data)
+            return
+
+        assert (
+            process_unchecked_system_transaction(block_env, target_address, data)
+            == cairo_result
         )
 
     @given(data=tx_with_sender_in_state(), index=uint, block_output=empty_block_output)

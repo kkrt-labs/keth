@@ -4,12 +4,10 @@ from ethereum.prague.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.prague.vm.exceptions import OutOfGasError
 from ethereum.utils.numeric import ceil32
-from ethereum.utils.bytes import Bytes4, Bytes_to_be_ListBytes4, ListBytes4_be_to_bytes
 from ethereum.prague.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint
-from ethereum_types.bytes import ListBytes4, ListBytes4Struct
 
-from cairo_core.hash.sha256 import sha256_be_output
+from cairo_core.hash.sha256 import sha256_bytes
 
 // @notice Writes the sha256 hash to output.
 func sha256{
@@ -39,12 +37,7 @@ func sha256{
         return err;
     }
 
-    let list_bytes4_be = Bytes_to_be_ListBytes4(data);
-    // The number of bytes to hash is taken from the original input
-    let hash = sha256_be_output(list_bytes4_be.value.data, data.value.len);
-    tempvar hash_bytes4 = ListBytes4(new ListBytes4Struct(cast(hash, Bytes4*), 8));
-    // Split words and return bytes hash code.
-    let hash_bytes = ListBytes4_be_to_bytes(hash_bytes4);
+    let hash_bytes = sha256_bytes(data);
 
     EvmImpl.set_output(hash_bytes);
     tempvar ok = cast(0, EthereumException*);
