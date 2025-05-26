@@ -1,4 +1,5 @@
 //! Important: the implementations of these precompiles is unsound.
+//! TODO: Add rust implementations for the hints.
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.prague.vm.evm_impl import Evm, EvmImpl
