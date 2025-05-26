@@ -2,8 +2,8 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
 from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32, BytesStruct
-from ethereum_types.numeric import U256, U64, Uint
-from ethereum.prague.fork_types import Address, TupleVersionedHash
+from ethereum_types.numeric import U256, U64, Uint, U256Struct
+from ethereum.prague.fork_types import Address, TupleVersionedHash, TupleAuthorization, TupleAuthorizationStruct
 from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import U256__hash__, Uint__hash__
 from cairo_core.control_flow import raise
@@ -162,11 +162,32 @@ struct BlobTransaction {
     value: BlobTransactionStruct*,
 }
 
+struct SetCodeTransactionStruct {
+    chain_id: U64,
+    nonce: U64,
+    max_priority_fee_per_gas: Uint,
+    max_fee_per_gas: Uint,
+    gas: Uint,
+    to: Address,
+    value: U256,
+    data: Bytes,
+    access_list: TupleAccess,
+    authorizations: TupleAuthorization,
+    y_parity: U256,
+    r: U256,
+    s: U256,
+}
+
+struct SetCodeTransaction {
+    value: SetCodeTransactionStruct*,
+}
+
 struct TransactionStruct {
     legacy_transaction: LegacyTransaction,
     access_list_transaction: AccessListTransaction,
     fee_market_transaction: FeeMarketTransaction,
     blob_transaction: BlobTransaction,
+    set_code_transaction: SetCodeTransaction,
 }
 
 struct Transaction {
@@ -178,6 +199,7 @@ namespace TransactionType {
     const ACCESS_LIST = 1;
     const FEE_MARKET = 2;
     const BLOB = 3;
+    const SET_CODE = 4;
 }
 
 func get_transaction_type(tx: Transaction) -> felt {
@@ -192,6 +214,9 @@ func get_transaction_type(tx: Transaction) -> felt {
     }
     if (cast(tx.value.blob_transaction.value, felt) != 0) {
         return TransactionType.BLOB;
+    }
+    if (cast(tx.value.set_code_transaction.value, felt) != 0) {
+        return TransactionType.SET_CODE;
     }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
@@ -212,6 +237,9 @@ func get_gas(tx: Transaction) -> Uint {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.gas;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.gas;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -231,6 +259,9 @@ func get_r(tx: Transaction) -> U256 {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.r;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.r;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -249,6 +280,9 @@ func get_s(tx: Transaction) -> U256 {
     }
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.s;
+    }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.s;
     }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
@@ -271,6 +305,11 @@ func get_to(tx: Transaction) -> To {
         tempvar to = To(value=new ToStruct(bytes0=cast(0, Bytes0*), address=new bytes20_value));
         return to;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        let bytes20_value = tx.value.set_code_transaction.value.to;
+        tempvar to = To(value=new ToStruct(bytes0=cast(0, Bytes0*), address=new bytes20_value));
+        return to;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -290,6 +329,9 @@ func get_data(tx: Transaction) -> Bytes {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.data;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.data;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -303,6 +345,9 @@ func get_max_fee_per_gas(tx: Transaction) -> Uint {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.max_fee_per_gas;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.max_fee_per_gas;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -315,6 +360,9 @@ func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
     }
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.max_priority_fee_per_gas;
+    }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.max_priority_fee_per_gas;
     }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
@@ -348,6 +396,11 @@ func get_nonce(tx: Transaction) -> U256 {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.nonce;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        let nonce = tx.value.set_code_transaction.value.nonce;
+        tempvar nonce_u256 = U256(new U256Struct(nonce.value, 0));
+        return nonce_u256;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
@@ -367,7 +420,28 @@ func get_value(tx: Transaction) -> U256 {
     if (tx_type == TransactionType.BLOB) {
         return tx.value.blob_transaction.value.value;
     }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.value;
+    }
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
     }
+}
+
+// Do not raise in case of invalid transaction.
+func get_authorizations_len_unchecked(tx: Transaction) -> felt {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.authorizations.value.len;
+    }
+    return 0;
+}
+
+func get_authorizations_unchecked(tx: Transaction) -> TupleAuthorization {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.authorizations;
+    }
+    let empty_authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
+    return empty_authorizations;
 }

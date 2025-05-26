@@ -42,6 +42,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
 )
 from ethereum.prague.trie import (
     BranchNode,
@@ -818,6 +819,9 @@ def register_type_strategies():
     )
     st.register_type_strategy(
         BlobTransaction, st.builds(BlobTransaction, data=small_bytes)
+    )
+    st.register_type_strategy(
+        SetCodeTransaction, st.builds(SetCodeTransaction, data=small_bytes)
     )
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(

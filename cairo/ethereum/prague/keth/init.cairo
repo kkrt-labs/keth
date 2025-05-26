@@ -21,6 +21,7 @@ from ethereum.prague.fork import (
     get_last_256_block_hashes,
     process_unchecked_system_transaction,
     BEACON_ROOTS_ADDRESS,
+    HISTORY_STORAGE_ADDRESS,
 )
 from ethereum.prague.trie import EthereumTriesImpl, root
 

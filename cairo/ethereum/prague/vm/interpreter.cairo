@@ -55,6 +55,7 @@ from ethereum.prague.state import (
     State,
     StateStruct,
 )
+from ethereum.prague.vm.eoa_delegation import set_delegation
 
 from ethereum.prague.vm.evm_impl import EvmImpl
 
@@ -345,6 +346,9 @@ func execute_code{
         );
         // Addresses that are not precompiles return 0.
         if (precompile_address != 0) {
+            if (evm.value.message.value.disable_precompiles.value != FALSE) {
+                return evm;
+            }
             %{
                 precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
                 logger.trace_cairo(f"PrecompileStart: {precompile_address_bytes}")
@@ -548,7 +552,15 @@ func process_message_call{
         return msg;
     }
 
-    assert [range_check_ptr] = evm.value.refund_counter;
+    let updated_refund_counter = cast(evm.value.message.value.target.value.address, felt);
+    let authorization_len = evm.value.message.value.tx_env.value.authorizations.value.len;
+    let target_address = cast(evm.value.message.value.target.value.address, felt);
+    if (target_address * authorization_len != 0) {
+        let updated_refund_counter = evm.value.refund_counter + set_delegation(evm.value.message);
+    } else {
+        let updated_refund_counter = evm.value.refund_counter;
+    }
+    assert [range_check_ptr] = updated_refund_counter;
     let range_check_ptr = range_check_ptr + 1;
 
     finalize_evm{evm=evm}();

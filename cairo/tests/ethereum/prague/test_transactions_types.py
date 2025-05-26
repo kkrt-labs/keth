@@ -7,6 +7,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
 )
 from ethereum_types.bytes import Bytes0
@@ -24,6 +25,8 @@ def _transaction_type(tx: Transaction) -> int:
         return 2
     elif isinstance(tx, BlobTransaction):
         return 3
+    elif isinstance(tx, SetCodeTransaction):
+        return 4
 
 
 class TestUnionBytes0Address:

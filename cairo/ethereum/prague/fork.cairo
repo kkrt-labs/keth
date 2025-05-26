@@ -20,7 +20,7 @@ from ethereum_rlp.rlp import (
     encode_withdrawal,
     encode_transaction,
 )
-from cairo_core.bytes import (
+from ethereum_types.bytes import (
     Bytes,
     Bytes0,
     Bytes20,
@@ -134,6 +134,9 @@ from ethereum.prague.transactions_types import (
     TupleAccessStruct,
     To,
     ToStruct,
+    get_to,
+    get_authorizations_len_unchecked,
+    get_authorizations_unchecked,
 )
 from ethereum.prague.transactions import (
     calculate_intrinsic_cost,
@@ -159,6 +162,7 @@ from ethereum.prague.vm.gas import (
     calculate_excess_blob_gas,
 )
 from ethereum.prague.vm.interpreter import process_message_call, MessageCallOutput
+from ethereum.prague.vm.eoa_delegation import is_valid_delegation
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
@@ -532,7 +536,7 @@ func process_transaction{
     );
 
     // Validate transaction
-    let intrinsic_gas = validate_transaction(tx);
+    let (intrinsic_gas, calldata_floor_gas_cost) = validate_transaction(tx);
 
     let tuple_address_uint_tuple_versioned_hash_u64 = check_transaction{block_env=block_env}(
         block_output, tx
@@ -685,13 +689,11 @@ func process_transaction{
 
     let transient_storage = empty_transient_storage();
     let encoded_tx = encode_transaction(tx);
-    // TODO: update this when implementing 7702
-    let authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
 
     tempvar index_in_block = OptionalUint(new index);
     let transaction_hash = get_transaction_hash(encoded_tx);
     tempvar tx_hash = OptionalHash32(cast(transaction_hash.value, Bytes32Struct*));
-    // TODO: update this when implementing 7702
+    let authorizations = get_authorizations_unchecked(tx);
     tempvar tx_env = TransactionEnvironment(
         new TransactionEnvironmentStruct(
             origin=sender,
@@ -721,6 +723,9 @@ func process_transaction{
     let (gas_refund_div_5, _) = divmod(tx_gas_used_before_refund, 5);
     let tx_gas_refund = min(gas_refund_div_5, tx_output.value.refund_counter.value.low);
     let tx_gas_used_after_refund = tx_gas_used_before_refund - tx_gas_refund;
+    let tx_gas_used_after_refund = max(
+        tx_gas_used_after_refund, calldata_floor_gas_cost
+    );
     let tx_gas_left = tx_gas.value - tx_gas_used_after_refund;
 
     // INVARIANT: tx_gas_left does not wrap around the prime field
@@ -1028,13 +1033,13 @@ func check_transaction{
     let sender_address = recover_sender(block_env.value.chain_id, tx);
     let sender_account = get_account{state=state}(sender_address);
     let transaction_type = get_transaction_type(tx);
-    let is_not_blob_or_fee_transaction = (TransactionType.BLOB - transaction_type) * (
+    let is_not_blob_or_fee_or_set_code_transaction = (TransactionType.BLOB - transaction_type) * (
         TransactionType.FEE_MARKET - transaction_type
-    );
+    ) * (TransactionType.SET_CODE - transaction_type);
 
     let base_fee_per_gas = block_env.value.base_fee_per_gas;
     // Case where transaction is blob or fee transaction
-    if (is_not_blob_or_fee_transaction == FALSE) {
+    if (is_not_blob_or_fee_or_set_code_transaction == FALSE) {
         let max_fee_per_gas = get_max_fee_per_gas(tx);
         let max_priority_fee_per_gas = get_max_priority_fee_per_gas(tx);
         let max_fee_per_gas_valid = is_le(base_fee_per_gas.value, max_fee_per_gas.value);
@@ -1124,6 +1129,20 @@ func check_transaction{
     let range_check_ptr = [ap - 2];
     let max_gas_fee = Uint([ap - 1]);
 
+    let is_not_blob_or_set_code_transaction = (TransactionType.BLOB - transaction_type) * (
+        TransactionType.SET_CODE - transaction_type
+    );
+    let to = get_to(tx);
+    if (is_not_blob_or_set_code_transaction == FALSE and cast(to.value, felt) == 0) {
+        raise('InvalidBlock');
+    }
+
+    let is_not_set_code_transaction = TransactionType.SET_CODE - transaction_type;
+    let authorizations_len = get_authorizations_len_unchecked(tx);
+    if (is_not_set_code_transaction == FALSE and authorizations_len == 0) {
+        raise('InvalidBlock');
+    }
+
     // Nonce check
     let sender_account_nonce = sender_account.value.nonce;
     let tx_nonce = get_nonce(tx);
@@ -1147,8 +1166,10 @@ func check_transaction{
 
     // Empty code check for EOA
     let sender_code = get_account_code{state=state}(sender_address, sender_account);
-    with_attr error_message("InvalidBlock") {
-        assert sender_code.value.len = 0;
+    let valid_delegation = is_valid_delegation(sender_code);
+    let invalid_sender = sender_code.value.len * (1 - valid_delegation.value);
+    with_attr error_message("InvalidSenderError") {
+        assert invalid_sender = 0;
     }
 
     BlockEnvImpl.set_state{block_env=block_env}(state);
@@ -1288,6 +1309,7 @@ func apply_body{
         target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
     );
 
+
     let last_block_hash = block_env.value.block_hashes.value.data[
         block_env.value.block_hashes.value.len - 1
     ];
@@ -1295,6 +1317,7 @@ func apply_body{
     process_unchecked_system_transaction{block_env=block_env}(
         target_address=Address(HISTORY_STORAGE_ADDRESS), data=last_block_hash_bytes
     );
+
 
     _apply_body_inner{block_env=block_env, block_output=block_output}(
         0, transactions.value.len, transactions
@@ -1688,6 +1711,16 @@ func encode_receipt{range_check_ptr}(tx: Transaction, receipt: Receipt) -> Union
     if (cast(tx.value.blob_transaction.value, felt) != 0) {
         let (buffer: felt*) = alloc();
         assert [buffer] = 3;
+        let encoding = encode_receipt_to_buffer(1, buffer + 1, receipt);
+        tempvar res = UnionBytesReceipt(
+            new UnionBytesReceiptEnum(bytes=encoding, receipt=Receipt(cast(0, ReceiptStruct*)))
+        );
+        return res;
+    }
+
+    if (cast(tx.value.set_code_transaction.value, felt) != 0) {
+        let (buffer: felt*) = alloc();
+        assert [buffer] = 4;
         let encoding = encode_receipt_to_buffer(1, buffer + 1, receipt);
         tempvar res = UnionBytesReceipt(
             new UnionBytesReceiptEnum(bytes=encoding, receipt=Receipt(cast(0, ReceiptStruct*)))

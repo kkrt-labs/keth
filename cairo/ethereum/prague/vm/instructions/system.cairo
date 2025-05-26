@@ -45,7 +45,6 @@ from ethereum.prague.state import (
     move_ether,
     set_account_balance,
     get_account,
-    get_account_code,
     account_has_code_or_nonce,
     account_has_storage,
     increment_nonce,
@@ -61,6 +60,7 @@ from ethereum.utils.numeric import (
     U256_le,
     U256__eq__,
 )
+from ethereum.prague.vm.eoa_delegation import access_delegation
 from legacy.utils.dict import hashdict_write
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.alloc import alloc
@@ -94,6 +94,8 @@ func generic_call{
     memory_input_size: U256,
     memory_output_start: U256,
     memory_output_size: U256,
+    code: Bytes,
+    disable_precompiles: bool,
 ) -> EthereumException* {
     alloc_locals;
     let fp_and_pc = get_fp_and_pc();
@@ -121,14 +123,6 @@ func generic_call{
     let memory = evm.value.memory;
     let calldata = memory_read_bytes{memory=memory}(memory_input_start_position, memory_input_size);
     EvmImpl.set_memory(memory);
-
-    let block_env = evm.value.message.value.block_env;
-    let state = block_env.value.state;
-    let account = get_account{state=state}(code_address);
-    let account_code = get_account_code{state=state}(code_address, account);
-
-    BlockEnvImpl.set_state{block_env=block_env}(state);
-    EvmImpl.set_block_env(block_env);
 
     let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
 
@@ -160,7 +154,7 @@ func generic_call{
     // TODO: temporary disable_precompiles until function signature is updated
     tempvar child_message = Message(
         new MessageStruct(
-            block_env=block_env,
+            block_env=evm.value.message.value.block_env,
             tx_env=evm.value.message.value.tx_env,
             caller=caller,
             target=To(new ToStruct(cast(0, Bytes0*), &to)),
@@ -169,13 +163,13 @@ func generic_call{
             value=value,
             data=calldata,
             code_address=maybe_address,
-            code=account_code,
+            code=code,
             depth=Uint(evm.value.message.value.depth.value + 1),
             should_transfer_value=should_transfer_value,
             is_static=is_static,
             accessed_addresses=child_accessed_addresses,
             accessed_storage_keys=child_accessed_storage_keys,
-            disable_precompiles=bool(0),
+            disable_precompiles=disable_precompiles,
             parent_evm=evm,
         ),
     );
@@ -363,6 +357,13 @@ func call_{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, to);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+    let access_gas_cost_tmp = access_gas_cost.value + delegated_access_gas_cost.value;
+    tempvar access_gas_cost = Uint(access_gas_cost_tmp);
+
     let block_env = evm.value.message.value.block_env;
     let state = block_env.value.state;
     let _is_account_alive = is_account_alive{state=state}(to);
@@ -441,6 +442,8 @@ func call_{
         memory_input_size,
         memory_output_start_position,
         memory_output_size,
+        code,
+        disable_precompiles,
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -526,6 +529,13 @@ func callcode{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, code_address);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+    let access_gas_cost_tmp = access_gas_cost.value + delegated_access_gas_cost.value;
+    tempvar access_gas_cost = Uint(access_gas_cost_tmp);
+
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
     if (high_not_zero + low_too_high != 0) {
@@ -595,6 +605,8 @@ func callcode{
         memory_input_size,
         memory_output_start_position,
         memory_output_size,
+        code,
+        disable_precompiles,
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -676,6 +688,13 @@ func delegatecall{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, code_address);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+    let access_gas_cost_tmp = access_gas_cost.value + delegated_access_gas_cost.value;
+    tempvar access_gas_cost = Uint(access_gas_cost_tmp);
+
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
     if (high_not_zero + low_too_high != 0) {
@@ -717,6 +736,8 @@ func delegatecall{
         memory_input_size,
         memory_output_start_position,
         memory_output_size,
+        code,
+        disable_precompiles,
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -798,6 +819,13 @@ func staticcall{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, to);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+    let access_gas_cost_tmp = access_gas_cost.value + delegated_access_gas_cost.value;
+    tempvar access_gas_cost = Uint(access_gas_cost_tmp);
+
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
     if (high_not_zero + low_too_high != 0) {
@@ -839,6 +867,8 @@ func staticcall{
         memory_input_size,
         memory_output_start_position,
         memory_output_size,
+        code,
+        disable_precompiles,
     );
     if (cast(err, felt) != 0) {
         return err;
@@ -984,10 +1014,7 @@ func generic_create{
     mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }(
-    endowment: U256,
-    contract_address: Address,
-    memory_start_position: U256,
-    memory_size: U256,
+    endowment: U256, contract_address: Address, memory_start_position: U256, memory_size: U256
 ) -> EthereumException* {
     alloc_locals;
 
@@ -1003,7 +1030,6 @@ func generic_create{
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
-
 
     let create_message_gas = max_message_call_gas(evm.value.gas_left);
     let new_gas_left = evm.value.gas_left.value - create_message_gas.value;
@@ -1260,9 +1286,7 @@ func create{
     EvmImpl.set_block_env(block_env);
     let contract_address = compute_contract_address(current_target, sender.value.nonce);
 
-    let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size
-    );
+    let err = generic_create(endowment, contract_address, memory_start_position, memory_size);
     if (cast(err, felt) != 0) {
         return err;
     }
@@ -1366,9 +1390,7 @@ func create2{
         current_target, salt_bytes32, call_data
     );
 
-    let err = generic_create(
-        endowment, contract_address, memory_start_position, memory_size
-    );
+    let err = generic_create(endowment, contract_address, memory_start_position, memory_size);
     if (cast(err, felt) != 0) {
         return err;
     }

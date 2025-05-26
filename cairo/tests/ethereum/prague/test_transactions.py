@@ -5,6 +5,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
     calculate_intrinsic_cost,
     encode_transaction,
@@ -14,6 +15,7 @@ from ethereum.prague.transactions import (
     signing_hash_1559,
     signing_hash_2930,
     signing_hash_4844,
+    signing_hash_7702,
     signing_hash_pre155,
     validate_transaction,
 )
@@ -78,6 +80,11 @@ class TestTransactions:
     def test_signing_hash_4844(self, cairo_run, tx: BlobTransaction):
         cairo_result = cairo_run("signing_hash_4844", tx)
         assert signing_hash_4844(tx) == cairo_result
+
+    @given(tx=...)
+    def test_signing_hash_7702(self, cairo_run, tx: SetCodeTransaction):
+        cairo_result = cairo_run("signing_hash_7702", tx)
+        assert signing_hash_7702(tx) == cairo_result
 
     @given(chain_id=..., tx=...)
     def test_recover_sender(self, cairo_run, chain_id: U64, tx: Transaction):

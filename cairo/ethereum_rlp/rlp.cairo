@@ -4,7 +4,7 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum_types.numeric import Bool, U256, U64, Uint, bool
+from ethereum_types.numeric import Bool, U256, U64, Uint, bool, U256Struct
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -38,6 +38,8 @@ from ethereum.prague.fork_types import (
     Address_from_felt_be,
     TupleVersionedHash,
     TupleVersionedHashStruct,
+    TupleAuthorization,
+    Authorization,
 )
 from ethereum.prague.transactions_types import (
     LegacyTransaction,
@@ -55,6 +57,7 @@ from ethereum.prague.transactions_types import (
     AccessListTransactionStruct,
     FeeMarketTransactionStruct,
     BlobTransactionStruct,
+    SetCodeTransaction,
 )
 from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import (
@@ -825,6 +828,66 @@ func encode_blob_transaction{range_check_ptr}(transaction: BlobTransaction) -> B
     return result;
 }
 
+func encode_set_code_transaction{range_check_ptr}(transaction: SetCodeTransaction) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;  // Leave space for prefix
+
+    // Encode all fields as a sequence
+    let chain_id_len = _encode_uint(body_ptr, transaction.value.chain_id.value);
+    let body_ptr = body_ptr + chain_id_len;
+
+    tempvar nonce_u256 = U256(new U256Struct(transaction.value.nonce.value, 0));
+    let nonce_len = _encode_u256(body_ptr, nonce_u256);
+    let body_ptr = body_ptr + nonce_len;
+
+    let max_priority_fee_per_gas_len = _encode_uint(
+        body_ptr, transaction.value.max_priority_fee_per_gas.value
+    );
+    let body_ptr = body_ptr + max_priority_fee_per_gas_len;
+
+    let max_fee_per_gas_len = _encode_uint(body_ptr, transaction.value.max_fee_per_gas.value);
+    let body_ptr = body_ptr + max_fee_per_gas_len;
+
+    let gas_len = _encode_uint(body_ptr, transaction.value.gas.value);
+    let body_ptr = body_ptr + gas_len;
+
+    let to_len = _encode_address(body_ptr, transaction.value.to);
+    let body_ptr = body_ptr + to_len;
+
+    let value_len = _encode_u256(body_ptr, transaction.value.value);
+    let body_ptr = body_ptr + value_len;
+
+    let data_len = _encode_bytes(body_ptr, transaction.value.data);
+    let body_ptr = body_ptr + data_len;
+
+    let access_list_len = _encode_tuple_access_list(body_ptr, transaction.value.access_list);
+    let body_ptr = body_ptr + access_list_len;
+
+    let authorizations_len = _encode_tuple_authorization(body_ptr, transaction.value.authorizations);
+    let body_ptr = body_ptr + authorizations_len;
+
+    let y_parity_len = _encode_u256(body_ptr, transaction.value.y_parity);
+    let body_ptr = body_ptr + y_parity_len;
+
+    let r_len = _encode_u256(body_ptr, transaction.value.r);
+    let body_ptr = body_ptr + r_len;
+
+    let s_len = _encode_u256(body_ptr, transaction.value.s);
+    let body_ptr = body_ptr + s_len;
+
+    // Calculate body length and encode prefix
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    // Prepend type byte (0x04)
+    assert [body_ptr - prefix_len - 1] = 0x04;
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len - 1, prefix_len + body_len + 1));
+    return result;
+}
+
 func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionBytesLegacyTransaction {
     alloc_locals;
 
@@ -877,10 +940,55 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionBytes
         return result;
     }
 
+    if (cast(transaction.value.set_code_transaction.value, felt) != 0) {
+        let encoded_set_code_transaction = encode_set_code_transaction(
+            transaction.value.set_code_transaction
+        );
+        tempvar result = UnionBytesLegacyTransaction(
+            new UnionBytesLegacyTransactionEnum(
+                bytes=encoded_set_code_transaction,
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+            ),
+        );
+        return result;
+    }
+
     // Should never happen - one pointer must be non-null
     with_attr error_message("InvalidTransactionType") {
         jmp raise.raise_label;
     }
+}
+
+func encode_authorization{range_check_ptr}(authorization: Authorization) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
+
+    let chain_id_len = _encode_u256(body_ptr, authorization.value.chain_id);
+    let body_ptr = body_ptr + chain_id_len;
+
+    let address_len = _encode_address(body_ptr, authorization.value.address);
+    let body_ptr = body_ptr + address_len;
+
+    let nonce_len = _encode_uint(body_ptr, authorization.value.nonce.value);
+    let body_ptr = body_ptr + nonce_len;
+
+    let y_parity_len = _encode_uint(body_ptr, authorization.value.y_parity.value);
+    let body_ptr = body_ptr + y_parity_len;
+
+    let r_len = _encode_u256(body_ptr, authorization.value.r);
+    let body_ptr = body_ptr + r_len;
+
+    let s_len = _encode_u256(body_ptr, authorization.value.s);
+    let body_ptr = body_ptr + s_len;
+
+    // Calculate body length and encode prefix
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
 }
 
 //
@@ -2003,6 +2111,41 @@ func _encode_bytes8{range_check_ptr}(dst: felt*, raw_bytes8: Bytes8) -> felt {
     return _encode_bytes(dst, bytes);
 }
 
+func _encode_tuple_authorization_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_authorization: Authorization*) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    let authorization_encoded = encode_authorization(raw_tuple_authorization[0]);
+    memcpy(dst, authorization_encoded.value.data, authorization_encoded.value.len);
+
+    let remaining_len = _encode_tuple_authorization_inner(
+        dst + authorization_encoded.value.len, len - 1, raw_tuple_authorization + 1
+    );
+
+    return authorization_encoded.value.len + remaining_len;
+}
+
+func _encode_tuple_authorization{range_check_ptr}(dst: felt*, raw_tuple_authorization: TupleAuthorization) -> felt {
+    alloc_locals;
+    if (raw_tuple_authorization.value.len == 0) {
+        assert [dst] = 0xc0;
+        return 1;
+    }
+
+    let (local tmp) = alloc();
+    let body_ptr = tmp + PREFIX_LEN_MAX;
+    let body_len = _encode_tuple_authorization_inner(
+        body_ptr, raw_tuple_authorization.value.len, raw_tuple_authorization.value.data
+    );
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    memcpy(dst, body_ptr - prefix_len, prefix_len + body_len);
+
+    return prefix_len + body_len;
+}
+
 //
 // RLP Decode Helper Functions
 //
@@ -2264,6 +2407,57 @@ func encode_eip155_transaction_for_signing{range_check_ptr}(
     let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
     tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
+}
+
+func encode_eip7702_transaction_for_signing{range_check_ptr}(transaction: SetCodeTransaction) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;  // Leave space for prefix
+
+    // Encode all fields as a sequence
+    let chain_id_len = _encode_uint(body_ptr, transaction.value.chain_id.value);
+    let body_ptr = body_ptr + chain_id_len;
+
+    tempvar nonce_u256 = U256(new U256Struct(transaction.value.nonce.value, 0));
+    let nonce_len = _encode_u256(body_ptr, nonce_u256);
+    let body_ptr = body_ptr + nonce_len;
+
+    let max_priority_fee_per_gas_len = _encode_uint(
+        body_ptr, transaction.value.max_priority_fee_per_gas.value
+    );
+    let body_ptr = body_ptr + max_priority_fee_per_gas_len;
+
+    let max_fee_per_gas_len = _encode_uint(body_ptr, transaction.value.max_fee_per_gas.value);
+    let body_ptr = body_ptr + max_fee_per_gas_len;
+
+    let gas_len = _encode_uint(body_ptr, transaction.value.gas.value);
+    let body_ptr = body_ptr + gas_len;
+
+    let to_len = _encode_address(body_ptr, transaction.value.to);
+    let body_ptr = body_ptr + to_len;
+
+    let value_len = _encode_u256(body_ptr, transaction.value.value);
+    let body_ptr = body_ptr + value_len;
+
+    let data_len = _encode_bytes(body_ptr, transaction.value.data);
+    let body_ptr = body_ptr + data_len;
+
+    let access_list_len = _encode_tuple_access_list(body_ptr, transaction.value.access_list);
+    let body_ptr = body_ptr + access_list_len;
+
+    let authorizations_len = _encode_tuple_authorization(body_ptr, transaction.value.authorizations);
+    let body_ptr = body_ptr + authorizations_len;
+
+    // Calculate body length and encode prefix
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    // Prepend type byte (0x04)
+    assert [body_ptr - prefix_len - 1] = 0x04;
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len - 1, prefix_len + body_len + 1));
     return result;
 }
 
