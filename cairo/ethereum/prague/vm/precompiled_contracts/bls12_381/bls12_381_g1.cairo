@@ -1,3 +1,5 @@
+//! Important: the implementations of these precompiles is unsound.
+
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.prague.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
@@ -8,6 +10,8 @@ from ethereum_types.numeric import Uint
 from ethereum_types.bytes import Bytes
 from cairo_core.comparison import is_zero, is_not_zero
 
+// @notice The bls12_381 G1 point addition precompile.
+// @dev The implementation is unsound.
 func bls12_g1_add{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -45,6 +49,8 @@ func bls12_g1_add{
     return ok;
 }
 
+// @notice The bls12_381 G1 multi-scalar multiplication precompile.
+// @dev The implementation is unsound.
 func bls12_g1_msm{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -90,6 +96,8 @@ func bls12_g1_msm{
     return ok;
 }
 
+// @notice Precompile to map field element to G1.
+// @dev The implementation is unsound.
 func bls12_map_fp_to_g1{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
