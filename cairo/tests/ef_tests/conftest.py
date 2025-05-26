@@ -152,8 +152,16 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # noqa: U1
     if get_xdist_worker_id(session) != "master":
         return
 
-    lock_file = session.stash[fixture_lock]
-    session.stash[fixture_lock] = None
+    lock_file_obj: Optional[FileLock] = session.stash.get(fixture_lock, None)
 
-    assert lock_file is not None
-    lock_file.release()
+    if lock_file_obj is not None:
+        try:
+            lock_file_obj.release()
+        except Exception as e:
+            print(f"ERROR: Failed to release fixture lock: {e}")
+        finally:
+            # Ensure the key is removed or nulled from stash
+            if fixture_lock in session.stash:
+                # Match original behavior of setting to None
+                session.stash[fixture_lock] = None
+                lock_file_obj.release()
