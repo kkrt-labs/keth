@@ -23,7 +23,7 @@ TEST_FIXTURES: Dict[str, _FixtureSource] = {
         "fixture_path": "tests/fixtures/ethereum_tests",
     },
     "latest_fork_tests": {
-        "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v4.5.0/fixtures_stable.tar.gz",
+        "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v4.5.0/fixtures_develop.tar.gz",
         "fixture_path": "tests/fixtures/latest_fork_tests",
     },
 }
