@@ -179,6 +179,8 @@ markers = [
   "slow",
   "cairo_file(path): mark test with cairo source file path to compile",
   "bigmem",
+  "unit",
+  "integration",
 ]
 norecursedirs = ".* cairo/tests/ef_tests/fixtures"
 addopts = [
