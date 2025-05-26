@@ -10,18 +10,6 @@ concurrency:
 permissions: read-all
 
 jobs:
-  trunk-checks:
-    runs-on: ubuntu-latest
-    permissions:
-      checks: write # For trunk to post annotations
-      contents: read # For repo checkout
-    steps:
-      - uses: actions/checkout@v4
-      - name: Trunk Code Quality
-        uses: trunk-io/trunk-action@v1
-        with:
-          post-annotations: true
-
   rust-tests:
     uses: ./.github/workflows/rust_tests.yml
 
