@@ -149,7 +149,7 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     transactions = tuple(encode_transaction(tx) for tx in erc20_transactions)
 
     # Rest of the test data generation
-    block_hashes = draw(st.lists(bytes32, max_size=256, unique=True))
+    block_hashes = draw(st.lists(bytes32, min_size=2, max_size=256, unique=True))
     coinbase = Address(bytes.fromhex(COINBASE[2:]))
     block_number = draw(st.from_type(Uint))
     base_fee_per_gas = Uint(MIN_BASE_FEE)

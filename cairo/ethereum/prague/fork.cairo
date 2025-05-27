@@ -1302,6 +1302,8 @@ func apply_body{
 
     _process_withdrawals_inner{block_env=block_env, block_output=block_output}(0, withdrawals);
 
+    process_general_purpose_requests{block_env=block_env, block_output=block_output}();
+
     // Finalize the state, getting unique keys for main and storage tries
     let state = block_env.value.state;
     finalize_state{state=state}();

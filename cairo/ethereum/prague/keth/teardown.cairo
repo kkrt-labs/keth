@@ -12,7 +12,7 @@ from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
 from ethereum.prague.bloom import logs_bloom
-from ethereum.prague.fork import BlockChainStruct, _process_withdrawals_inner, BlockChain, Block
+from ethereum.prague.fork import BlockChainStruct, _process_withdrawals_inner, BlockChain, Block, process_general_purpose_requests
 from ethereum.prague.vm import BlockOutput, BlockOutput__hash__
 from ethereum.prague.vm.env_impl import (
     BlockEnvironment,
@@ -181,6 +181,8 @@ func teardown{
     _process_withdrawals_inner{block_env=block_env, block_output=block_output}(
         0, block.value.withdrawals
     );
+
+    process_general_purpose_requests{block_env=block_env, block_output=block_output}();
 
     // Finalize the state, getting unique keys for main and storage tries
     let state = block_env.value.state;
