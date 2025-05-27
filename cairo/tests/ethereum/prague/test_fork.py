@@ -91,6 +91,13 @@ MIN_BASE_FEE = 1_000
 
 
 @composite
+def block_env_no_snapshots(draw):
+    block_env = draw(st.from_type(BlockEnvironment))
+    block_env.state._snapshots = []
+    return block_env
+
+
+@composite
 def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     """Creates test data for apply_body including ERC20 transfer transactions"""
 
@@ -415,10 +422,9 @@ def tx_with_sender_in_state(
     if draw(integers(0, 99)) < 80:
         # to ensure the account has enough balance and tx.gas > intrinsic_cost
         # also that the code is empty
-        if calculate_intrinsic_cost(tx) > tx.gas:
-            tx = dataclasses.replace(
-                tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000))
-            )
+        intrinsic_cost, _ = calculate_intrinsic_cost(tx)
+        if intrinsic_cost > tx.gas:
+            tx = dataclasses.replace(tx, gas=(intrinsic_cost + Uint(10000)))
 
         account_address = to_address(Uint(expected_address))
         if account_address in state._storage_tries:
@@ -570,7 +576,12 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(block_env=..., target_address=..., data=..., system_contract_code=...)
+    @given(
+        block_env=block_env_no_snapshots(),
+        target_address=...,
+        data=...,
+        system_contract_code=...,
+    )
     def test_process_system_transaction(
         self,
         cairo_run,
@@ -580,7 +591,7 @@ class TestFork:
         system_contract_code: Bytes,
     ):
         try:
-            cairo_result = cairo_run(
+            cairo_block_env, cairo_result = cairo_run(
                 "process_system_transaction",
                 block_env,
                 target_address,
@@ -594,14 +605,13 @@ class TestFork:
                 )
             return
 
-        assert (
-            process_system_transaction(
-                block_env, target_address, system_contract_code, data
-            )
-            == cairo_result
+        py_result = process_system_transaction(
+            block_env, target_address, system_contract_code, data
         )
+        assert py_result == cairo_result
+        assert block_env == cairo_block_env
 
-    @given(block_env=..., target_address=..., data=...)
+    @given(block_env=block_env_no_snapshots(), target_address=..., data=...)
     def test_process_checked_system_transaction(
         self,
         cairo_run,
@@ -610,7 +620,7 @@ class TestFork:
         data: Bytes,
     ):
         try:
-            cairo_result = cairo_run(
+            cairo_block_env, cairo_result = cairo_run(
                 "process_checked_system_transaction", block_env, target_address, data
             )
         except Exception as e:
@@ -618,12 +628,11 @@ class TestFork:
                 process_checked_system_transaction(block_env, target_address, data)
             return
 
-        assert (
-            process_checked_system_transaction(block_env, target_address, data)
-            == cairo_result
-        )
+        py_result = process_checked_system_transaction(block_env, target_address, data)
+        assert py_result == cairo_result
+        assert block_env == cairo_block_env
 
-    @given(block_env=..., target_address=..., data=...)
+    @given(block_env=block_env_no_snapshots(), target_address=..., data=...)
     def test_process_unchecked_system_transaction(
         self,
         cairo_run,
@@ -632,7 +641,7 @@ class TestFork:
         data: Bytes,
     ):
         try:
-            cairo_result = cairo_run(
+            cairo_block_env, cairo_result = cairo_run(
                 "process_unchecked_system_transaction", block_env, target_address, data
             )
         except Exception as e:
@@ -640,10 +649,11 @@ class TestFork:
                 process_unchecked_system_transaction(block_env, target_address, data)
             return
 
-        assert (
-            process_unchecked_system_transaction(block_env, target_address, data)
-            == cairo_result
+        py_result = process_unchecked_system_transaction(
+            block_env, target_address, data
         )
+        assert py_result == cairo_result
+        assert block_env == cairo_block_env
 
     @given(data=tx_with_sender_in_state(), index=uint, block_output=empty_block_output)
     def test_process_transaction(

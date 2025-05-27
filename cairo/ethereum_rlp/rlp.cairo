@@ -2336,6 +2336,9 @@ func encode_header{range_check_ptr}(header: Header) -> Bytes {
     );
     let body_ptr = body_ptr + parent_beacon_block_root_len;
 
+    let requests_hash_len = _encode_bytes32(body_ptr, header.value.requests_hash);
+    let body_ptr = body_ptr + requests_hash_len;
+
     // Calculate body length and encode prefix
     let body_len = body_ptr - dst - PREFIX_LEN_MAX;
     let body_ptr = dst + PREFIX_LEN_MAX;

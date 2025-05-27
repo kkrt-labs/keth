@@ -482,7 +482,8 @@ func process_unchecked_system_transaction{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    block_env: BlockEnvironment}(target_address: Address, data: Bytes) -> MessageCallOutput {
+    block_env: BlockEnvironment
+    }(target_address: Address, data: Bytes) -> MessageCallOutput {
     alloc_locals;
     let state = block_env.value.state;
     let system_contract_account = get_account{state=state}(target_address);
