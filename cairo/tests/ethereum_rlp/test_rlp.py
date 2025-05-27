@@ -1,7 +1,12 @@
 from typing import Sequence, Tuple, Union
 
 import pytest
-from ethereum.prague.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.prague.blocks import (
+    Header,
+    Log,
+    Receipt,
+    Withdrawal,
+)
 from ethereum.prague.fork_types import Account, Address, Bloom, encode_account
 from ethereum.prague.transactions import (
     Access,
@@ -17,6 +22,7 @@ from ethereum_rlp.rlp import (
     decode,
     decode_item_length,
     decode_joined_encodings,
+    decode_to,
     decode_to_bytes,
     decode_to_sequence,
     encode,
@@ -369,6 +375,13 @@ class TestRlp:
             )
 
             assert decoded_tx == tx
+
+        @given(receipt=...)
+        def test_decode_to_receipt(self, cairo_run, receipt: Receipt):
+            encoded_receipt = encode(receipt)
+            decoded_receipt_cairo = cairo_run("decode_to_receipt", encoded_receipt)
+            decoded_receipt = decode_to(Receipt, encoded_receipt)
+            assert decoded_receipt_cairo == decoded_receipt
 
     class TestU256:
         @given(value=...)

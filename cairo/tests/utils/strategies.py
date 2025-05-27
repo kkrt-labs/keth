@@ -597,7 +597,9 @@ empty_block_output = st.builds(
 block_output_strategy = st.builds(
     BlockOutput,
     block_gas_used=uint,
-    transactions_trie=trie_strategy(Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]]),
+    transactions_trie=trie_strategy(
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]]
+    ),
     receipts_trie=trie_strategy(Trie[Bytes, Optional[Receipt]]),
     receipt_keys=st.from_type(Tuple[Bytes, ...]),
     block_logs=st.from_type(Tuple[Log, ...]),

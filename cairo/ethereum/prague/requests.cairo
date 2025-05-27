@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_label_location
 
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes32, Bytes32Struct
+from cairo_core.bytes import Bytes, BytesStruct, Bytes32, Bytes32Struct, ListBytes
 from ethereum.prague.blocks import TupleLog
 from ethereum.prague.trie import (
     trie_get_TrieBytesOptionalUnionBytesReceipt,
@@ -295,19 +295,19 @@ func _process_receipt_logs{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 // @param requests_len Number of requests
 // @return The hash of the requests
 func compute_requests_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    requests: Bytes*, requests_len: felt
+    requests: ListBytes
 ) -> Hash32 {
     alloc_locals;
 
     let (empty_sha256) = get_label_location(EMPTY_SHA256);
     let empty_sha256_b32 = Bytes32(cast(empty_sha256, Bytes32Struct*));
-    if (requests_len == 0) {
+    if (requests.value.len == 0) {
         return empty_sha256_b32;
     }
 
     let (sha256_state_data) = alloc();
     tempvar sha256_state = Bytes(new BytesStruct(sha256_state_data, 0));
-    _acc_requests_inner{sha256_state=sha256_state}(requests, requests_len, 0);
+    _acc_requests_inner{sha256_state=sha256_state}(requests.value.data, requests.value.len, 0);
 
     let digest = sha256_bytes(sha256_state);
     let result = Bytes_to_Bytes32(digest);

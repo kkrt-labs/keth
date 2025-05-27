@@ -250,7 +250,9 @@ class TestParseDepositRequests:
     @given(block_output=...)
     def test_parse_deposit_requests(self, cairo_run, block_output: BlockOutput):
         try:
-            cairo_block_output, cairo_result = cairo_run("parse_deposit_requests", block_output)
+            cairo_block_output, cairo_result = cairo_run(
+                "parse_deposit_requests", block_output
+            )
         except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 parse_deposit_requests(block_output)
@@ -265,7 +267,7 @@ class TestComputeRequestsHash:
     @given(requests=requests_strategy)
     def test_compute_requests_hash(self, cairo_run, requests: List[Bytes]):
         try:
-            cairo_result = cairo_run("compute_requests_hash", requests, len(requests))
+            cairo_result = cairo_run("compute_requests_hash", requests)
         except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 compute_requests_hash(requests)

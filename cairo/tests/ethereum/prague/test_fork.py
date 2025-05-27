@@ -14,6 +14,7 @@ from ethereum.prague.blocks import (
     Log,
     Receipt,
     Withdrawal,
+    decode_receipt,
     encode_receipt,
 )
 from ethereum.prague.fork import (
@@ -569,25 +570,35 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(block_env=..., target_address=..., data=...)
+    @given(block_env=..., target_address=..., data=..., system_contract_code=...)
     def test_process_system_transaction(
         self,
         cairo_run,
         block_env: BlockEnvironment,
         target_address: Address,
         data: Bytes,
+        system_contract_code: Bytes,
     ):
         try:
             cairo_result = cairo_run(
-                "process_system_transaction", block_env, target_address, data
+                "process_system_transaction",
+                block_env,
+                target_address,
+                system_contract_code,
+                data,
             )
         except Exception as e:
             with strict_raises(type(e)):
-                process_system_transaction(block_env, target_address, data)
+                process_system_transaction(
+                    block_env, target_address, system_contract_code, data
+                )
             return
 
         assert (
-            process_system_transaction(block_env, target_address, data) == cairo_result
+            process_system_transaction(
+                block_env, target_address, system_contract_code, data
+            )
+            == cairo_result
         )
 
     @given(block_env=..., target_address=..., data=...)
@@ -835,3 +846,11 @@ class TestEncodeReceipt:
     def test_encode_receipt(self, cairo_run, tx: Transaction, receipt: Receipt):
         cairo_result = cairo_run("encode_receipt", tx, receipt)
         assert encode_receipt(tx, receipt) == cairo_result
+
+
+class TestDecodeReceipt:
+    @given(receipt=..., tx=...)
+    def test_decode_receipt(self, cairo_run, receipt: Receipt, tx: Transaction):
+        encoded_receipt = encode_receipt(tx, receipt)
+        cairo_result = cairo_run("decode_receipt", encoded_receipt)
+        assert decode_receipt(encoded_receipt) == cairo_result
