@@ -1495,7 +1495,6 @@ func decode_to_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return receipt;
 }
 
-//
 func _decode_logs{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     sequence: SequenceSimple
 ) -> TupleLog {

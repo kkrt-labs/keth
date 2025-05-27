@@ -61,40 +61,40 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
     }
 
     // Check that all the offsets are in order
-    tempvar pubkey_bytes = Bytes(new BytesStruct(data.value.data, 32));
-    let pubkey_offset_u256 = U256_from_be_bytes(pubkey_bytes);
+    tempvar pubkey_offset_bytes = Bytes(new BytesStruct(data.value.data, 32));
+    let pubkey_offset_u256 = U256_from_be_bytes(pubkey_offset_bytes);
     assert pubkey_offset_u256.value.high = 0;
     let pubkey_offset = pubkey_offset_u256.value.low;
     if (pubkey_offset != PUBKEY_OFFSET) {
         raise('InvalidBlock');
     }
 
-    tempvar withdrawal_credentials_bytes = Bytes(new BytesStruct(data.value.data + 32, 32));
-    let withdrawal_credentials_offset_u256 = U256_from_be_bytes(withdrawal_credentials_bytes);
+    tempvar withdrawal_credentials_offset_bytes = Bytes(new BytesStruct(data.value.data + 32, 32));
+    let withdrawal_credentials_offset_u256 = U256_from_be_bytes(withdrawal_credentials_offset_bytes);
     assert withdrawal_credentials_offset_u256.value.high = 0;
     let withdrawal_credentials_offset = withdrawal_credentials_offset_u256.value.low;
     if (withdrawal_credentials_offset != WITHDRAWAL_CREDENTIALS_OFFSET) {
         raise('InvalidBlock');
     }
 
-    tempvar amount_bytes = Bytes(new BytesStruct(data.value.data + 64, 32));
-    let amount_offset_u256 = U256_from_be_bytes(amount_bytes);
+    tempvar amount_offset_bytes = Bytes(new BytesStruct(data.value.data + 64, 32));
+    let amount_offset_u256 = U256_from_be_bytes(amount_offset_bytes);
     assert amount_offset_u256.value.high = 0;
     let amount_offset = amount_offset_u256.value.low;
     if (amount_offset != AMOUNT_OFFSET) {
         raise('InvalidBlock');
     }
 
-    tempvar signature_bytes = Bytes(new BytesStruct(data.value.data + 96, 32));
-    let signature_offset_u256 = U256_from_be_bytes(signature_bytes);
+    tempvar signature_offset_bytes = Bytes(new BytesStruct(data.value.data + 96, 32));
+    let signature_offset_u256 = U256_from_be_bytes(signature_offset_bytes);
     assert signature_offset_u256.value.high = 0;
     let signature_offset = signature_offset_u256.value.low;
     if (signature_offset != SIGNATURE_OFFSET) {
         raise('InvalidBlock');
     }
 
-    tempvar index_bytes = Bytes(new BytesStruct(data.value.data + 128, 32));
-    let index_offset_u256 = U256_from_be_bytes(index_bytes);
+    tempvar index_offset_bytes = Bytes(new BytesStruct(data.value.data + 128, 32));
+    let index_offset_u256 = U256_from_be_bytes(index_offset_bytes);
     assert index_offset_u256.value.high = 0;
     let index_offset = index_offset_u256.value.low;
     if (index_offset != INDEX_OFFSET) {
