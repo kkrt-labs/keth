@@ -32,6 +32,7 @@ from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_fe
 from cairo_core.bytes_impl import TupleBytes__hash__
 from ethereum.crypto.hash import Hash32
 from ethereum.prague.fork_types import OptionalMappingAddressBytes32, MappingAddressBytes32Struct
+from cairo_core.bytes import ListBytes, ListBytesStruct
 
 struct BlockOutputStruct {
     block_gas_used: Uint,
@@ -41,6 +42,7 @@ struct BlockOutputStruct {
     block_logs: TupleLog,
     withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
     blob_gas_used: U64,
+    requests: ListBytes,
 }
 
 struct BlockOutput {
@@ -53,6 +55,7 @@ func empty_block_output() -> BlockOutput {
     tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
     let (receipt_keys: Bytes*) = alloc();
     tempvar tuple_receipt_keys = TupleBytes(new TupleBytesStruct(data=receipt_keys, len=0));
+    tempvar requests = ListBytes(new ListBytesStruct(data=cast(0, Bytes*), len=0));
 
     tempvar block_output = BlockOutput(
         new BlockOutputStruct(
@@ -63,6 +66,7 @@ func empty_block_output() -> BlockOutput {
             block_logs=block_logs,
             withdrawals_trie=withdrawals_trie,
             blob_gas_used=U64(0),
+            requests=requests,
         ),
     );
 
