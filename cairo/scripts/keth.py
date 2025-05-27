@@ -45,6 +45,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+DEFAULT_CHAIN_ID = 1
+
 
 # Typer does not support Literal["main", "init"] in its type enforcement, so we use an Enum instead.
 # See <https://typer.tiangolo.com/tutorial/parameter-types/enum/?h=enum>
@@ -111,8 +113,9 @@ class KethContext:
     @staticmethod
     def _resolve_chain_id(data_dir: Path, block_number: int, zkpi_version: str) -> int:
         """Resolve chain ID from ZKPI file."""
-        # Try to find ZKPI file to extract chain ID (default to chain 1)
-        zkpi_path = get_zkpi_path(data_dir, 1, block_number, zkpi_version)
+        zkpi_path = get_zkpi_path(
+            data_dir, DEFAULT_CHAIN_ID, block_number, zkpi_version
+        )
         if not zkpi_path.exists():
             console.print(
                 f"[red]Error: ZKPI file not found at {zkpi_path} and no chain ID provided[/]"
