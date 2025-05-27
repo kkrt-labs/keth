@@ -12,6 +12,7 @@ from ethereum_types.bytes import (
     BytesStruct,
     Bytes8,
     Bytes32,
+    Bytes256,
     String,
     StringStruct,
     TupleBytes32,
@@ -19,8 +20,11 @@ from ethereum_types.bytes import (
 )
 from ethereum.prague.blocks import (
     Log,
+    LogStruct,
+    TupleLogStruct,
     TupleLog,
     Receipt,
+    ReceiptStruct,
     Withdrawal,
     Header,
     UnionBytesLegacyTransactionEnum,
@@ -1450,6 +1454,125 @@ func decode_to_access_list_transaction{range_check_ptr, bitwise_ptr: BitwiseBuil
     return tx;
 }
 
+func decode_to_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    encoded_data: Bytes
+) -> Receipt {
+    alloc_locals;
+    let decoded = decode(encoded_data);
+
+    with_attr error_message("Invalid receipt: expected sequence") {
+        assert cast(decoded.value.bytes.value, felt) = 0;
+    }
+
+    let items_len = decoded.value.sequence.value.len;
+    let items = decoded.value.sequence.value.data;
+
+    with_attr error_message("Invalid receipt: wrong number of fields") {
+        assert items_len = 4;
+    }
+
+    let succeeded_bytes = items[0].value.bytes;
+    local succeeded;
+    if (succeeded_bytes.value.len != 0) {
+        assert succeeded = succeeded_bytes.value.data[0];
+    } else {
+        assert succeeded = 0;
+    }
+    let cumulative_gas_used = Uint_from_be_bytes(items[1].value.bytes);
+    let bloom_bytes = items[2].value.bytes;
+    assert bloom_bytes.value.len = 256;
+    let bloom = Bytes256(bloom_bytes.value.data);
+    let logs = _decode_logs(items[3].value.sequence);
+
+    tempvar receipt = Receipt(
+        new ReceiptStruct(
+            succeeded=bool(succeeded),
+            cumulative_gas_used=cumulative_gas_used,
+            bloom=bloom,
+            logs=logs,
+        ),
+    );
+    return receipt;
+}
+
+func _decode_logs{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    sequence: SequenceSimple
+) -> TupleLog {
+    alloc_locals;
+    let (logs: Log*) = alloc();
+    let logs_len = _decode_logs_inner(logs, sequence.value.len, sequence.value.data);
+
+    tempvar tuple_logs = TupleLog(new TupleLogStruct(data=logs, len=logs_len));
+    return tuple_logs;
+}
+
+func _decode_logs_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    logs: Log*, len: felt, items: Simple*
+) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    with_attr error_message("Invalid log: expected sequence") {
+        assert cast(items[0].value.bytes.value, felt) = 0;
+    }
+
+    let log = items[0].value.sequence;
+
+    with_attr error_message("Invalid log: wrong number of fields") {
+        assert log.value.len = 3;
+    }
+
+    let address_felt = bytes_to_felt(
+        log.value.data[0].value.bytes.value.len, log.value.data[0].value.bytes.value.data
+    );
+    let address = Address_from_felt_be(address_felt);
+    let topics = _decode_topics(log.value.data[1].value.sequence);
+    let data = log.value.data[2].value.bytes;
+
+    assert [logs] = Log(new LogStruct(address=address, topics=topics, data=data));
+
+    let remaining_len = _decode_logs_inner(logs + Log.SIZE, len - 1, items + Simple.SIZE);
+    return 1 + remaining_len;
+}
+
+func _decode_topics{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    sequence: SequenceSimple
+) -> TupleBytes32 {
+    alloc_locals;
+    let (topics: Bytes32*) = alloc();
+    let topics_len = _decode_topics_inner(topics, sequence.value.len, sequence.value.data);
+
+    tempvar tuple_topics = TupleBytes32(new TupleBytes32Struct(data=topics, len=topics_len));
+    return tuple_topics;
+}
+
+func _decode_topics_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    topics: Bytes32*, len: felt, items: Simple*
+) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    with_attr error_message("Invalid topic: expected bytes") {
+        assert cast(items[0].value.sequence.value, felt) = 0;
+    }
+
+    let topic_bytes = items[0].value.bytes;
+
+    with_attr error_message("Invalid topic: wrong number of fields") {
+        assert topic_bytes.value.len = 32;
+    }
+
+    let topic = Bytes32_from_be_bytes(topic_bytes);
+    assert [topics] = topic;
+
+    let remaining_len = _decode_topics_inner(topics + Bytes32.SIZE, len - 1, items + Simple.SIZE);
+    return 1 + remaining_len;
+}
+
 // Helper function to decode To type
 func _decode_to{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> To {
     if (bytes.value.len == 0) {
@@ -1515,9 +1638,7 @@ func _decode_access_list_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let slots = _decode_storage_keys(entry.value.data[1].value.sequence);
 
     // Create Access entry
-    assert [access_list] = Access(
-        new AccessStruct(account=address, slots=slots)
-    );
+    assert [access_list] = Access(new AccessStruct(account=address, slots=slots));
 
     // Process next entry
     let remaining_len = _decode_access_list_inner(
@@ -2213,6 +2334,9 @@ func encode_header{range_check_ptr}(header: Header) -> Bytes {
         body_ptr, header.value.parent_beacon_block_root
     );
     let body_ptr = body_ptr + parent_beacon_block_root_len;
+
+    let requests_hash_len = _encode_bytes32(body_ptr, header.value.requests_hash);
+    let body_ptr = body_ptr + requests_hash_len;
 
     // Calculate body length and encode prefix
     let body_len = body_ptr - dst - PREFIX_LEN_MAX;

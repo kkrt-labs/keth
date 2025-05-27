@@ -60,6 +60,7 @@ from ethereum.prague.vm import (
     TransactionEnvironment,
 )
 from ethereum_types.bytes import (
+    Bytes,
     Bytes0,
     Bytes4,
     Bytes8,
@@ -593,6 +594,19 @@ empty_block_output = st.builds(
     blob_gas_used=st.just(U64(0)),
 )
 
+block_output_strategy = st.builds(
+    BlockOutput,
+    block_gas_used=uint,
+    transactions_trie=trie_strategy(
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]]
+    ),
+    receipts_trie=trie_strategy(Trie[Bytes, Optional[Receipt]]),
+    receipt_keys=st.from_type(Tuple[Bytes, ...]),
+    block_logs=st.from_type(Tuple[Log, ...]),
+    withdrawals_trie=trie_strategy(Trie[Bytes, Optional[Withdrawal]]),
+    blob_gas_used=uint64,
+)
+
 # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
 SYSTEM_ADDRESS = Address(
     bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")  # cspell:disable-line
@@ -894,3 +908,4 @@ def register_type_strategies():
     st.register_type_strategy(ValueError, value_error)
     st.register_type_strategy(AssertionError, assertion_error)
     st.register_type_strategy(Authorization, st.builds(Authorization))
+    st.register_type_strategy(BlockOutput, block_output_strategy)

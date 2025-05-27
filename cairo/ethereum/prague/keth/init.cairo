@@ -19,7 +19,7 @@ from ethereum.prague.fork import (
     Block,
     validate_header,
     get_last_256_block_hashes,
-    process_system_transaction,
+    process_unchecked_system_transaction,
     BEACON_ROOTS_ADDRESS,
 )
 from ethereum.prague.trie import EthereumTriesImpl, root
@@ -97,8 +97,16 @@ func init{
     );
 
     let data_bytes = Bytes32_to_Bytes(block_env.value.parent_beacon_block_root);
-    process_system_transaction{block_env=block_env}(
+    process_unchecked_system_transaction{block_env=block_env}(
         target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
+    );
+
+    let last_block_hash = block_env.value.block_hashes.value.data[
+        block_env.value.block_hashes.value.len - 1
+    ];
+    let last_block_hash_bytes = Bytes32_to_Bytes(last_block_hash);
+    process_unchecked_system_transaction{block_env=block_env}(
+        target_address=Address(HISTORY_STORAGE_ADDRESS), data=last_block_hash_bytes
     );
     let state = block_env.value.state;
 
