@@ -1,6 +1,10 @@
 from typing import List
 
-from ethereum.exceptions import EthereumException
+from ethereum.prague.blocks import (
+    Receipt,
+    decode_receipt,
+    encode_receipt,
+)
 from ethereum.prague.requests import (
     AMOUNT_OFFSET,
     AMOUNT_SIZE,
@@ -16,6 +20,9 @@ from ethereum.prague.requests import (
     compute_requests_hash,
     extract_deposit_data,
     parse_deposit_requests,
+)
+from ethereum.prague.transactions import (
+    Transaction,
 )
 from ethereum.prague.vm import BlockOutput
 from ethereum_types.bytes import Bytes
@@ -226,7 +233,7 @@ class TestExtractDepositData:
     def test_extract_deposit_data_valid(self, cairo_run, data: Bytes):
         try:
             cairo_result = cairo_run("extract_deposit_data", data)
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 extract_deposit_data(data)
             return
@@ -240,7 +247,7 @@ class TestExtractDepositData:
             cairo_result = cairo_run("extract_deposit_data", data)
             python_result = extract_deposit_data(data)
             assert cairo_result == python_result
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 extract_deposit_data(data)
 
@@ -253,7 +260,7 @@ class TestParseDepositRequests:
             cairo_block_output, cairo_result = cairo_run(
                 "parse_deposit_requests", block_output
             )
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 parse_deposit_requests(block_output)
             return
@@ -268,10 +275,18 @@ class TestComputeRequestsHash:
     def test_compute_requests_hash(self, cairo_run, requests: List[Bytes]):
         try:
             cairo_result = cairo_run("compute_requests_hash", requests)
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 compute_requests_hash(requests)
             return
 
         python_result = compute_requests_hash(requests)
         assert cairo_result == python_result
+
+
+class TestDecodeReceipt:
+    @given(receipt=..., tx=...)
+    def test_decode_receipt(self, cairo_run, receipt: Receipt, tx: Transaction):
+        encoded_receipt = encode_receipt(tx, receipt)
+        cairo_result = cairo_run("decode_receipt", encoded_receipt)
+        assert decode_receipt(encoded_receipt) == cairo_result

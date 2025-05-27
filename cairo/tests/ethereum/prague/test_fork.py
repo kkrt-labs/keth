@@ -14,7 +14,6 @@ from ethereum.prague.blocks import (
     Log,
     Receipt,
     Withdrawal,
-    decode_receipt,
     encode_receipt,
 )
 from ethereum.prague.fork import (
@@ -856,11 +855,3 @@ class TestEncodeReceipt:
     def test_encode_receipt(self, cairo_run, tx: Transaction, receipt: Receipt):
         cairo_result = cairo_run("encode_receipt", tx, receipt)
         assert encode_receipt(tx, receipt) == cairo_result
-
-
-class TestDecodeReceipt:
-    @given(receipt=..., tx=...)
-    def test_decode_receipt(self, cairo_run, receipt: Receipt, tx: Transaction):
-        encoded_receipt = encode_receipt(tx, receipt)
-        cairo_result = cairo_run("decode_receipt", encoded_receipt)
-        assert decode_receipt(encoded_receipt) == cairo_result

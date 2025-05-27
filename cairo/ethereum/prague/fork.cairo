@@ -8,7 +8,6 @@ from starkware.cairo.common.math import (
     split_felt,
     assert_le_felt,
     assert_not_equal,
-    assert_le
 )
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -20,7 +19,6 @@ from ethereum_rlp.rlp import (
     encode_uint,
     encode_withdrawal,
     encode_transaction,
-    decode_to_receipt
 )
 from cairo_core.bytes import (
     Bytes,
@@ -99,7 +97,13 @@ from ethereum.prague.fork_types import (
     TupleAuthorization,
     TupleAuthorizationStruct,
 )
-from ethereum.prague.requests import compute_requests_hash, parse_deposit_requests, DEPOSIT_REQUEST_TYPE, WITHDRAWAL_REQUEST_TYPE, CONSOLIDATION_REQUEST_TYPE
+from ethereum.prague.requests import (
+    compute_requests_hash,
+    parse_deposit_requests,
+    DEPOSIT_REQUEST_TYPE,
+    WITHDRAWAL_REQUEST_TYPE,
+    CONSOLIDATION_REQUEST_TYPE,
+)
 
 from ethereum.prague.state import (
     set_storage,
@@ -451,17 +455,22 @@ func process_checked_system_transaction{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    block_env: BlockEnvironment}(target_address: Address, data: Bytes) -> MessageCallOutput {
+    block_env: BlockEnvironment,
+}(target_address: Address, data: Bytes) -> MessageCallOutput {
     alloc_locals;
     let state = block_env.value.state;
     let system_contract_account = get_account{state=state}(target_address);
-    let system_contract_code = get_account_code{state=state}(target_address, system_contract_account);
+    let system_contract_code = get_account_code{state=state}(
+        target_address, system_contract_account
+    );
     if (system_contract_code.value.len == 0) {
         raise('InvalidBlock');
     }
 
     BlockEnvImpl.set_state{block_env=block_env}(state);
-    let system_tx_output = process_system_transaction{block_env=block_env}(target_address, system_contract_code, data);
+    let system_tx_output = process_system_transaction{block_env=block_env}(
+        target_address, system_contract_code, data
+    );
     if (cast(system_tx_output.value.error, felt) != 0) {
         raise('InvalidBlock');
     }
@@ -482,17 +491,20 @@ func process_unchecked_system_transaction{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    block_env: BlockEnvironment
-    }(target_address: Address, data: Bytes) -> MessageCallOutput {
+    block_env: BlockEnvironment,
+}(target_address: Address, data: Bytes) -> MessageCallOutput {
     alloc_locals;
     let state = block_env.value.state;
     let system_contract_account = get_account{state=state}(target_address);
-    let system_contract_code = get_account_code{state=state}(target_address, system_contract_account);
+    let system_contract_code = get_account_code{state=state}(
+        target_address, system_contract_account
+    );
     BlockEnvImpl.set_state{block_env=block_env}(state);
-    let system_tx_output = process_system_transaction{block_env=block_env}(target_address, system_contract_code, data);
+    let system_tx_output = process_system_transaction{block_env=block_env}(
+        target_address, system_contract_code, data
+    );
     return system_tx_output;
 }
-
 
 func process_transaction{
     range_check_ptr,
@@ -1276,7 +1288,9 @@ func apply_body{
         target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
     );
 
-    let last_block_hash = block_env.value.block_hashes.value.data[block_env.value.block_hashes.value.len - 1];
+    let last_block_hash = block_env.value.block_hashes.value.data[
+        block_env.value.block_hashes.value.len - 1
+    ];
     let last_block_hash_bytes = Bytes32_to_Bytes(last_block_hash);
     process_unchecked_system_transaction{block_env=block_env}(
         target_address=Address(HISTORY_STORAGE_ADDRESS), data=last_block_hash_bytes
@@ -1349,8 +1363,7 @@ func process_general_purpose_requests{
         assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
         tempvar requests_from_execution = ListBytes(
             new ListBytesStruct(
-                data=requests_from_execution.value.data,
-                len=requests_from_execution.value.len + 1,
+                data=requests_from_execution.value.data, len=requests_from_execution.value.len + 1
             ),
         );
     } else {
@@ -1371,8 +1384,7 @@ func process_general_purpose_requests{
         assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
         tempvar requests_from_execution = ListBytes(
             new ListBytesStruct(
-                data=requests_from_execution.value.data,
-                len=requests_from_execution.value.len + 1,
+                data=requests_from_execution.value.data, len=requests_from_execution.value.len + 1
             ),
         );
     } else {
@@ -1392,8 +1404,7 @@ func process_general_purpose_requests{
         assert requests_from_execution.value.data[requests_from_execution.value.len] = prefix;
         tempvar requests_from_execution = ListBytes(
             new ListBytesStruct(
-                data=requests_from_execution.value.data,
-                len=requests_from_execution.value.len + 1,
+                data=requests_from_execution.value.data, len=requests_from_execution.value.len + 1
             ),
         );
     } else {
@@ -1416,7 +1427,6 @@ func process_general_purpose_requests{
 
     return ();
 }
-
 
 func _process_withdrawals_inner{
     range_check_ptr,
@@ -1687,21 +1697,4 @@ func encode_receipt{range_check_ptr}(tx: Transaction, receipt: Receipt) -> Union
         new UnionBytesReceiptEnum(bytes=Bytes(cast(0, BytesStruct*)), receipt=receipt)
     );
     return res;
-}
-
-// @notice Decodes a receipt
-func decode_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(receipt: UnionBytesReceipt) -> Receipt {
-    alloc_locals;
-    if (cast(receipt.value.bytes.value, felt) != 0) {
-        // First bytes is the tx type
-        let input_bytes = receipt.value.bytes;
-        assert_not_zero(input_bytes.value.data[0]);
-        assert_le(input_bytes.value.data[0], 4);
-
-        tempvar receipt_bytes = Bytes(new BytesStruct(input_bytes.value.data+1, input_bytes.value.len-1));
-        let decoded_receipt = decode_to_receipt(receipt_bytes);
-        return decoded_receipt;
-    }
-
-    return receipt.value.receipt;
 }

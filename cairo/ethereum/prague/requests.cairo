@@ -10,9 +10,11 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_label_location
+from ethereum_rlp.rlp import decode_to_receipt
+from starkware.cairo.common.math import assert_not_zero, assert_le
+from ethereum.prague.blocks import UnionBytesReceipt, Receipt, TupleLog
 
 from cairo_core.bytes import Bytes, BytesStruct, Bytes32, Bytes32Struct, ListBytes
-from ethereum.prague.blocks import TupleLog
 from ethereum.prague.trie import (
     trie_get_TrieBytesOptionalUnionBytesReceipt,
     TrieBytesOptionalUnionBytesReceipt,
@@ -25,10 +27,9 @@ from ethereum.crypto.hash import Hash32
 from cairo_core.control_flow import raise
 
 // Constants
-// TODO: fix endianness
-const DEPOSIT_CONTRACT_ADDRESS = 0x00000000219ab540356cbb839cbe05303d7705fa;
-const DEPOSIT_EVENT_SIGNATURE_HASH_LOW = 0x649bbc62d0e31342afea4e5cd82d4049e7e1ee912fc0889aa790803be39038c5;
-const DEPOSIT_EVENT_SIGNATURE_HASH_HIGH = 0x0;
+const DEPOSIT_CONTRACT_ADDRESS = 0xfa05773d3005be9c83bb6c3540b59a2100000000;
+const DEPOSIT_EVENT_SIGNATURE_HASH_LOW = 0x49402dd85c4eeaaf4213e3d062bc9b64;
+const DEPOSIT_EVENT_SIGNATURE_HASH_HIGH = 0xc53890e33b8090a79a88c02f91eee1e7;
 
 const DEPOSIT_REQUEST_TYPE = 0x00;
 const WITHDRAWAL_REQUEST_TYPE = 0x01;
@@ -186,7 +187,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 // @notice Parse deposit requests from the block output.
 // @param block_output The block output containing receipts
 // @return The concatenated deposit requests as bytes
-func parse_deposit_requests{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, block_output: BlockOutput}() -> Bytes {
+func parse_deposit_requests{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, block_output: BlockOutput
+}() -> Bytes {
     alloc_locals;
 
     let (deposit_requests_data: felt*) = alloc();
@@ -199,7 +202,7 @@ func parse_deposit_requests{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, block
         new BlockOutputStruct(
             block_gas_used=block_output.value.block_gas_used,
             transactions_trie=block_output.value.transactions_trie,
-            receipts_trie=block_output.value.receipts_trie,
+            receipts_trie=receipts_trie,
             receipt_keys=block_output.value.receipt_keys,
             block_logs=block_output.value.block_logs,
             withdrawals_trie=block_output.value.withdrawals_trie,
@@ -237,8 +240,7 @@ func _parse_deposit_requests_inner{
         raise('AssertionError');
     }
 
-    // TODO decode receipt
-    let decoded_receipt = receipt_bytes.value.receipt;
+    let decoded_receipt = decode_receipt(UnionBytesReceipt(receipt_bytes.value));
     let new_len = _process_receipt_logs(
         decoded_receipt.value.logs, 0, deposit_requests_data, current_len
     );
@@ -331,4 +333,25 @@ func _acc_requests_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, sha256_s
     Bytes__extend__{self=sha256_state}(request_hash);
 
     return _acc_requests_inner(requests, requests_len, index + 1);
+}
+
+// @notice Decodes a receipt
+func decode_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    receipt: UnionBytesReceipt
+) -> Receipt {
+    alloc_locals;
+    if (cast(receipt.value.bytes.value, felt) != 0) {
+        // First bytes is the tx type
+        let input_bytes = receipt.value.bytes;
+        assert_not_zero(input_bytes.value.data[0]);
+        assert_le(input_bytes.value.data[0], 4);
+
+        tempvar receipt_bytes = Bytes(
+            new BytesStruct(input_bytes.value.data + 1, input_bytes.value.len - 1)
+        );
+        let decoded_receipt = decode_to_receipt(receipt_bytes);
+        return decoded_receipt;
+    }
+
+    return receipt.value.receipt;
 }
