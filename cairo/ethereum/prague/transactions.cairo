@@ -44,6 +44,7 @@ from ethereum_rlp.rlp import (
     decode_to_fee_market_transaction,
     decode_to_blob_transaction,
     encode_legacy_transaction,
+    decode_to_set_code_transaction,
 )
 from ethereum.prague.blocks import UnionBytesLegacyTransaction
 from ethereum.prague.utils.constants import MAX_CODE_SIZE
@@ -58,10 +59,9 @@ const STANDARD_CALLDATA_TOKEN_COST = 4;
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) {
     alloc_locals;
 
-    let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.legacy_transaction.value.data);
-    let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-
     if (tx.value.legacy_transaction.value != 0) {
+        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.legacy_transaction.value.data);
+        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
         let to = get_to(tx);
         let legacy_tx = tx.value.legacy_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
@@ -72,6 +72,8 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) 
     }
 
     if (tx.value.access_list_transaction.value != 0) {
+        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.access_list_transaction.value.data);
+        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
         let to = get_to(tx);
         let access_list_tx = tx.value.access_list_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
@@ -85,6 +87,8 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) 
     }
 
     if (tx.value.fee_market_transaction.value != 0) {
+        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.fee_market_transaction.value.data);
+        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
         let to = get_to(tx);
         let fee_market_tx = tx.value.fee_market_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
@@ -96,6 +100,8 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) 
     }
 
     if (tx.value.blob_transaction.value != 0) {
+        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.blob_transaction.value.data);
+        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
         let to = get_to(tx);
         let blob_tx = tx.value.blob_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
@@ -107,6 +113,8 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) 
     }
 
     if (tx.value.set_code_transaction.value != 0) {
+        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.set_code_transaction.value.data);
+        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
         let to = get_to(tx);
         let set_code_tx = tx.value.set_code_transaction;
         let cost_data = _calculate_data_and_create_cost(
@@ -469,6 +477,22 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
                     ),
                     blob_transaction=blob_transaction,
                     set_code_transaction=SetCodeTransaction(cast(0, SetCodeTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.SET_CODE) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let set_code_transaction = decode_to_set_code_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                    set_code_transaction=set_code_transaction,
                 ),
             );
             return res;

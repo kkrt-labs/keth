@@ -39,7 +39,7 @@ from ethereum_rlp.rlp import (
 )
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, given, reproduce_failure
+from hypothesis import assume, given
 
 from cairo_addons.testing.errors import cairo_error
 
@@ -408,6 +408,18 @@ class TestRlp:
                 "decode_to_blob_transaction", encoded_tx_without_type
             )
 
+            assert decoded_tx == tx
+
+        @given(tx=...)
+        def test_decode_to_set_code_transaction(
+            self, cairo_run, tx: SetCodeTransaction
+        ):
+            encoded_tx = encode_transaction(tx)
+            # Remove the type byte (0x04) since decode_to_set_code_transaction expects only the RLP part
+            encoded_tx_without_type = encoded_tx[1:]
+            decoded_tx = cairo_run(
+                "decode_to_set_code_transaction", encoded_tx_without_type
+            )
             assert decoded_tx == tx
 
         @given(receipt=...)

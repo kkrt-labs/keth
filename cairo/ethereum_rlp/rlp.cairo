@@ -4,7 +4,7 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum_types.numeric import Bool, U256, U64, Uint, bool, U256Struct
+from ethereum_types.numeric import Bool, U256, U256Struct, U64, Uint, bool
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -39,7 +39,9 @@ from ethereum.prague.fork_types import (
     TupleVersionedHash,
     TupleVersionedHashStruct,
     TupleAuthorization,
+    TupleAuthorizationStruct,
     Authorization,
+    AuthorizationStruct,
 )
 from ethereum.prague.transactions_types import (
     LegacyTransaction,
@@ -51,13 +53,14 @@ from ethereum.prague.transactions_types import (
     AccessListTransaction,
     FeeMarketTransaction,
     BlobTransaction,
+    SetCodeTransaction,
     Transaction,
     TupleAccessStruct,
     LegacyTransactionStruct,
     AccessListTransactionStruct,
     FeeMarketTransactionStruct,
     BlobTransactionStruct,
-    SetCodeTransaction,
+    SetCodeTransactionStruct,
 )
 from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import (
@@ -65,6 +68,7 @@ from ethereum.utils.numeric import (
     Bytes32_from_be_bytes,
     Uint_from_be_bytes,
     U64_from_be_bytes,
+    U8_from_be_bytes,
 )
 from ethereum.utils.bytes import Bytes8_to_Bytes, Bytes__eq__, Bytes_to_Bytes32
 from cairo_core.comparison import is_zero
@@ -864,7 +868,9 @@ func encode_set_code_transaction{range_check_ptr}(transaction: SetCodeTransactio
     let access_list_len = _encode_tuple_access_list(body_ptr, transaction.value.access_list);
     let body_ptr = body_ptr + access_list_len;
 
-    let authorizations_len = _encode_tuple_authorization(body_ptr, transaction.value.authorizations);
+    let authorizations_len = _encode_tuple_authorization(
+        body_ptr, transaction.value.authorizations
+    );
     let body_ptr = body_ptr + authorizations_len;
 
     let y_parity_len = _encode_u256(body_ptr, transaction.value.y_parity);
@@ -1562,6 +1568,126 @@ func decode_to_access_list_transaction{range_check_ptr, bitwise_ptr: BitwiseBuil
     return tx;
 }
 
+func decode_to_set_code_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    encoded_data: Bytes
+) -> SetCodeTransaction {
+    alloc_locals;
+    // Decode the RLP-encoded data into a Simple structure
+    let decoded = decode(encoded_data);
+
+    // Verify it's a sequence (list of items)
+    with_attr error_message("Invalid SetCode transaction: expected sequence") {
+        assert cast(decoded.value.bytes.value, felt) = 0;
+    }
+    let items_len = decoded.value.sequence.value.len;
+    let items = decoded.value.sequence.value.data;
+
+    // EIP-7702 (SetCode) transactions must have 13 fields
+    with_attr error_message("Invalid SetCode transaction: wrong number of fields") {
+        assert items_len = 13;
+    }
+
+    // Decode chain_id (U64)
+    with_attr error_message("Invalid chain_id: expected bytes") {
+        assert cast(items[0].value.sequence.value, felt) = 0;
+    }
+    let chain_id = U64_from_be_bytes(items[0].value.bytes);
+
+    // Decode nonce (U64) - encoded as U256, parsed as U64
+    with_attr error_message("Invalid nonce: expected bytes") {
+        assert cast(items[1].value.sequence.value, felt) = 0;
+    }
+    let nonce = U64_from_be_bytes(items[1].value.bytes);
+
+    // Decode max_priority_fee_per_gas (Uint)
+    with_attr error_message("Invalid max_priority_fee_per_gas: expected bytes") {
+        assert cast(items[2].value.sequence.value, felt) = 0;
+    }
+    let max_priority_fee_per_gas = Uint_from_be_bytes(items[2].value.bytes);
+
+    // Decode max_fee_per_gas (Uint)
+    with_attr error_message("Invalid max_fee_per_gas: expected bytes") {
+        assert cast(items[3].value.sequence.value, felt) = 0;
+    }
+    let max_fee_per_gas = Uint_from_be_bytes(items[3].value.bytes);
+
+    // Decode gas (Uint)
+    with_attr error_message("Invalid gas: expected bytes") {
+        assert cast(items[4].value.sequence.value, felt) = 0;
+    }
+    let gas = Uint_from_be_bytes(items[4].value.bytes);
+
+    // Decode to (Address)
+    with_attr error_message("Invalid to: expected bytes") {
+        assert cast(items[5].value.sequence.value, felt) = 0;
+    }
+    let to_bytes = items[5].value.bytes;
+    let to_felt = bytes_to_felt(to_bytes.value.len, to_bytes.value.data);
+    let to = Address_from_felt_be(to_felt);
+
+    // Decode value (U256)
+    with_attr error_message("Invalid value: expected bytes") {
+        assert cast(items[6].value.sequence.value, felt) = 0;
+    }
+    let value = U256_from_be_bytes(items[6].value.bytes);
+
+    // Decode data (Bytes)
+    with_attr error_message("Invalid data: expected bytes") {
+        assert cast(items[7].value.sequence.value, felt) = 0;
+    }
+    let data = items[7].value.bytes;
+
+    // Decode access_list (TupleAccess)
+    with_attr error_message("Invalid access_list: expected sequence") {
+        assert cast(items[8].value.bytes.value, felt) = 0;
+    }
+    let access_list = _decode_access_list(items[8].value.sequence);
+
+    // Decode authorizations (TupleAuthorization)
+    with_attr error_message("Invalid authorizations: expected sequence") {
+        assert cast(items[9].value.bytes.value, felt) = 0;
+    }
+    let authorizations = _decode_authorizations(items[9].value.sequence);
+
+    // Decode y_parity (U256)
+    with_attr error_message("Invalid y_parity: expected bytes") {
+        assert cast(items[10].value.sequence.value, felt) = 0;
+    }
+    let y_parity = U256_from_be_bytes(items[10].value.bytes);
+
+    // Decode r (U256)
+    with_attr error_message("Invalid r: expected bytes") {
+        assert cast(items[11].value.sequence.value, felt) = 0;
+    }
+    let r = U256_from_be_bytes(items[11].value.bytes);
+
+    // Decode s (U256)
+    with_attr error_message("Invalid s: expected bytes") {
+        assert cast(items[12].value.sequence.value, felt) = 0;
+    }
+    let s = U256_from_be_bytes(items[12].value.bytes);
+
+    // Create and return the SetCodeTransaction
+    tempvar tx = SetCodeTransaction(
+        new SetCodeTransactionStruct(
+            chain_id=chain_id,
+            nonce=nonce,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            max_fee_per_gas=max_fee_per_gas,
+            gas=gas,
+            to=to,
+            value=value,
+            data=data,
+            access_list=access_list,
+            authorizations=authorizations,
+            y_parity=y_parity,
+            r=r,
+            s=s,
+        ),
+    );
+    return tx;
+}
+
 func decode_to_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     encoded_data: Bytes
 ) -> Receipt {
@@ -1789,6 +1915,94 @@ func _decode_storage_keys_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         slots + Bytes32.SIZE, len - 1, items + Simple.SIZE
     );
     return 1 + remaining_len;
+}
+
+func _decode_authorizations_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    authorizations_ptr: Authorization*, len: felt, items: Simple*
+) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    // Each item in 'items' is an RLP-decoded Simple, which itself should be a sequence representing an Authorization
+    with_attr error_message("Invalid authorization entry: expected sequence") {
+        assert cast(items[0].value.bytes.value, felt) = 0;
+    }
+    let auth_sequence: SequenceSimple = items[0].value.sequence;
+
+    // An Authorization is RLP-encoded as a sequence of 6 fields
+    with_attr error_message("Invalid authorization entry: wrong number of fields") {
+        assert auth_sequence.value.len = 6;
+    }
+    let auth_fields: Simple* = auth_sequence.value.data;
+
+    // Decode chain_id (U256)
+    with_attr error_message("Invalid authorization chain_id: expected bytes") {
+        assert cast(auth_fields[0].value.sequence.value, felt) = 0;
+    }
+    let chain_id = U256_from_be_bytes(auth_fields[0].value.bytes);
+
+    // Decode address (Address)
+    with_attr error_message("Invalid authorization address: expected bytes") {
+        assert cast(auth_fields[1].value.sequence.value, felt) = 0;
+    }
+    let address_bytes = auth_fields[1].value.bytes;
+    let address_felt = bytes_to_felt(address_bytes.value.len, address_bytes.value.data);
+    let address = Address_from_felt_be(address_felt);
+
+    // Decode nonce (Uint)
+    with_attr error_message("Invalid authorization nonce: expected bytes") {
+        assert cast(auth_fields[2].value.sequence.value, felt) = 0;
+    }
+    let nonce = U64_from_be_bytes(auth_fields[2].value.bytes);
+
+    // Decode y_parity (U8)
+    with_attr error_message("Invalid authorization y_parity: expected bytes") {
+        assert cast(auth_fields[3].value.sequence.value, felt) = 0;
+    }
+    let y_parity = U8_from_be_bytes(auth_fields[3].value.bytes);
+
+    // Decode r (U256)
+    with_attr error_message("Invalid authorization r: expected bytes") {
+        assert cast(auth_fields[4].value.sequence.value, felt) = 0;
+    }
+    let r = U256_from_be_bytes(auth_fields[4].value.bytes);
+
+    // Decode s (U256)
+    with_attr error_message("Invalid authorization s: expected bytes") {
+        assert cast(auth_fields[5].value.sequence.value, felt) = 0;
+    }
+    let s = U256_from_be_bytes(auth_fields[5].value.bytes);
+
+    // Construct Authorization
+    // Assuming AuthorizationStruct matches these fields and types based on encode_authorization
+    assert [authorizations_ptr] = Authorization(
+        new AuthorizationStruct(
+            chain_id=chain_id, address=address, nonce=nonce, y_parity=y_parity, r=r, s=s
+        ),
+    );
+
+    // Process next authorization
+    let remaining_len = _decode_authorizations_inner(
+        authorizations_ptr + Authorization.SIZE, len - 1, items + Simple.SIZE
+    );
+    return 1 + remaining_len;
+}
+
+func _decode_authorizations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    sequence: SequenceSimple
+) -> TupleAuthorization {
+    alloc_locals;
+    let (authorizations_array_ptr: Authorization*) = alloc();
+    let authorizations_array_len = _decode_authorizations_inner(
+        authorizations_array_ptr, sequence.value.len, sequence.value.data
+    );
+
+    tempvar tuple_authorizations = TupleAuthorization(
+        new TupleAuthorizationStruct(data=authorizations_array_ptr, len=authorizations_array_len)
+    );
+    return tuple_authorizations;
 }
 
 //
@@ -2111,7 +2325,9 @@ func _encode_bytes8{range_check_ptr}(dst: felt*, raw_bytes8: Bytes8) -> felt {
     return _encode_bytes(dst, bytes);
 }
 
-func _encode_tuple_authorization_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_authorization: Authorization*) -> felt {
+func _encode_tuple_authorization_inner{range_check_ptr}(
+    dst: felt*, len: felt, raw_tuple_authorization: Authorization*
+) -> felt {
     alloc_locals;
     if (len == 0) {
         return 0;
@@ -2127,7 +2343,9 @@ func _encode_tuple_authorization_inner{range_check_ptr}(dst: felt*, len: felt, r
     return authorization_encoded.value.len + remaining_len;
 }
 
-func _encode_tuple_authorization{range_check_ptr}(dst: felt*, raw_tuple_authorization: TupleAuthorization) -> felt {
+func _encode_tuple_authorization{range_check_ptr}(
+    dst: felt*, raw_tuple_authorization: TupleAuthorization
+) -> felt {
     alloc_locals;
     if (raw_tuple_authorization.value.len == 0) {
         assert [dst] = 0xc0;
@@ -2410,7 +2628,9 @@ func encode_eip155_transaction_for_signing{range_check_ptr}(
     return result;
 }
 
-func encode_eip7702_transaction_for_signing{range_check_ptr}(transaction: SetCodeTransaction) -> Bytes {
+func encode_eip7702_transaction_for_signing{range_check_ptr}(
+    transaction: SetCodeTransaction
+) -> Bytes {
     alloc_locals;
     let (local dst) = alloc();
     let body_ptr = dst + PREFIX_LEN_MAX;  // Leave space for prefix
@@ -2446,7 +2666,9 @@ func encode_eip7702_transaction_for_signing{range_check_ptr}(transaction: SetCod
     let access_list_len = _encode_tuple_access_list(body_ptr, transaction.value.access_list);
     let body_ptr = body_ptr + access_list_len;
 
-    let authorizations_len = _encode_tuple_authorization(body_ptr, transaction.value.authorizations);
+    let authorizations_len = _encode_tuple_authorization(
+        body_ptr, transaction.value.authorizations
+    );
     let body_ptr = body_ptr + authorizations_len;
 
     // Calculate body length and encode prefix

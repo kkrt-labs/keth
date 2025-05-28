@@ -99,6 +99,7 @@ def Header__hash__(header: Header) -> Hash32:
     acc.append(header.blob_gas_used.to_bytes(32, "little"))
     acc.append(header.excess_blob_gas.to_bytes(32, "little"))
     acc.append(header.parent_beacon_block_root)
+    acc.append(header.requests_hash)
     return hashlib.blake2s(b"".join(acc)).digest()
 
 

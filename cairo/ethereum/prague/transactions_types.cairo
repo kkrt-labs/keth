@@ -3,7 +3,7 @@ from starkware.cairo.common.alloc import alloc
 
 from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32, BytesStruct
 from ethereum_types.numeric import U256, U64, Uint, U256Struct
-from ethereum.prague.fork_types import Address, TupleVersionedHash, TupleAuthorization, TupleAuthorizationStruct
+from ethereum.prague.fork_types import Address, TupleVersionedHash, TupleAuthorization, TupleAuthorizationStruct, Authorization
 from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import U256__hash__, Uint__hash__
 from cairo_core.control_flow import raise
@@ -442,6 +442,9 @@ func get_authorizations_unchecked(tx: Transaction) -> TupleAuthorization {
     if (tx_type == TransactionType.SET_CODE) {
         return tx.value.set_code_transaction.value.authorizations;
     }
-    let empty_authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
+
+    tempvar empty_authorizations = TupleAuthorization(
+        new TupleAuthorizationStruct(data=cast(0, Authorization*), len=0)
+    );
     return empty_authorizations;
 }

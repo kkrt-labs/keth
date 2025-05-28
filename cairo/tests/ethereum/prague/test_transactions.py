@@ -29,7 +29,9 @@ from cairo_addons.testing.errors import strict_raises
 class TestTransactions:
     @given(tx=...)
     def test_calculate_intrinsic_cost(self, cairo_run, tx: Transaction):
-        assert calculate_intrinsic_cost(tx) == cairo_run("calculate_intrinsic_cost", tx)
+        assert calculate_intrinsic_cost(tx) == tuple(
+            cairo_run("calculate_intrinsic_cost", tx)
+        )
 
     @given(tx=...)
     # Test case where contract creation code size is not valid
@@ -54,7 +56,7 @@ class TestTransactions:
                 validate_transaction(tx)
             return
 
-        assert result_cairo == validate_transaction(tx)
+        assert tuple(result_cairo) == validate_transaction(tx)
 
     @given(tx=...)
     def test_signing_hash_pre155(self, cairo_run, tx: LegacyTransaction):

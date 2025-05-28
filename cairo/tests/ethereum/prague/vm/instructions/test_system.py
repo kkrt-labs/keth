@@ -14,6 +14,7 @@ from ethereum.prague.vm.instructions.system import (
     selfdestruct,
     staticcall,
 )
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
@@ -236,6 +237,8 @@ class TestSystemCairoFile:
         memory_input_size=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
         memory_output_start_position=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
         memory_output_size=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
+        code=...,
+        disable_precompiles=...,
     )
     def test_generic_call(
         self,
@@ -252,6 +255,8 @@ class TestSystemCairoFile:
         memory_input_size: U256,
         memory_output_start_position: U256,
         memory_output_size: U256,
+        code: Bytes,
+        disable_precompiles: bool,
     ):
         try:
             cairo_evm = cairo_run(
@@ -268,6 +273,8 @@ class TestSystemCairoFile:
                 memory_input_size,
                 memory_output_start_position,
                 memory_output_size,
+                code,
+                disable_precompiles,
             )
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
@@ -284,6 +291,8 @@ class TestSystemCairoFile:
                     memory_input_size,
                     memory_output_start_position,
                     memory_output_size,
+                    code,
+                    disable_precompiles,
                 )
             return
 
@@ -300,6 +309,8 @@ class TestSystemCairoFile:
             memory_input_size,
             memory_output_start_position,
             memory_output_size,
+            code,
+            disable_precompiles,
         )
         assert evm == cairo_evm
 

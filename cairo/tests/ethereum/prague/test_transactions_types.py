@@ -102,3 +102,23 @@ class TestTransactionImpl:
         value = tx.value
         result_cairo = cairo_run("get_value", tx)
         assert result_cairo == value
+
+    @given(tx=...)
+    def test_get_to(self, cairo_run, tx: Transaction):
+        to = tx.to
+        result_cairo = cairo_run("get_to", tx)
+        assert result_cairo == to
+
+    @given(tx=...)
+    def test_get_authorizations_len_unchecked(self, cairo_run, tx: Transaction):
+        authorizations_len = (
+            len(tx.authorizations) if isinstance(tx, SetCodeTransaction) else 0
+        )
+        result_cairo = cairo_run("get_authorizations_len_unchecked", tx)
+        assert result_cairo == authorizations_len
+
+    @given(tx=...)
+    def test_get_authorizations_unchecked(self, cairo_run, tx: Transaction):
+        authorizations = tx.authorizations if isinstance(tx, SetCodeTransaction) else ()
+        result_cairo = cairo_run("get_authorizations_unchecked", tx)
+        assert result_cairo == authorizations
