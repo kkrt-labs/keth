@@ -135,7 +135,6 @@ from ethereum.prague.transactions_types import (
     To,
     ToStruct,
     get_to,
-    get_authorizations_len_unchecked,
     get_authorizations_unchecked,
 )
 from ethereum.prague.transactions import (
@@ -1138,8 +1137,8 @@ func check_transaction{
     }
 
     let is_not_set_code_transaction = TransactionType.SET_CODE - transaction_type;
-    let authorizations_len = get_authorizations_len_unchecked(tx);
-    if (is_not_set_code_transaction == FALSE and authorizations_len == 0) {
+    let authorizations = get_authorizations_unchecked(tx);
+    if (is_not_set_code_transaction == FALSE and authorizations.value.len == 0) {
         raise('InvalidBlock');
     }
 

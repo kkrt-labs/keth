@@ -17,7 +17,6 @@ from ethereum.exceptions import EthereumException, InvalidSignatureError
 from ethereum.prague.utils.constants import U256_ZERO
 from ethereum.prague.vm.env_impl import BlockEnvImpl
 from ethereum.prague.vm.evm_impl import Evm, Message, MessageImpl, EvmImpl
-from ethereum.prague.vm.exceptions import InvalidBlock
 from ethereum.prague.vm.gas import GasConstants
 from ethereum.prague.fork_types import (
     Address,
@@ -39,6 +38,7 @@ from ethereum_rlp.rlp import PREFIX_LEN_MAX
 from ethereum.utils.hash_dicts import set_address_contains, set_address_add
 from ethereum.utils.numeric import U256_le, U256__eq__, U256_sub, U256_add
 from legacy.utils.bytes import bytes_to_felt_le, felt_to_bytes20_little
+from cairo_core.control_flow import raise
 
 // Constants
 const SET_CODE_TX_MAGIC_LEN = 1;
@@ -262,11 +262,11 @@ func _set_delegation_loop{
     current_idx: felt,
     refund_counter: U256,
     block_env_chain_id: U64,
-) -> (updated_refund_counter: U256, err: EthereumException*) {
+) -> U256 {
     alloc_locals;
 
     if (current_idx == authorizations.value.len) {
-        return (updated_refund_counter=refund_counter, err=cast(0, EthereumException*));
+        return refund_counter;
     }
 
     let auth = authorizations.value.data[current_idx];
@@ -383,23 +383,23 @@ func set_delegation{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     message: Message,
-}() -> (refund_counter: U256, err: EthereumException*) {
+}() -> U256 {
     alloc_locals;
     tempvar initial_refund_counter = U256(new U256Struct(low=0, high=0));
     let chain_id = message.value.block_env.value.chain_id;
     let state = message.value.block_env.value.state;
     let accessed_addresses = message.value.accessed_addresses;
-    let (final_refund_counter, loop_err) = _set_delegation_loop{
+    let final_refund_counter = _set_delegation_loop{
         state=state, accessed_addresses=accessed_addresses
     }(message.value.tx_env.value.authorizations, 0, initial_refund_counter, chain_id);
     MessageImpl.set_accessed_addresses{message=message}(accessed_addresses);
     let block_env = message.value.block_env;
     BlockEnvImpl.set_state{block_env=block_env}(state);
     MessageImpl.set_block_env(block_env);
-    if (cast(loop_err, felt) != 0) {
-        return (refund_counter=U256(new U256Struct(low=0, high=0)), err=loop_err);
-    }
 
+    if (cast(message.value.code_address.value, felt) == 0) {
+        raise('InvalidBlock');
+    }
     let current_msg_code_val = message.value.code;
     let is_delegated_final_check = is_valid_delegation(current_msg_code_val);
     if (is_delegated_final_check.value == TRUE) {
@@ -436,11 +436,5 @@ func set_delegation{
         tempvar mul_mod_ptr = mul_mod_ptr;
     }
 
-    let current_message_code_address_val = message.value.code_address;
-    if (cast(current_message_code_address_val.value, felt) == 0) {
-        tempvar err_ptr = new EthereumException(InvalidBlock);
-        return (refund_counter=U256(new U256Struct(low=0, high=0)), err=err_ptr);
-    }
-
-    return (refund_counter=final_refund_counter, err=cast(0, EthereumException*));
+    return final_refund_counter;
 }

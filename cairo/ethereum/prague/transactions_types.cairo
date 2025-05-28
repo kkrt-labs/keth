@@ -429,14 +429,6 @@ func get_value(tx: Transaction) -> U256 {
 }
 
 // Do not raise in case of invalid transaction.
-func get_authorizations_len_unchecked(tx: Transaction) -> felt {
-    let tx_type = get_transaction_type(tx);
-    if (tx_type == TransactionType.SET_CODE) {
-        return tx.value.set_code_transaction.value.authorizations.value.len;
-    }
-    return 0;
-}
-
 func get_authorizations_unchecked(tx: Transaction) -> TupleAuthorization {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.SET_CODE) {
