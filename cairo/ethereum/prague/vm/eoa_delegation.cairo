@@ -57,7 +57,7 @@ const U64_MAX_VALUE = 0xffffffffffffffff;
 // @notice Whether the code is a valid delegation designation.
 // @param code The account code to check.
 // @return is_valid True if the code is a valid delegation, False otherwise.
-func is_valid_delegation{range_check_ptr}(code: Bytes) -> bool {
+func is_valid_delegation(code: Bytes) -> bool {
     alloc_locals;
     if (code.value.len != EOA_DELEGATED_CODE_LENGTH) {
         let is_valid = bool(FALSE);
@@ -388,15 +388,12 @@ func set_delegation{
     alloc_locals;
     tempvar initial_refund_counter = U256(new U256Struct(low=0, high=0));
     let chain_id = message.value.block_env.value.chain_id;
-    let state = message.value.block_env.value.state;
+    let block_env = message.value.block_env;
+    let state = block_env.value.state;
     let accessed_addresses = message.value.accessed_addresses;
     let final_refund_counter = _set_delegation_loop{
         state=state, accessed_addresses=accessed_addresses
     }(message.value.tx_env.value.authorizations, 0, initial_refund_counter, chain_id);
-    MessageImpl.set_accessed_addresses{message=message}(accessed_addresses);
-    let block_env = message.value.block_env;
-    BlockEnvImpl.set_state{block_env=block_env}(state);
-    MessageImpl.set_block_env(block_env);
 
     if (cast(message.value.code_address.value, felt) == 0) {
         raise('InvalidBlock');
@@ -405,14 +402,10 @@ func set_delegation{
     let is_delegated_final_check = is_valid_delegation(current_msg_code_val);
 
     if (is_delegated_final_check.value != FALSE) {
-        MessageImpl.set_disable_precompiles{message=message}(bool(TRUE));
         let new_code_addr_opt = get_delegated_code_address(current_msg_code_val);
-        MessageImpl.set_code_address{message=message}(new_code_addr_opt);
         tempvar new_code_addr = Address([new_code_addr_opt.value]);
         let msg_accessed_addresses = message.value.accessed_addresses;
         set_address_add{set_address=msg_accessed_addresses}(new_code_addr);
-        MessageImpl.set_accessed_addresses{message=message}(msg_accessed_addresses);
-        let state = message.value.block_env.value.state;
         let final_delegated_account = get_account{state=state}(new_code_addr);
         let final_delegated_code = get_account_code{state=state}(
             new_code_addr, final_delegated_account
@@ -420,8 +413,14 @@ func set_delegation{
         BlockEnvImpl.set_state{block_env=block_env}(state);
         MessageImpl.set_block_env(block_env);
         MessageImpl.set_code{message=message}(final_delegated_code);
+        MessageImpl.set_accessed_addresses{message=message}(msg_accessed_addresses);
+        MessageImpl.set_disable_precompiles(bool(TRUE));
+        MessageImpl.set_code_address(new_code_addr_opt);
         return final_refund_counter;
     }
 
+    BlockEnvImpl.set_state{block_env=block_env}(state);
+    MessageImpl.set_block_env(block_env);
+    MessageImpl.set_accessed_addresses(accessed_addresses);
     return final_refund_counter;
 }

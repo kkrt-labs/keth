@@ -624,7 +624,7 @@ func process_message_call{
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );
-    let block_env = evm.value.message.value.block_env;
+    let block_env = squashed_evm.value.message.value.block_env;
     return (msg, block_env);
 }
 
