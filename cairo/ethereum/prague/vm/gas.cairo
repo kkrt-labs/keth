@@ -62,10 +62,10 @@ namespace GasConstants {
     const GAS_BLOBHASH_OPCODE = 3;
     const GAS_POINT_EVALUATION = 50000;
 
-    const TARGET_BLOB_GAS_PER_BLOCK = 393216;
+    const TARGET_BLOB_GAS_PER_BLOCK = 786432;
     const GAS_PER_BLOB = 2 ** 17;
     const MIN_BLOB_GASPRICE = 1;
-    const BLOB_BASE_FEE_UPDATE_FRACTION = 3338477;
+    const BLOB_BASE_FEE_UPDATE_FRACTION = 5007716;
 
     const GAS_BLS_G1_ADD = 375;
     const GAS_BLS_G1_MUL = 12000;
