@@ -471,6 +471,8 @@ func _execute_code{
     return _execute_code(evm);
 }
 
+// Diff with EELS: we need to return an updated `block_env` from this function. As such, the signature is
+// modified to also return the updated `block_env` .
 func process_message_call{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -479,8 +481,7 @@ func process_message_call{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    block_env: BlockEnvironment,
-}(message: Message) -> MessageCallOutput {
+}(message: Message) -> (MessageCallOutput, BlockEnvironment) {
     alloc_locals;
 
     let block_env = message.value.block_env;
@@ -497,7 +498,7 @@ func process_message_call{
             tempvar collision_error = new EthereumException(AddressCollision);
             finalize_message(message);
             let msg = create_empty_message_call_output(Uint(0), collision_error);
-            return msg;
+            return (msg, block_env);
         }
 
         // Process create message
@@ -549,17 +550,49 @@ func process_message_call{
     if (cast(evm.value.error, felt) != 0) {
         finalize_evm{evm=evm}();
         let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
-        return msg;
+        return (msg, block_env);
     }
 
     let updated_refund_counter = cast(evm.value.message.value.target.value.address, felt);
     let authorization_len = evm.value.message.value.tx_env.value.authorizations.value.len;
-    let target_address = cast(evm.value.message.value.target.value.address, felt);
+    let target_address = evm.value.message.value.target.value.address.value;
     if (target_address * authorization_len != 0) {
-        let updated_refund_counter = evm.value.refund_counter + set_delegation(evm.value.message);
+        let message = evm.value.message;
+        let delegation_refund_counter = set_delegation{message=message}();
+        EvmImpl.set_message{evm=evm}(message);
+        with_attr error_message("Invariant: Delegation refund too high") {
+            assert delegation_refund_counter.value.high = 0;
+        }
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+        tempvar updated_refund_counter = evm.value.refund_counter + delegation_refund_counter.value.low;
+        tempvar evm = evm;
     } else {
-        let updated_refund_counter = evm.value.refund_counter;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+        tempvar updated_refund_counter = evm.value.refund_counter;
+        tempvar evm = evm;
     }
+    let range_check_ptr = [ap - 9];
+    let bitwise_ptr = cast([ap - 8], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 7], felt*);
+    let poseidon_ptr = cast([ap - 6], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 5], felt*);
+    let add_mod_ptr = cast([ap - 4], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 3], ModBuiltin*);
+    let updated_refund_counter = [ap-2];
+    let evm = Evm(cast([ap - 1], EvmStruct*));
+
     assert [range_check_ptr] = updated_refund_counter;
     let range_check_ptr = range_check_ptr + 1;
 
@@ -591,7 +624,8 @@ func process_message_call{
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );
-    return msg;
+    let block_env = evm.value.message.value.block_env;
+    return (msg, block_env);
 }
 
 func create_empty_message_call_output(

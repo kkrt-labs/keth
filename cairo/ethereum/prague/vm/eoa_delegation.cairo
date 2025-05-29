@@ -208,16 +208,18 @@ func access_delegation{
     alloc_locals;
     let block_env = evm.value.message.value.block_env;
     let state = block_env.value.state;
+
     let account = get_account{state=state}(address);
     let initial_code = get_account_code{state=state}(address, account);
+
     let is_valid = is_valid_delegation(initial_code);
     if (is_valid.value == FALSE) {
         BlockEnvImpl.set_state{block_env=block_env}(state);
         EvmImpl.set_block_env{evm=evm}(block_env);
         return (bool(FALSE), address, initial_code, Uint(0), cast(0, EthereumException*));
     }
+
     let delegated_optional_address = get_delegated_code_address(initial_code);
-    let delegated_address_ptr = cast(delegated_optional_address.value, Address*);
     tempvar delegated_address = Address([delegated_optional_address.value]);
     let accessed_addresses = evm.value.accessed_addresses;
     let is_warmed = set_address_contains{set=accessed_addresses}(delegated_address);
@@ -373,7 +375,6 @@ func _set_delegation_loop{
 // @notice Set the delegation code for the authorities in the message.
 // @param message The transaction message.
 // @return refund_counter The total gas refund accumulated from processing authorizations.
-// @return err An EthereumException pointer if an error occurs (e.g., invalid block due to null code_address after processing), otherwise a null pointer.
 func set_delegation{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -402,7 +403,8 @@ func set_delegation{
     }
     let current_msg_code_val = message.value.code;
     let is_delegated_final_check = is_valid_delegation(current_msg_code_val);
-    if (is_delegated_final_check.value == TRUE) {
+
+    if (is_delegated_final_check.value != FALSE) {
         MessageImpl.set_disable_precompiles{message=message}(bool(TRUE));
         let new_code_addr_opt = get_delegated_code_address(current_msg_code_val);
         MessageImpl.set_code_address{message=message}(new_code_addr_opt);
@@ -418,22 +420,7 @@ func set_delegation{
         BlockEnvImpl.set_state{block_env=block_env}(state);
         MessageImpl.set_block_env(block_env);
         MessageImpl.set_code{message=message}(final_delegated_code);
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar range_check96_ptr = range_check96_ptr;
-        tempvar add_mod_ptr = add_mod_ptr;
-        tempvar mul_mod_ptr = mul_mod_ptr;
-    } else {
-        tempvar message = message;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar range_check96_ptr = range_check96_ptr;
-        tempvar add_mod_ptr = add_mod_ptr;
-        tempvar mul_mod_ptr = mul_mod_ptr;
+        return final_refund_counter;
     }
 
     return final_refund_counter;

@@ -96,10 +96,14 @@ class TestInterpreter:
         # This only applies to the entrypoint of a transaction.
         message.block_env.state._snapshots = []
         try:
-            _, messageCallOutput = cairo_run("process_message_call", message)
+            msg_call_output_cairo, block_env_cairo = cairo_run(
+                "process_message_call", message
+            )
         except Exception as e:
             with strict_raises(type(e)):
                 process_message_call(message)
             return
 
-        assert messageCallOutput == process_message_call(message)
+        msg_call_output_python = process_message_call(message)
+        assert msg_call_output_python == msg_call_output_cairo
+        assert message.block_env == block_env_cairo

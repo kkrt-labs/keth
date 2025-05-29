@@ -440,7 +440,7 @@ func process_system_transaction{
         ),
     );
 
-    let system_tx_output = process_message_call(system_tx_message);
+    let (system_tx_output, block_env) = process_message_call(system_tx_message);
     return system_tx_output;
 }
 
@@ -709,7 +709,7 @@ func process_transaction{
     );
     let message = prepare_message{block_env=block_env, tx_env=tx_env}(tx);
 
-    let tx_output = process_message_call{block_env=block_env}(message);
+    let (tx_output, block_env) = process_message_call(message);
     // Rebind block_env's state modified in `process_message_call`
     let state = block_env.value.state;
 
@@ -723,7 +723,7 @@ func process_transaction{
     let tx_gas_refund = min(gas_refund_div_5, tx_output.value.refund_counter.value.low);
     let tx_gas_used_after_refund = tx_gas_used_before_refund - tx_gas_refund;
     let tx_gas_used_after_refund = max(
-        tx_gas_used_after_refund, calldata_floor_gas_cost
+        tx_gas_used_after_refund, calldata_floor_gas_cost.value
     );
     let tx_gas_left = tx_gas.value - tx_gas_used_after_refund;
 
