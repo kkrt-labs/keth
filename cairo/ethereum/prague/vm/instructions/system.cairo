@@ -357,7 +357,7 @@ func call_{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
-    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, to);
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(to);
     if (cast(err, felt) != 0) {
         return err;
     }
@@ -529,7 +529,7 @@ func callcode{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
-    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, code_address);
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(code_address);
     if (cast(err, felt) != 0) {
         return err;
     }
@@ -688,7 +688,7 @@ func delegatecall{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
-    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, code_address);
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(code_address);
     if (cast(err, felt) != 0) {
         return err;
     }
@@ -819,7 +819,7 @@ func staticcall{
     let access_gas_cost = access_gas_cost;
     EvmImpl.set_accessed_addresses(accessed_addresses);
 
-    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(evm, to);
+    let (disable_precompiles, code_address, code, delegated_access_gas_cost, err) = access_delegation(to);
     if (cast(err, felt) != 0) {
         return err;
     }
