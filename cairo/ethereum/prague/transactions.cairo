@@ -31,6 +31,7 @@ from ethereum.prague.transactions_types import (
     get_r,
     get_s,
     get_to,
+    get_data,
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum_rlp.rlp import (
@@ -59,26 +60,21 @@ const STANDARD_CALLDATA_TOKEN_COST = 4;
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) {
     alloc_locals;
 
+    let transaction_data = get_data(tx);
+    let tokens_in_calldata = _calculate_tokens_in_calldata(transaction_data);
+    let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
+    let to = get_to(tx);
+    let cost_data_and_create = _calculate_data_and_create_cost(
+        transaction_data, to, tokens_in_calldata
+    );
+
     if (tx.value.legacy_transaction.value != 0) {
-        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.legacy_transaction.value.data);
-        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-        let to = get_to(tx);
-        let legacy_tx = tx.value.legacy_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            legacy_tx.value.data, to, tokens_in_calldata
-        );
         let cost = Uint(TX_BASE_COST + cost_data_and_create);
         return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.access_list_transaction.value != 0) {
-        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.access_list_transaction.value.data);
-        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-        let to = get_to(tx);
         let access_list_tx = tx.value.access_list_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            access_list_tx.value.data, to, tokens_in_calldata
-        );
         let cost_access_list = _calculate_access_list_cost(
             [access_list_tx.value.access_list.value]
         );
@@ -87,43 +83,25 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) 
     }
 
     if (tx.value.fee_market_transaction.value != 0) {
-        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.fee_market_transaction.value.data);
-        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-        let to = get_to(tx);
         let fee_market_tx = tx.value.fee_market_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            fee_market_tx.value.data, to, tokens_in_calldata
-        );
         let cost_access_list = _calculate_access_list_cost([fee_market_tx.value.access_list.value]);
         let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
         return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.blob_transaction.value != 0) {
-        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.blob_transaction.value.data);
-        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-        let to = get_to(tx);
         let blob_tx = tx.value.blob_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            blob_tx.value.data, to, tokens_in_calldata
-        );
         let cost_access_list = _calculate_access_list_cost([blob_tx.value.access_list.value]);
         let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
         return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.set_code_transaction.value != 0) {
-        let tokens_in_calldata = _calculate_tokens_in_calldata(tx.value.set_code_transaction.value.data);
-        let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
-        let to = get_to(tx);
         let set_code_tx = tx.value.set_code_transaction;
-        let cost_data = _calculate_data_and_create_cost(
-            set_code_tx.value.data, to, tokens_in_calldata
-        );
         let cost_access_list = _calculate_access_list_cost([set_code_tx.value.access_list.value]);
         let authorizations = set_code_tx.value.authorizations;
         let cost_auth = PER_EMPTY_ACCOUNT_COST_LOW * authorizations.value.len;
-        let cost = Uint(TX_BASE_COST + cost_data + cost_access_list + cost_auth);
+        let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list + cost_auth);
         return (cost, calldata_floor_gas_cost);
     }
 
