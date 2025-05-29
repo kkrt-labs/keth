@@ -133,7 +133,7 @@ def message_with_authorizations_strategy(draw):
 
             # Create an account for this authority with matching nonce
             authority_account = Account(
-                nonce=auth.nonce,
+                nonce=Uint(auth.nonce),
                 balance=U256(0),
                 code_hash=keccak256(Bytes(b"")),  # Empty code
                 storage_root=hex_to_hash(
@@ -148,7 +148,7 @@ def message_with_authorizations_strategy(draw):
             # If auth.address is not null, set up the target account too
             if auth.address != Address(b"\x00" * 20):
                 target_account = Account(
-                    nonce=U64(0),
+                    nonce=Uint(0),
                     balance=U256(0),
                     code_hash=keccak256(Bytes(b"")),
                     storage_root=hex_to_hash(
