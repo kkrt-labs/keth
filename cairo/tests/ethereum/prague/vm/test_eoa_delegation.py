@@ -331,7 +331,7 @@ def authorization_strategy(draw):
     return Authorization(
         chain_id=U256(chain_id),
         address=Address(address_bytes),
-        nonce=Uint(nonce),
+        nonce=U64(nonce),
         y_parity=y_parity,
         r=r,
         s=s,

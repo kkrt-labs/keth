@@ -20,7 +20,7 @@ from ethereum.prague.fork_types import (
 )
 
 from ethereum.prague.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
-from ethereum.prague.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl
+from ethereum.prague.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl, MessageStruct
 from ethereum.prague.vm.env_impl import BlockEnvironment, BlockEnvImpl, TransactionEnvImpl
 
 from ethereum.prague.utils.constants import MAX_CODE_SIZE
@@ -486,6 +486,7 @@ func process_message_call{
 
     let block_env = message.value.block_env;
     let state = block_env.value.state;
+    local refund_counter;
 
     // Check if this is a contract creation (target is empty)
     if (cast(message.value.target.value.address, felt) == 0) {
@@ -513,6 +514,45 @@ func process_message_call{
         tempvar mul_mod_ptr = mul_mod_ptr;
         tempvar evm = evm;
     } else {
+        // Set delegation code, if required
+        let authorization_len = message.value.tx_env.value.authorizations.value.len;
+        if (authorization_len != 0) {
+            let delegation_refund_counter = set_delegation{message=message}();
+            with_attr error_message("Invariant: Delegation refund too high") {
+                assert delegation_refund_counter.value.high = 0;
+            }
+            assert refund_counter = delegation_refund_counter.value.low;
+            assert [range_check_ptr] = refund_counter;
+            let range_check_ptr = range_check_ptr + 1;
+
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        } else {
+            assert refund_counter = 0;
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        }
+        let range_check_ptr = [ap - 8];
+        let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+        let keccak_ptr = cast([ap - 6], felt*);
+        let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+        let range_check96_ptr = cast([ap - 4], felt*);
+        let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+        let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
+        let message = Message(cast([ap - 1], MessageStruct*));
+
         // Regular message call path
         let evm = process_message(message);
         // Re-bind the evm's mutated `env` object to the original `env` object.
@@ -553,50 +593,11 @@ func process_message_call{
         return (msg, block_env);
     }
 
-    let updated_refund_counter = cast(evm.value.message.value.target.value.address, felt);
-    let authorization_len = evm.value.message.value.tx_env.value.authorizations.value.len;
-    let target_address = evm.value.message.value.target.value.address.value;
-    if (target_address * authorization_len != 0) {
-        let message = evm.value.message;
-        let delegation_refund_counter = set_delegation{message=message}();
-        EvmImpl.set_message{evm=evm}(message);
-        with_attr error_message("Invariant: Delegation refund too high") {
-            assert delegation_refund_counter.value.high = 0;
-        }
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar range_check96_ptr = range_check96_ptr;
-        tempvar add_mod_ptr = add_mod_ptr;
-        tempvar mul_mod_ptr = mul_mod_ptr;
-        tempvar updated_refund_counter = evm.value.refund_counter + delegation_refund_counter.value.low;
-        tempvar evm = evm;
-    } else {
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar range_check96_ptr = range_check96_ptr;
-        tempvar add_mod_ptr = add_mod_ptr;
-        tempvar mul_mod_ptr = mul_mod_ptr;
-        tempvar updated_refund_counter = evm.value.refund_counter;
-        tempvar evm = evm;
-    }
-    let range_check_ptr = [ap - 9];
-    let bitwise_ptr = cast([ap - 8], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 7], felt*);
-    let poseidon_ptr = cast([ap - 6], PoseidonBuiltin*);
-    let range_check96_ptr = cast([ap - 5], felt*);
-    let add_mod_ptr = cast([ap - 4], ModBuiltin*);
-    let mul_mod_ptr = cast([ap - 3], ModBuiltin*);
-    let updated_refund_counter = [ap-2];
-    let evm = Evm(cast([ap - 1], EvmStruct*));
+    finalize_evm{evm=evm}();
 
+    tempvar updated_refund_counter = refund_counter + evm.value.refund_counter;
     assert [range_check_ptr] = updated_refund_counter;
     let range_check_ptr = range_check_ptr + 1;
-
-    finalize_evm{evm=evm}();
 
     let squashed_evm = evm;
     %{
@@ -616,7 +617,7 @@ func process_message_call{
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=squashed_evm.value.gas_left,
-            refund_counter=U256(new U256Struct(squashed_evm.value.refund_counter, 0)),
+            refund_counter=U256(new U256Struct(updated_refund_counter, 0)),
             logs=squashed_evm.value.logs,
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             error=squashed_evm.value.error,
