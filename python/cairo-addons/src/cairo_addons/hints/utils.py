@@ -62,6 +62,13 @@ def precompile_index_from_address(ids: VmConsts):
         ALT_BN128_MUL_ADDRESS,
         ALT_BN128_PAIRING_CHECK_ADDRESS,
         BLAKE2F_ADDRESS,
+        BLS12_G1_ADD_ADDRESS,
+        BLS12_G1_MSM_ADDRESS,
+        BLS12_G2_ADD_ADDRESS,
+        BLS12_G2_MSM_ADDRESS,
+        BLS12_MAP_FP2_TO_G2_ADDRESS,
+        BLS12_MAP_FP_TO_G1_ADDRESS,
+        BLS12_PAIRING_ADDRESS,
         ECRECOVER_ADDRESS,
         IDENTITY_ADDRESS,
         MODEXP_ADDRESS,
@@ -83,6 +90,13 @@ def precompile_index_from_address(ids: VmConsts):
         ALT_BN128_PAIRING_CHECK_ADDRESS: 7 * 3,
         BLAKE2F_ADDRESS: 8 * 3,
         POINT_EVALUATION_ADDRESS: 9 * 3,
+        BLS12_G1_ADD_ADDRESS: 10 * 3,
+        BLS12_G1_MSM_ADDRESS: 11 * 3,
+        BLS12_G2_ADD_ADDRESS: 12 * 3,
+        BLS12_G2_MSM_ADDRESS: 13 * 3,
+        BLS12_PAIRING_ADDRESS: 14 * 3,
+        BLS12_MAP_FP_TO_G1_ADDRESS: 15 * 3,
+        BLS12_MAP_FP2_TO_G2_ADDRESS: 16 * 3,
     }
 
     ids.index = ADDRESS_TO_INDEX[ids.address.to_bytes(20, "little")]

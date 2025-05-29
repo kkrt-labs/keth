@@ -19,7 +19,7 @@ from ethereum.prague.vm.eoa_delegation import (
 )
 from ethereum.utils.hexadecimal import hex_to_hash
 from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U8, U64, U256
+from ethereum_types.numeric import U8, U64, U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -233,7 +233,7 @@ def evm_with_delegation_strategy(draw):
             "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
         )
         delegated_account = Account(
-            nonce=U64(0),
+            nonce=Uint(0),
             balance=U256(0),
             code_hash=delegated_code_hash,
             storage_root=empty_storage_root,
@@ -251,7 +251,7 @@ def evm_with_delegation_strategy(draw):
     )
 
     account = Account(
-        nonce=U64(0),
+        nonce=Uint(0),
         balance=U256(0),
         code_hash=code_hash,
         storage_root=empty_storage_root,
@@ -331,7 +331,7 @@ def authorization_strategy(draw):
     return Authorization(
         chain_id=U256(chain_id),
         address=Address(address_bytes),
-        nonce=U64(nonce),
+        nonce=Uint(nonce),
         y_parity=y_parity,
         r=r,
         s=s,
