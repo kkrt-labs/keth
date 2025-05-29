@@ -1,7 +1,7 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from ethereum_types.numeric import U256, U256Struct
-from ethereum.cancun.fork_types import (
+from ethereum.prague.fork_types import (
     AddressAccountDictAccess,
     TupleAddressBytes32U256DictAccess,
     MappingAddressAccount,
@@ -13,8 +13,8 @@ from ethereum.cancun.fork_types import (
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
 )
-from ethereum.cancun.state import State, StateStruct
-from ethereum.cancun.trie import (
+from ethereum.prague.state import State, StateStruct
+from ethereum.prague.trie import (
     TrieAddressOptionalAccount,
     TrieAddressOptionalAccountStruct,
     TrieTupleAddressBytes32U256,

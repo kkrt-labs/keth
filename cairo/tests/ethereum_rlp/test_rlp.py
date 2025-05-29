@@ -1,9 +1,14 @@
 from typing import Sequence, Tuple, Union
 
 import pytest
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
-from ethereum.cancun.transactions import (
+from ethereum.prague.blocks import (
+    Header,
+    Log,
+    Receipt,
+    Withdrawal,
+)
+from ethereum.prague.fork_types import Account, Address, Bloom, encode_account
+from ethereum.prague.transactions import (
     Access,
     AccessListTransaction,
     BlobTransaction,
@@ -17,6 +22,7 @@ from ethereum_rlp.rlp import (
     decode,
     decode_item_length,
     decode_joined_encodings,
+    decode_to,
     decode_to_bytes,
     decode_to_sequence,
     encode,
@@ -166,7 +172,7 @@ class TestRlp:
         def test_encode_legacy_transaction_for_signing(
             self, cairo_run, tx: LegacyTransaction
         ):
-            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L298>
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L298>
             result = encode(
                 (
                     tx.nonce,
@@ -183,7 +189,7 @@ class TestRlp:
         def test_encode_eip155_transaction_for_signing(
             self, cairo_run, tx: LegacyTransaction, chain_id: U64
         ):
-            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L326>
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L326>
             assert encode(
                 (
                     tx.nonce,
@@ -202,7 +208,7 @@ class TestRlp:
         def test_encode_access_list_transaction_for_signing(
             self, cairo_run, tx: AccessListTransaction
         ):
-            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L359>
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L359>
             result = b"\x01" + encode(
                 (
                     tx.chain_id,
@@ -221,7 +227,7 @@ class TestRlp:
         def test_encode_fee_market_transaction_for_signing(
             self, cairo_run, tx: FeeMarketTransaction
         ):
-            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L390>
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L390>
             result = b"\x02" + encode(
                 (
                     tx.chain_id,
@@ -241,7 +247,7 @@ class TestRlp:
         def test_encode_blob_transaction_for_signing(
             self, cairo_run, tx: BlobTransaction
         ):
-            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L422>
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/transactions.py#L422>
             result = b"\x03" + encode(
                 (
                     tx.chain_id,
@@ -369,6 +375,13 @@ class TestRlp:
             )
 
             assert decoded_tx == tx
+
+        @given(receipt=...)
+        def test_decode_to_receipt(self, cairo_run, receipt: Receipt):
+            encoded_receipt = encode(receipt)
+            decoded_receipt_cairo = cairo_run("decode_to_receipt", encoded_receipt)
+            decoded_receipt = decode_to(Receipt, encoded_receipt)
+            assert decoded_receipt_cairo == decoded_receipt
 
     class TestU256:
         @given(value=...)
