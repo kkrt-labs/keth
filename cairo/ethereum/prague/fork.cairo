@@ -94,6 +94,7 @@ from ethereum.prague.fork_types import (
     VersionedHash,
     OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
+    Authorization,
     TupleAuthorization,
     TupleAuthorizationStruct,
 )
@@ -392,8 +393,12 @@ func process_system_transaction{
 
     let transient_storage = empty_transient_storage();
 
-    let blob_versioned_hashes = TupleVersionedHash(cast(0, TupleVersionedHashStruct*));
-    let authorizations = TupleAuthorization(cast(0, TupleAuthorizationStruct*));
+    tempvar blob_versioned_hashes = TupleVersionedHash(
+        new TupleVersionedHashStruct(data=cast(0, VersionedHash*), len=0)
+    );
+    tempvar authorizations = TupleAuthorization(
+        new TupleAuthorizationStruct(data=cast(0, Authorization*), len=0)
+    );
 
     tempvar index_in_block = OptionalUint(new 0);
     tempvar tx_hash = OptionalHash32(cast(0, Bytes32Struct*));
@@ -722,9 +727,7 @@ func process_transaction{
     let (gas_refund_div_5, _) = divmod(tx_gas_used_before_refund, 5);
     let tx_gas_refund = min(gas_refund_div_5, tx_output.value.refund_counter.value.low);
     let tx_gas_used_after_refund = tx_gas_used_before_refund - tx_gas_refund;
-    let tx_gas_used_after_refund = max(
-        tx_gas_used_after_refund, calldata_floor_gas_cost.value
-    );
+    let tx_gas_used_after_refund = max(tx_gas_used_after_refund, calldata_floor_gas_cost.value);
     let tx_gas_left = tx_gas.value - tx_gas_used_after_refund;
 
     // INVARIANT: tx_gas_left does not wrap around the prime field
@@ -1308,7 +1311,6 @@ func apply_body{
         target_address=Address(BEACON_ROOTS_ADDRESS), data=data_bytes
     );
 
-
     let last_block_hash = block_env.value.block_hashes.value.data[
         block_env.value.block_hashes.value.len - 1
     ];
@@ -1316,7 +1318,6 @@ func apply_body{
     process_unchecked_system_transaction{block_env=block_env}(
         target_address=Address(HISTORY_STORAGE_ADDRESS), data=last_block_hash_bytes
     );
-
 
     _apply_body_inner{block_env=block_env, block_output=block_output}(
         0, transactions.value.len, transactions
