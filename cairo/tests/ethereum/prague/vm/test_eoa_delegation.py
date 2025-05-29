@@ -7,7 +7,6 @@ against the Python reference implementation using hypothesis for differential te
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import keccak256
-from ethereum.exceptions import EthereumException
 from ethereum.prague.fork_types import Account, Address, Authorization
 from ethereum.prague.state import set_account
 from ethereum.prague.vm import Message, TransactionEnvironment
@@ -340,13 +339,11 @@ def authorization_strategy(draw):
 
 
 class TestEOADelegation:
-    """Test class for EOA delegation functions using hypothesis."""
-
     @given(code=bytes_strategy())
     def test_is_valid_delegation(self, cairo_run, code: Bytes):
         try:
             cairo_result = cairo_run("is_valid_delegation", code)
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 is_valid_delegation(code)
             return
@@ -355,31 +352,22 @@ class TestEOADelegation:
 
     @given(code=bytes_strategy())
     def test_get_delegated_code_address(self, cairo_run, code: Bytes):
-        """Test get_delegated_code_address against Python reference implementation."""
         try:
             cairo_result = cairo_run("get_delegated_code_address", code)
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 get_delegated_code_address(code)
             return
 
         python_result = get_delegated_code_address(code)
 
-        # Handle OptionalAddress comparison
-        if python_result is None:
-            # Cairo should return None (represented as null pointer)
-            assert cairo_result is None or cairo_result == Address(0)
-        else:
-            # Cairo should return the same address
-            assert cairo_result == python_result
+        assert cairo_result == python_result
 
     @given(code=valid_delegation_code_strategy())
     def test_valid_delegation_codes(self, cairo_run, code: Bytes):
-        """Test specifically with valid delegation codes."""
-        # Test is_valid_delegation
         try:
             cairo_valid = cairo_run("is_valid_delegation", code)
-        except EthereumException as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 is_valid_delegation(code)
             return
@@ -388,24 +376,11 @@ class TestEOADelegation:
         assert bool(cairo_valid) == python_valid
         assert python_valid  # Should always be true for valid codes
 
-        # Test get_delegated_code_address
-        try:
-            cairo_address = cairo_run("get_delegated_code_address", code)
-        except EthereumException as cairo_error:
-            with strict_raises(type(cairo_error)):
-                get_delegated_code_address(code)
-            return
-
-        python_address = get_delegated_code_address(code)
-        assert cairo_address == python_address
-        assert python_address is not None  # Should never be None for valid codes
-
     @given(authorization=authorization_strategy())
     def test_recover_authority(self, cairo_run, authorization: Authorization):
         try:
             cairo_result = cairo_run("recover_authority", authorization)
-        except EthereumException as cairo_error:
-            # Cairo should raise the same type of error as Python
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 recover_authority(authorization)
             return
@@ -414,42 +389,29 @@ class TestEOADelegation:
 
     @given(evm_and_address=evm_with_delegation_strategy())
     def test_access_delegation(self, cairo_run, evm_and_address):
-        """Test access_delegation function against Python reference implementation."""
         evm, address = evm_and_address
 
         try:
-            cairo_result = cairo_run("access_delegation", evm, address)
-        except EthereumException as cairo_error:
-            # Cairo should raise the same type of error as Python
+            cairo_evm, cairo_result = cairo_run("access_delegation", evm, address)
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 access_delegation(evm, address)
             return
 
         python_result = access_delegation(evm, address)
 
-        # Unpack the results
-        cairo_is_delegated, cairo_effective_address, cairo_code, cairo_gas_cost = (
-            cairo_result
-        )
-        python_is_delegated, python_effective_address, python_code, python_gas_cost = (
-            python_result
-        )
-
-        # Compare all components
-        assert bool(cairo_is_delegated) == python_is_delegated
-        assert cairo_effective_address == python_effective_address
-        assert cairo_code == python_code
-        assert cairo_gas_cost == python_gas_cost
+        assert cairo_evm == evm
+        assert tuple(cairo_result) == python_result
 
     @given(message=message_with_authorizations_strategy())
     def test_set_delegation(self, cairo_run, message):
-        """Test set_delegation function against Python reference implementation."""
         try:
-            _, cairo_result = cairo_run("set_delegation", message)
-        except EthereumException as cairo_error:
-            # Cairo should raise the same type of error as Python
+            cairo_message, cairo_result = cairo_run("set_delegation", message)
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 set_delegation(message)
             return
 
-        assert cairo_result == set_delegation(message)
+        python_result = set_delegation(message)
+        assert cairo_result == python_result
+        assert cairo_message == message

@@ -197,8 +197,7 @@ func recover_authority{
 // @return access_gas_cost The gas cost associated with accessing the delegated code (0 if not delegated or already warm).
 // @return err An EthereumException pointer if an error occurs, otherwise a null pointer.
 func access_delegation{
-    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*
-}(evm: Evm, address: Address) -> (
+    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, evm: Evm}(address: Address) -> (
     is_delegated: bool,
     effective_address: Address,
     code: Bytes,
@@ -398,24 +397,28 @@ func set_delegation{
     if (cast(message.value.code_address.value, felt) == 0) {
         raise('InvalidBlock');
     }
-    let current_msg_code_val = message.value.code;
-    let is_delegated_final_check = is_valid_delegation(current_msg_code_val);
+
+    let message_code_address_account = get_account{state=state}(Address([message.value.code_address.value]));
+    let message_code = get_account_code{state=state}(Address([message.value.code_address.value]), message_code_address_account);
+    MessageImpl.set_code{message=message}(message_code);
+
+    let is_delegated_final_check = is_valid_delegation(message_code);
 
     if (is_delegated_final_check.value != FALSE) {
-        let new_code_addr_opt = get_delegated_code_address(current_msg_code_val);
-        tempvar new_code_addr = Address([new_code_addr_opt.value]);
-        let msg_accessed_addresses = message.value.accessed_addresses;
-        set_address_add{set_address=msg_accessed_addresses}(new_code_addr);
-        let final_delegated_account = get_account{state=state}(new_code_addr);
-        let final_delegated_code = get_account_code{state=state}(
-            new_code_addr, final_delegated_account
-        );
+        MessageImpl.set_disable_precompiles(bool(TRUE));
+
+        let delegated_code_address = get_delegated_code_address(message_code);
+        MessageImpl.set_code_address(delegated_code_address);
+
+        set_address_add{set_address=accessed_addresses}(Address([message.value.code_address.value]));
+        MessageImpl.set_accessed_addresses{message=message}(accessed_addresses);
+
+        let message_code_address_account_post_delegation = get_account{state=state}(Address([message.value.code_address.value]));
+        let message_code_post_delegation = get_account_code{state=state}(Address([message.value.code_address.value]), message_code_address_account_post_delegation);
+        MessageImpl.set_code{message=message}(message_code_post_delegation);
+
         BlockEnvImpl.set_state{block_env=block_env}(state);
         MessageImpl.set_block_env(block_env);
-        MessageImpl.set_code{message=message}(final_delegated_code);
-        MessageImpl.set_accessed_addresses{message=message}(msg_accessed_addresses);
-        MessageImpl.set_disable_precompiles(bool(TRUE));
-        MessageImpl.set_code_address(new_code_addr_opt);
         return final_refund_counter;
     }
 
