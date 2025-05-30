@@ -165,7 +165,13 @@ class StepHandler:
     ) -> str:
         """Generate output filename based on step and parameters."""
         if step == Step.BODY and start_index is not None and chunk_size is not None:
-            return f"{file_type}_{block_number}_{start_index}_{chunk_size}.json"
+            return f"{file_type}_{block_number}_body_{start_index}_{chunk_size}.json"
+        elif step == Step.INIT:
+            return f"{file_type}_{block_number}_init.json"
+        elif step == Step.TEARDOWN:
+            return f"{file_type}_{block_number}_teardown.json"
+        elif step == Step.AGGREGATOR:
+            return f"{file_type}_{block_number}_aggregator.json"
         return f"{file_type}_{block_number}.json"
 
     @staticmethod
@@ -603,6 +609,142 @@ def e2e(
         f"[bold green]Running pipeline for {step} step of block {block_number}..."
     ):
         _run_pipeline()
+
+
+@app.command()
+def generate_ar_pies(
+    block_number: int = typer.Option(
+        ..., "-b", "--block", help="Ethereum block number"
+    ),
+    data_dir: Path = typer.Option(
+        Path("data"),
+        help="Base data directory",
+        dir_okay=True,
+        file_okay=False,
+    ),
+    proving_run_id: Optional[int] = typer.Option(
+        None,
+        help="Proving run ID (if not provided, will use next available)",
+    ),
+    chain_id: Optional[int] = typer.Option(
+        None,
+        help="Chain ID (if not provided, will be read from ZKPI file)",
+    ),
+    zkpi_version: str = typer.Option(
+        "1",
+        help="ZKPI version",
+    ),
+    body_chunk_size: int = typer.Option(
+        10,
+        "--body-chunk-size",
+        help="Number of transactions to process in each body chunk",
+    ),
+    output_trace_components: bool = typer.Option(
+        False,
+        "--output-trace-components",
+        help="Output trace components",
+    ),
+    pi_json: bool = typer.Option(
+        False,
+        "--pi-json",
+        help="Output prover inputs in JSON format",
+    ),
+):
+    """
+    Generate all AR-PIE (Automated Recursive Proof Inputs for Ethereum) traces for a block.
+
+    This command generates traces for:
+    - init step
+    - body steps (chunked by --body-chunk-size transactions)
+    - teardown step
+
+    All traces are saved with consistent naming patterns matching the proof naming convention.
+    """
+    validate_block_number(block_number)
+
+    # Create context with automatic resolution
+    ctx = KethContext.create(
+        data_dir=data_dir,
+        block_number=block_number,
+        chain_id=chain_id,
+        zkpi_version=zkpi_version,
+        proving_run_id=proving_run_id,
+    )
+
+    # Load ZKPI to get transaction count
+    zkpi_program_input = load_zkpi_fixture(ctx.zkpi_path)
+    total_transactions = len(zkpi_program_input["block"].transactions)
+
+    console.print(f"[blue]Generating AR-PIE traces for block {block_number}[/]")
+    console.print(f"[blue]Total transactions: {total_transactions}[/]")
+    console.print(f"[blue]Body chunk size: {body_chunk_size}[/]")
+
+    steps_to_generate = []
+
+    # Step 1: Generate init trace
+    steps_to_generate.append(("init", Step.INIT, None, None))
+
+    # Step 2: Generate body traces in chunks
+    for start_index in range(0, total_transactions, body_chunk_size):
+        chunk_size = min(body_chunk_size, total_transactions - start_index)
+        steps_to_generate.append(("body", Step.BODY, start_index, chunk_size))
+
+    # Step 3: Generate teardown trace
+    steps_to_generate.append(("teardown", Step.TEARDOWN, None, None))
+
+    total_steps = len(steps_to_generate)
+    console.print(f"[blue]Total steps to generate: {total_steps}[/]")
+
+    @handle_command_error("generating AR-PIE traces")
+    def _generate_all_traces():
+        for i, (step_name, step, start_index, chunk_size) in enumerate(
+            steps_to_generate, 1
+        ):
+            # Get the appropriate compiled program
+            compiled_program = get_default_program(step)
+
+            if not compiled_program.exists():
+                console.print(
+                    f"[yellow]Warning: Compiled program not found at {compiled_program}[/]"
+                )
+                console.print(f"[yellow]Skipping {step_name} step[/]")
+                continue
+
+            # Generate output filename with consistent naming
+            output_filename = StepHandler.get_output_filename(
+                step, block_number, start_index, chunk_size
+            )
+            output_path = ctx.proving_run_dir / output_filename
+
+            # Load program input
+            program_input = StepHandler.load_program_input(
+                step, ctx.zkpi_path, start_index, chunk_size
+            )
+
+            step_description = step_name
+            if step == Step.BODY:
+                step_description = f"body [{start_index}:{start_index + chunk_size}]"
+
+            with console.status(
+                f"[bold green]Generating {step_description} trace ({i}/{total_steps})..."
+            ):
+                run_generate_trace(
+                    entrypoint="main",
+                    program_input=program_input,
+                    compiled_program_path=str(compiled_program),
+                    output_path=output_path,
+                    output_trace_components=output_trace_components,
+                    pi_json=pi_json,
+                )
+                console.print(
+                    f"[green]✓[/] {step_description} trace: {output_path.name}"
+                )
+
+        console.print(
+            f"[green]✓[/] All AR-PIE traces generated successfully in {ctx.proving_run_dir}"
+        )
+
+    _generate_all_traces()
 
 
 if __name__ == "__main__":

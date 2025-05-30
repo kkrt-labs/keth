@@ -262,9 +262,21 @@ class TestStepHandler:
         filename = StepHandler.get_output_filename(Step.MAIN, 12345)
         assert filename == "prover_input_info_12345.json"
 
+        # Init step
+        filename = StepHandler.get_output_filename(Step.INIT, 12345)
+        assert filename == "prover_input_info_12345_init.json"
+
+        # Teardown step
+        filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345)
+        assert filename == "prover_input_info_12345_teardown.json"
+
+        # Aggregator step
+        filename = StepHandler.get_output_filename(Step.AGGREGATOR, 12345)
+        assert filename == "prover_input_info_12345_aggregator.json"
+
         # Body step with indices
         filename = StepHandler.get_output_filename(Step.BODY, 12345, 0, 5)
-        assert filename == "prover_input_info_12345_0_5.json"
+        assert filename == "prover_input_info_12345_body_0_5.json"
 
     def test_proof_filename_generation(self):
         """Test proof filename generation for different steps."""
@@ -674,3 +686,160 @@ try:
 except ImportError:
     # Hypothesis not available, skip property-based tests
     pass
+
+
+@pytest.mark.integration
+class TestGenerateArPiesCommand(TestKethCLIBase):
+    """Test suite for the generate_ar_pies command."""
+
+    def test_generate_ar_pies_command_basic(self, temp_data_dir, mock_compiled_program):
+        """Test basic generate_ar_pies functionality."""
+        # Create mock compiled programs for all required steps
+        mock_compiled_program(Step.INIT)
+        mock_compiled_program(Step.BODY)
+        mock_compiled_program(Step.TEARDOWN)
+
+        with patch("scripts.keth.run_generate_trace") as mock_trace:
+            result = self.runner.invoke(
+                app,
+                [
+                    "generate-ar-pies",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--body-chunk-size",
+                    "5",
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "All AR-PIE traces generated successfully"
+        )
+        # Should call generate_trace multiple times (init + body chunks + teardown)
+        assert mock_trace.call_count >= 3
+
+    def test_generate_ar_pies_command_with_options(
+        self, temp_data_dir, mock_compiled_program
+    ):
+        """Test generate_ar_pies with various options."""
+        # Create mock compiled programs
+        mock_compiled_program(Step.INIT)
+        mock_compiled_program(Step.BODY)
+        mock_compiled_program(Step.TEARDOWN)
+
+        with patch("scripts.keth.run_generate_trace") as mock_trace:
+            result = self.runner.invoke(
+                app,
+                [
+                    "generate-ar-pies",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--body-chunk-size",
+                    "3",
+                    "--output-trace-components",
+                    "--pi-json",
+                    "--proving-run-id",
+                    "42",
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "All AR-PIE traces generated successfully"
+        )
+        # Verify options are passed to the trace generation function
+        for call in mock_trace.call_args_list:
+            args, kwargs = call
+            assert kwargs["output_trace_components"] is True
+            assert kwargs["pi_json"] is True
+
+    def test_generate_ar_pies_command_body_chunking(
+        self, temp_data_dir, mock_compiled_program
+    ):
+        """Test that body steps are properly chunked."""
+        # Create mock compiled programs
+        mock_compiled_program(Step.INIT)
+        mock_compiled_program(Step.BODY)
+        mock_compiled_program(Step.TEARDOWN)
+
+        with patch("scripts.keth.run_generate_trace"):
+            result = self.runner.invoke(
+                app,
+                [
+                    "generate-ar-pies",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--body-chunk-size",
+                    "2",  # Small chunk size to force multiple chunks
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "All AR-PIE traces generated successfully"
+        )
+
+        # Check that body chunks appear in the output with correct ranges
+        # With 8 transactions and chunk size 2, we should have body chunks [0:2], [2:4], [4:6], [6:8]
+        assert "body [0:2]" in result.stdout
+        assert "body [2:4]" in result.stdout
+        assert "body [4:6]" in result.stdout
+        assert "body [6:8]" in result.stdout
+
+    def test_generate_ar_pies_invalid_block_number(self, temp_data_dir):
+        """Test generate_ar_pies with invalid block number."""
+        result = self.runner.invoke(
+            app,
+            [
+                "generate-ar-pies",
+                "-b",
+                "19426586",  # Before Cancun fork
+                "--data-dir",
+                str(temp_data_dir),
+            ],
+        )
+
+        self.helper.assert_error_with_message(result, "before Cancun fork")
+
+    def test_generate_ar_pies_filename_consistency(
+        self, temp_data_dir, mock_compiled_program
+    ):
+        """Test that generated filenames match the expected naming pattern."""
+        # Create mock compiled programs
+        mock_compiled_program(Step.INIT)
+        mock_compiled_program(Step.BODY)
+        mock_compiled_program(Step.TEARDOWN)
+
+        with patch("scripts.keth.run_generate_trace") as mock_trace:
+            result = self.runner.invoke(
+                app,
+                [
+                    "generate-ar-pies",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--body-chunk-size",
+                    "10",
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "All AR-PIE traces generated successfully"
+        )
+
+        # Check that the output files use the correct naming pattern
+        for call in mock_trace.call_args_list:
+            args, kwargs = call
+            output_path = Path(kwargs["output_path"])
+            filename = output_path.name
+
+            # Should match the expected patterns
+            assert (
+                filename.endswith("_init.json")
+                or filename.endswith("_teardown.json")
+                or "_body_" in filename
+            ), f"Unexpected filename pattern: {filename}"
