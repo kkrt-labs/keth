@@ -27,6 +27,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
 )
 from ethereum.prague.trie import (
@@ -279,6 +280,7 @@ class TestSerde:
             AccessListTransaction,
             FeeMarketTransaction,
             BlobTransaction,
+            SetCodeTransaction,
             Transaction,
             MessageCallGas,
             LeafNode,

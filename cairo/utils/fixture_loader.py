@@ -189,7 +189,7 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
         raise e
 
-    load = LoadKethFixture("prague", "prague")
+    load = LoadKethFixture("Prague", "prague")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
 
@@ -558,7 +558,7 @@ def process_block_transactions(
 ) -> Tuple[Tuple[LegacyTransaction, ...], Tuple[Dict[str, Any], ...]]:
 
     transactions = tuple(
-        TransactionLoad(normalize_transaction(tx), ForkLoad("Prague")).read()
+        TransactionLoad(normalize_transaction(tx), ForkLoad("prague")).read()
         for tx in block_transactions
     )
     encoded_transactions = tuple(

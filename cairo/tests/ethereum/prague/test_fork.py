@@ -317,6 +317,7 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         gas=gas_strategy,
         max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
         max_fee_per_gas=st.just(max_fee_per_gas),
+        max_fee_per_blob_gas=uint.map(U256),
         blob_versioned_hashes=st.lists(st.from_type(VersionedHash), max_size=3).map(
             tuple
         ),

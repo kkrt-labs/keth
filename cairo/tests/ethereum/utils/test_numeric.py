@@ -10,7 +10,7 @@ from ethereum.prague.vm.gas import (
 )
 from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum_types.bytes import Bytes, Bytes32
-from ethereum_types.numeric import U64, U256, Uint
+from ethereum_types.numeric import U8, U64, U256, Uint
 from hypothesis import example, given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
@@ -115,6 +115,15 @@ class TestNumeric:
         assert result == expected
 
     class TestUint:
+        @given(bytes=small_bytes)
+        def test_U8_from_be_bytes(self, cairo_run, bytes: Bytes):
+            try:
+                assert U8.from_be_bytes(bytes) == cairo_run("U8_from_be_bytes", bytes)
+            except Exception as e:
+                with strict_raises(type(e)):
+                    U8.from_be_bytes(bytes)
+                return
+
         # @dev Note Uint type from EELS is unbounded.
         # But Uint_from_be_bytes panics if len(bytes) > 31
         @given(bytes=small_bytes)

@@ -20,7 +20,7 @@ from ethereum.prague.fork_types import (
 )
 
 from ethereum.prague.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
-from ethereum.prague.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl
+from ethereum.prague.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl, MessageStruct
 from ethereum.prague.vm.env_impl import BlockEnvironment, BlockEnvImpl, TransactionEnvImpl
 
 from ethereum.prague.utils.constants import MAX_CODE_SIZE
@@ -55,6 +55,7 @@ from ethereum.prague.state import (
     State,
     StateStruct,
 )
+from ethereum.prague.vm.eoa_delegation import set_delegation
 
 from ethereum.prague.vm.evm_impl import EvmImpl
 
@@ -345,6 +346,9 @@ func execute_code{
         );
         // Addresses that are not precompiles return 0.
         if (precompile_address != 0) {
+            if (evm.value.message.value.disable_precompiles.value != FALSE) {
+                return evm;
+            }
             %{
                 precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
                 logger.trace_cairo(f"PrecompileStart: {precompile_address_bytes}")
@@ -467,6 +471,8 @@ func _execute_code{
     return _execute_code(evm);
 }
 
+// Diff with EELS: we need to return an updated `block_env` from this function. As such, the signature is
+// modified to also return the updated `block_env` .
 func process_message_call{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -475,12 +481,12 @@ func process_message_call{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    block_env: BlockEnvironment,
-}(message: Message) -> MessageCallOutput {
+}(message: Message) -> (MessageCallOutput, BlockEnvironment) {
     alloc_locals;
 
     let block_env = message.value.block_env;
     let state = block_env.value.state;
+    local refund_counter;
 
     // Check if this is a contract creation (target is empty)
     if (cast(message.value.target.value.address, felt) == 0) {
@@ -493,7 +499,7 @@ func process_message_call{
             tempvar collision_error = new EthereumException(AddressCollision);
             finalize_message(message);
             let msg = create_empty_message_call_output(Uint(0), collision_error);
-            return msg;
+            return (msg, block_env);
         }
 
         // Process create message
@@ -508,6 +514,45 @@ func process_message_call{
         tempvar mul_mod_ptr = mul_mod_ptr;
         tempvar evm = evm;
     } else {
+        // Set delegation code, if required
+        let authorization_len = message.value.tx_env.value.authorizations.value.len;
+        if (authorization_len != 0) {
+            let delegation_refund_counter = set_delegation{message=message}();
+            with_attr error_message("Invariant: Delegation refund too high") {
+                assert delegation_refund_counter.value.high = 0;
+            }
+            assert refund_counter = delegation_refund_counter.value.low;
+            assert [range_check_ptr] = refund_counter;
+            let range_check_ptr = range_check_ptr + 1;
+
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        } else {
+            assert refund_counter = 0;
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        }
+        let range_check_ptr = [ap - 8];
+        let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+        let keccak_ptr = cast([ap - 6], felt*);
+        let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+        let range_check96_ptr = cast([ap - 4], felt*);
+        let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+        let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
+        let message = Message(cast([ap - 1], MessageStruct*));
+
         // Regular message call path
         let evm = process_message(message);
         // Re-bind the evm's mutated `env` object to the original `env` object.
@@ -545,13 +590,14 @@ func process_message_call{
     if (cast(evm.value.error, felt) != 0) {
         finalize_evm{evm=evm}();
         let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
-        return msg;
+        return (msg, block_env);
     }
 
-    assert [range_check_ptr] = evm.value.refund_counter;
-    let range_check_ptr = range_check_ptr + 1;
-
     finalize_evm{evm=evm}();
+
+    tempvar updated_refund_counter = refund_counter + evm.value.refund_counter;
+    assert [range_check_ptr] = updated_refund_counter;
+    let range_check_ptr = range_check_ptr + 1;
 
     let squashed_evm = evm;
     %{
@@ -571,7 +617,7 @@ func process_message_call{
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=squashed_evm.value.gas_left,
-            refund_counter=U256(new U256Struct(squashed_evm.value.refund_counter, 0)),
+            refund_counter=U256(new U256Struct(updated_refund_counter, 0)),
             logs=squashed_evm.value.logs,
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             error=squashed_evm.value.error,
@@ -579,7 +625,8 @@ func process_message_call{
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );
-    return msg;
+    let block_env = squashed_evm.value.message.value.block_env;
+    return (msg, block_env);
 }
 
 func create_empty_message_call_output(

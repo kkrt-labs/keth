@@ -26,9 +26,10 @@ from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
 )
 from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_pairing import bls12_pairing
 from cairo_core.control_flow import raise
+
 // currently 17 precompiles.
 const N_PRECOMPILES = 17;
-const HIGHEST_PRECOMPILE_LEADING_BYTE = 0x0a;
+const HIGHEST_PRECOMPILE_LEADING_BYTE = 0x11;
 
 // count 3 steps per index: precompile_address, call, precompile_fn
 const MAX_OFFSET = N_PRECOMPILES * 3;
@@ -43,7 +44,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     alloc_locals;
 
     // Check if address is a valid precompile
-    // Addresses are little-endian, we want easy comparison to 0x1-0xa value, take the leading byte
+    // Addresses are little-endian, we want easy comparison to 0x01-0x11 value, take the leading byte
     let (address_high, address_low) = split_felt(address);
     if (address_low != 0) {
         return (0, 0);
@@ -95,39 +96,39 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     // precompiled contract at compile time
     // - index i+2 is the function pointer of the precompiled contract
     PRE_COMPILED_CONTRACTS:
-    dw 0x100000000000000000000000000000000000000;
+    dw 0x0100000000000000000000000000000000000000;
     call ecrecover;  // ECRECOVER
-    dw 0x200000000000000000000000000000000000000;
+    dw 0x0200000000000000000000000000000000000000;
     call sha256;  // SHA256
-    dw 0x300000000000000000000000000000000000000;
+    dw 0x0300000000000000000000000000000000000000;
     call ripemd160;  // RIPEMD160
-    dw 0x400000000000000000000000000000000000000;
+    dw 0x0400000000000000000000000000000000000000;
     call identity;  // IDENTITY
-    dw 0x500000000000000000000000000000000000000;
+    dw 0x0500000000000000000000000000000000000000;
     call modexp;  // MODEXP
-    dw 0x600000000000000000000000000000000000000;
+    dw 0x0600000000000000000000000000000000000000;
     call alt_bn128_add;  // ECADD
-    dw 0x700000000000000000000000000000000000000;
+    dw 0x0700000000000000000000000000000000000000;
     call alt_bn128_mul;  // ECMUL
-    dw 0x800000000000000000000000000000000000000;
+    dw 0x0800000000000000000000000000000000000000;
     call alt_bn128_pairing_check;  // ECPAIRING
-    dw 0x900000000000000000000000000000000000000;
+    dw 0x0900000000000000000000000000000000000000;
     call blake2f;  // BLAKE2F
-    dw 0xa00000000000000000000000000000000000000;
+    dw 0x0a00000000000000000000000000000000000000;
     call point_evaluation;  // POINT_EVALUATION
-    dw 0xb00000000000000000000000000000000000000;
+    dw 0x0b00000000000000000000000000000000000000;
     call bls12_g1_add;  // BLS12_G1ADD
-    dw 0xc00000000000000000000000000000000000000;
+    dw 0x0c00000000000000000000000000000000000000;
     call bls12_g1_msm;  // BLS12_G1MSM
-    dw 0xd00000000000000000000000000000000000000;
+    dw 0x0d00000000000000000000000000000000000000;
     call bls12_g2_add;  // BLS12_G2ADD
-    dw 0xe00000000000000000000000000000000000000;
+    dw 0x0e00000000000000000000000000000000000000;
     call bls12_g2_msm;  // BLS12_G2MSM
-    dw 0xf00000000000000000000000000000000000000;
+    dw 0x0f00000000000000000000000000000000000000;
     call bls12_pairing;  // BLS12_PAIRING_CHECK
-    dw 0x100000000000000000000000000000000000000;
+    dw 0x1000000000000000000000000000000000000000;
     call bls12_map_fp_to_g1;  // BLS12_MAP_FP_TO_G1
-    dw 0x110000000000000000000000000000000000000;
+    dw 0x1100000000000000000000000000000000000000;
     call bls12_map_fp2_to_g2;  // BLS12_MAP_FP2_TO_G2
     // not reached.
     ret;

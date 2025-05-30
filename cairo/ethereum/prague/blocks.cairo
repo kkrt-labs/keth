@@ -135,6 +135,7 @@ func Header__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: Header)
         blake2s_add_felt(self.value.blob_gas_used.value, 0);
         blake2s_add_felt(self.value.excess_blob_gas.value, 0);
         blake2s_add_uint256([self.value.parent_beacon_block_root.value]);
+        blake2s_add_uint256([self.value.requests_hash.value]);
     }
 
     let n_bytes = 32 * HeaderStruct.SIZE;

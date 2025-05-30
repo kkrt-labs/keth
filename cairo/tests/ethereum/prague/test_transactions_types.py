@@ -7,6 +7,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
 )
 from ethereum_types.bytes import Bytes0
@@ -24,6 +25,8 @@ def _transaction_type(tx: Transaction) -> int:
         return 2
     elif isinstance(tx, BlobTransaction):
         return 3
+    elif isinstance(tx, SetCodeTransaction):
+        return 4
 
 
 class TestUnionBytes0Address:
@@ -99,3 +102,15 @@ class TestTransactionImpl:
         value = tx.value
         result_cairo = cairo_run("get_value", tx)
         assert result_cairo == value
+
+    @given(tx=...)
+    def test_get_to(self, cairo_run, tx: Transaction):
+        to = tx.to
+        result_cairo = cairo_run("get_to", tx)
+        assert result_cairo == to
+
+    @given(tx=...)
+    def test_get_authorizations_unchecked(self, cairo_run, tx: Transaction):
+        authorizations = tx.authorizations if isinstance(tx, SetCodeTransaction) else ()
+        result_cairo = cairo_run("get_authorizations_unchecked", tx)
+        assert result_cairo == authorizations

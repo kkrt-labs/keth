@@ -16,6 +16,7 @@ from ethereum_types.numeric import U256, Uint, bool
 from ethereum.prague.fork_types import Address
 from ethereum.exceptions import EthereumException
 from ethereum.prague.vm.evm_impl import Evm
+from ethereum_types.bytes import Bytes
 
 func test_generic_create{
     range_check_ptr,
@@ -98,6 +99,8 @@ func test_generic_call{
     memory_input_size: U256,
     memory_output_start: U256,
     memory_output_size: U256,
+    code: Bytes,
+    disable_precompiles: bool,
 ) -> EthereumException* {
     let (process_message_label) = get_label_location(process_message);
     let res = generic_call{process_message_label=process_message_label, evm=evm}(
@@ -112,6 +115,8 @@ func test_generic_call{
         memory_input_size,
         memory_output_start,
         memory_output_size,
+        code,
+        disable_precompiles,
     );
     return res;
 }

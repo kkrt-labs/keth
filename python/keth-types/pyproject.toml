@@ -30,4 +30,4 @@ known_first_party = [
 
 
 [tool.uv.sources]
-ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "8d0c7bf06ac605081ce52ac2215b9776f77230d3" }
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }
