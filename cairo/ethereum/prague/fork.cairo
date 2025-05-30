@@ -1661,7 +1661,10 @@ func state_transition{
 
         assert block_output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
 
-        assert requests_hash = block.value.header.value.requests_hash;
+        let req_hash_eq = Bytes32__eq__(
+            requests_hash, block.value.header.value.requests_hash
+        );
+        assert req_hash_eq.value = 1;
     }
 
     _append_block{chain=chain}(block);
