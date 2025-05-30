@@ -591,20 +591,35 @@ impl PyCairoRunner {
 }
 
 /// Initialize Cairo execution environment with the given program and inputs.
+///
+/// # Arguments
+/// * `entrypoint` - The entrypoint of the program
+/// * `program_input` - The input to the program
+/// * `compiled_program_path` - The path to the compiled program
+/// * `proof_mode` - Whether to run in proof mode
+/// * `cairo_pie` - Whether to output Cairo PIE
+///
+/// Note that if cairo_pie is true, proof_mode must be false.
 fn prepare_cairo_execution<'a>(
     entrypoint: &'a str,
     program_input: PyObject,
     compiled_program_path: &str,
+    proof_mode: bool,
+    cairo_pie: bool,
 ) -> PyResult<(Program, ExecutionScopes, CairoRunConfig<'a>)> {
+    if proof_mode && cairo_pie {
+        panic!("Proof mode and Cairo PIE cannot be used together");
+    }
+
     let cairo_run_config: CairoRunConfig<'a> = CairoRunConfig {
         entrypoint,
         trace_enabled: true,
         relocate_mem: true,
         layout: LayoutName::all_cairo_stwo,
-        proof_mode: true,
+        proof_mode,
         secure_run: Some(true),
-        disable_trace_padding: true,
-        allow_missing_builtins: Default::default(),
+        disable_trace_padding: proof_mode,
+        allow_missing_builtins: Some(true),
         dynamic_layout_params: Default::default(),
     };
 
@@ -680,13 +695,19 @@ pub fn generate_trace(
     output_path: PathBuf,
     output_trace_components: bool,
     pi_json: bool,
+    cairo_pie: bool,
 ) -> PyResult<()> {
     setup_logging().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to setup logging: {}", e))
     })?;
 
-    let (program, exec_scopes, cairo_run_config) =
-        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
+    let (program, exec_scopes, cairo_run_config) = prepare_cairo_execution(
+        &entrypoint,
+        program_input,
+        &compiled_program_path,
+        !cairo_pie,
+        cairo_pie,
+    )?;
 
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
     let _run_span_guard = run_span.enter();
@@ -708,18 +729,31 @@ pub fn generate_trace(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
-    // Write prover input infos
-    let prover_input_info =
-        cairo_runner.get_prover_input_info().expect("Unable to get prover input info");
+    // Create output directory if needed
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    if pi_json {
-        std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
+
+    if cairo_pie {
+        // Output Cairo PIE
+        let cairo_pie_result = cairo_runner.get_cairo_pie().expect("Unable to get cairo pie");
+        cairo_pie_result.write_zip_file(&output_path, false).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to write Cairo PIE: {}",
+                e
+            ))
+        })?;
     } else {
-        // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
-        let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
-        std::fs::write(&output_path, bytes)?;
+        // Output prover input info (original behavior)
+        let prover_input_info =
+            cairo_runner.get_prover_input_info().expect("Unable to get prover input info");
+        if pi_json {
+            std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
+        } else {
+            // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
+            let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
+            std::fs::write(&output_path, bytes)?;
+        }
     }
 
     if output_trace_components {
@@ -764,7 +798,7 @@ pub fn run_end_to_end(
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
     let _run_span_guard = run_span.enter();
     let (program, exec_scopes, run_config) =
-        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
+        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path, true, false)?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
     let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(

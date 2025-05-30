@@ -162,17 +162,26 @@ class StepHandler:
         start_index: Optional[int] = None,
         chunk_size: Optional[int] = None,
         file_type: str = "prover_input_info",
+        cairo_pie: bool = False,
     ) -> str:
         """Generate output filename based on step and parameters."""
+        # Determine base filename pattern
         if step == Step.BODY and start_index is not None and chunk_size is not None:
-            return f"{file_type}_{block_number}_body_{start_index}_{chunk_size}.json"
+            base_name = f"{block_number}_body_{start_index}_{chunk_size}"
         elif step == Step.INIT:
-            return f"{file_type}_{block_number}_init.json"
+            base_name = f"{block_number}_init"
         elif step == Step.TEARDOWN:
-            return f"{file_type}_{block_number}_teardown.json"
+            base_name = f"{block_number}_teardown"
         elif step == Step.AGGREGATOR:
-            return f"{file_type}_{block_number}_aggregator.json"
-        return f"{file_type}_{block_number}.json"
+            base_name = f"{block_number}_aggregator"
+        else:
+            base_name = f"{block_number}"
+
+        # Determine file extension based on output type
+        if cairo_pie:
+            return f"cairo_pie_{base_name}.zip"
+        else:
+            return f"{file_type}_{base_name}.json"
 
     @staticmethod
     def get_proof_filename(
@@ -372,6 +381,11 @@ def trace(
         "--pi-json",
         help="Output prover inputs in JSON format",
     ),
+    cairo_pie: bool = typer.Option(
+        False,
+        "--cairo-pie",
+        help="Output Cairo PIE file",
+    ),
 ):
     """
     Runs the KETH trace-generation step for a given Ethereum block.
@@ -396,7 +410,7 @@ def trace(
         trace_path.parent.mkdir(parents=True, exist_ok=True)
 
     output_filename = StepHandler.get_output_filename(
-        step, block_number, start_index, chunk_size
+        step, block_number, start_index, chunk_size, cairo_pie=cairo_pie
     )
     output_path = trace_path / output_filename
 
@@ -413,6 +427,7 @@ def trace(
             output_path=output_path,
             output_trace_components=output_trace_components,
             pi_json=pi_json,
+            cairo_pie=cairo_pie,
         )
         console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
 
@@ -612,7 +627,7 @@ def e2e(
 
 
 @app.command()
-def generate_ar_pies(
+def generate_ar_inputs(
     block_number: int = typer.Option(
         ..., "-b", "--block", help="Ethereum block number"
     ),
@@ -649,16 +664,22 @@ def generate_ar_pies(
         "--pi-json",
         help="Output prover inputs in JSON format",
     ),
+    cairo_pie: bool = typer.Option(
+        False,
+        "--cairo-pie",
+        help="Output Cairo PIE files",
+    ),
 ):
     """
-    Generate all AR-PIE (Automated Recursive Proof Inputs for Ethereum) traces for a block.
+    Generate all AR inputs (Automated Recursive inputs for Ethereum) for a block.
 
     This command generates traces for:
     - init step
     - body steps (chunked by --body-chunk-size transactions)
     - teardown step
 
-    All traces are saved with consistent naming patterns matching the proof naming convention.
+    All traces are saved with consistent naming patterns. Supports both prover input
+    and Cairo PIE output formats via the --cairo-pie flag.
     """
     validate_block_number(block_number)
 
@@ -675,7 +696,7 @@ def generate_ar_pies(
     zkpi_program_input = load_zkpi_fixture(ctx.zkpi_path)
     total_transactions = len(zkpi_program_input["block"].transactions)
 
-    console.print(f"[blue]Generating AR-PIE traces for block {block_number}[/]")
+    console.print(f"[blue]Generating AR inputs for block {block_number}[/]")
     console.print(f"[blue]Total transactions: {total_transactions}[/]")
     console.print(f"[blue]Body chunk size: {body_chunk_size}[/]")
 
@@ -695,7 +716,7 @@ def generate_ar_pies(
     total_steps = len(steps_to_generate)
     console.print(f"[blue]Total steps to generate: {total_steps}[/]")
 
-    @handle_command_error("generating AR-PIE traces")
+    @handle_command_error("generating AR inputs")
     def _generate_all_traces():
         for i, (step_name, step, start_index, chunk_size) in enumerate(
             steps_to_generate, 1
@@ -712,7 +733,7 @@ def generate_ar_pies(
 
             # Generate output filename with consistent naming
             output_filename = StepHandler.get_output_filename(
-                step, block_number, start_index, chunk_size
+                step, block_number, start_index, chunk_size, cairo_pie=cairo_pie
             )
             output_path = ctx.proving_run_dir / output_filename
 
@@ -735,13 +756,14 @@ def generate_ar_pies(
                     output_path=output_path,
                     output_trace_components=output_trace_components,
                     pi_json=pi_json,
+                    cairo_pie=cairo_pie,
                 )
                 console.print(
                     f"[green]✓[/] {step_description} trace: {output_path.name}"
                 )
 
         console.print(
-            f"[green]✓[/] All AR-PIE traces generated successfully in {ctx.proving_run_dir}"
+            f"[green]✓[/] All AR inputs generated successfully in {ctx.proving_run_dir}"
         )
 
     _generate_all_traces()

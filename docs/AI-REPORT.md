@@ -1,5 +1,99 @@
 # AI-Reports
 
+## AI-REPORT: Cairo PIE Support and AR Inputs Generation for External Users (May 30, 2025)
+
+### Context & Motivation
+
+As Keth integrates with external partners like SHARP for Applicative Recursion
+(AR) workflows, we needed to provide an easy-to-use CLI interface that allows
+external users to test Keth efficiently. SHARP is currently working with Cairo
+PIE files until STWO integrates SHARP, transitioning to prover input formats.
+
+### Implementation: Cairo PIE Support
+
+#### 1. **Rust Bindings Enhancement (`crates/cairo-addons/src/vm/runner.rs`)**
+
+- **New Parameter**: Added `cairo_pie: bool` parameter to the `generate_trace`
+  function
+- **Execution Mode Logic**: Modified `prepare_cairo_execution` to handle two
+  distinct modes:
+  - **Proof Mode** (`proof_mode=true`, `cairo_pie=false`): Optimized for STWO
+    proving with trace padding and strict builtin requirements
+  - **Cairo PIE Mode** (`proof_mode=false`, `cairo_pie=true`): Generates Cairo
+    PIE files for SHARP STONE compatibility
+- **Mutual Exclusivity**: Added validation to prevent simultaneous use of proof
+  mode and Cairo PIE mode, as they have incompatible requirements.
+- **Output Handling**:
+  - Cairo PIE files are written using `cairo_pie_result.write_zip_file()` as ZIP
+    archives
+  - Prover input files continue as JSON/binary format
+
+#### 2. **Python CLI Integration (`cairo/scripts/keth.py`)**
+
+- **New Parameter**: Added `--cairo-pie` flag to both `trace` and
+  `generate_ar_inputs` commands
+- **Filename Pattern**: Implemented consistent naming convention:
+  - **Cairo PIE**: `cairo_pie_{block}_{step}_{args}.zip`
+  - **Prover Input**: `prover_input_info_{block}_{step}_{args}.json`
+- **StepHandler Enhancement**: Updated `get_output_filename()` to generate
+  appropriate filenames based on output type
+
+### Implementation: AR Inputs Generation Command
+
+#### **New Command: `generate_ar_inputs`**
+
+This command provides a one-stop solution for generating all traces related to a
+block:
+
+1. **Automated Step Execution**: Runs `generate_trace` for each required step:
+
+   - `init` step
+   - `body` steps (chunked by configurable `--body-chunk-size`, default 10
+     transactions)
+   - `teardown` step
+
+2. **Consistent Naming**: Ensures prover input/Cairo PIE naming follows the
+   established pattern:
+
+   - Init: `{type}_{block}_init.{ext}`
+   - Body: `{type}_{block}_body_{start}_{len}.{ext}`
+   - Teardown: `{type}_{block}_teardown.{ext}`
+
+3. **Flexible Output**: Supports both Cairo PIE (with `--cairo-pie`) and prover
+   input formats
+
+4. **Smart Chunking**: Automatically determines the number of body chunks based
+   on total transactions and chunk size
+
+### Impact & Benefits
+
+#### **For External Partners**
+
+- **Single Command**: Generate all required traces with one command
+- **SHARP Compatibility**: Cairo PIE support until STWO integration
+- **Easy Testing**: Simplified workflow for external validation
+
+#### **For Keth Development**
+
+- **Modular Design**: Clean separation between proof and PIE modes
+- **Consistent Interface**: Uniform naming and parameter patterns
+- **Future-Proof**: Ready for STWO transition while maintaining SHARP support
+
+### Technical Decisions
+
+#### **Why Mutual Exclusivity?**
+
+Proof mode and Cairo PIE mode have fundamentally different requirements:
+
+- **Proof mode** needs trace padding and strict validation for STWO proving
+- **Cairo PIE mode** requires relaxed settings for SHARP compatibility
+
+#### **Why ZIP Format for Cairo PIE?**
+
+Cairo PIE files use the ZIP format as specified by the Cairo VM's
+`write_zip_file()` method, maintaining compatibility with existing SHARP
+infrastructure.
+
 ## AI-REPORT: Fix State Compatibility for EELS in Teardown Tests (May 3, 2025)
 
 ### Problem

@@ -278,6 +278,18 @@ class TestStepHandler:
         filename = StepHandler.get_output_filename(Step.BODY, 12345, 0, 5)
         assert filename == "prover_input_info_12345_body_0_5.json"
 
+        # Cairo PIE files
+        filename = StepHandler.get_output_filename(Step.INIT, 12345, cairo_pie=True)
+        assert filename == "cairo_pie_12345_init.zip"
+
+        filename = StepHandler.get_output_filename(
+            Step.BODY, 12345, 0, 5, cairo_pie=True
+        )
+        assert filename == "cairo_pie_12345_body_0_5.zip"
+
+        filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345, cairo_pie=True)
+        assert filename == "cairo_pie_12345_teardown.zip"
+
     def test_proof_filename_generation(self):
         """Test proof filename generation for different steps."""
         test_cases = [
@@ -437,6 +449,32 @@ class TestTraceCommand(TestKethCLIBase):
         )
 
         self.helper.assert_error_with_message(result, "before Cancun fork")
+
+    def test_trace_command_with_cairo_pie(self, temp_data_dir, mock_compiled_program):
+        """Test trace command with Cairo PIE output."""
+        program_path = mock_compiled_program(Step.MAIN)
+
+        with patch("scripts.keth.run_generate_trace") as mock_trace:
+            result = self.runner.invoke(
+                app,
+                [
+                    "trace",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--compiled-program",
+                    str(program_path),
+                    "--cairo-pie",
+                ],
+            )
+
+        self.helper.assert_success_with_message(result, "Trace generated successfully")
+        mock_trace.assert_called_once()
+
+        # Verify cairo_pie parameter was passed correctly
+        call_args = mock_trace.call_args
+        assert call_args[1]["cairo_pie"] is True
 
 
 @pytest.mark.integration
@@ -690,10 +728,12 @@ except ImportError:
 
 @pytest.mark.integration
 class TestGenerateArPiesCommand(TestKethCLIBase):
-    """Test suite for the generate_ar_pies command."""
+    """Test suite for the generate_ar_inputs command."""
 
-    def test_generate_ar_pies_command_basic(self, temp_data_dir, mock_compiled_program):
-        """Test basic generate_ar_pies functionality."""
+    def test_generate_ar_inputs_command_basic(
+        self, temp_data_dir, mock_compiled_program
+    ):
+        """Test basic generate_ar_inputs functionality."""
         # Create mock compiled programs for all required steps
         mock_compiled_program(Step.INIT)
         mock_compiled_program(Step.BODY)
@@ -703,7 +743,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             result = self.runner.invoke(
                 app,
                 [
-                    "generate-ar-pies",
+                    "generate-ar-inputs",
                     "-b",
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
@@ -714,15 +754,15 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             )
 
         self.helper.assert_success_with_message(
-            result, "All AR-PIE traces generated successfully"
+            result, "All AR inputs generated successfully"
         )
         # Should call generate_trace multiple times (init + body chunks + teardown)
         assert mock_trace.call_count >= 3
 
-    def test_generate_ar_pies_command_with_options(
+    def test_generate_ar_inputs_command_with_options(
         self, temp_data_dir, mock_compiled_program
     ):
-        """Test generate_ar_pies with various options."""
+        """Test generate_ar_inputs with various options."""
         # Create mock compiled programs
         mock_compiled_program(Step.INIT)
         mock_compiled_program(Step.BODY)
@@ -732,7 +772,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             result = self.runner.invoke(
                 app,
                 [
-                    "generate-ar-pies",
+                    "generate-ar-inputs",
                     "-b",
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
@@ -747,7 +787,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             )
 
         self.helper.assert_success_with_message(
-            result, "All AR-PIE traces generated successfully"
+            result, "All AR inputs generated successfully"
         )
         # Verify options are passed to the trace generation function
         for call in mock_trace.call_args_list:
@@ -755,7 +795,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             assert kwargs["output_trace_components"] is True
             assert kwargs["pi_json"] is True
 
-    def test_generate_ar_pies_command_body_chunking(
+    def test_generate_ar_inputs_command_body_chunking(
         self, temp_data_dir, mock_compiled_program
     ):
         """Test that body steps are properly chunked."""
@@ -768,7 +808,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             result = self.runner.invoke(
                 app,
                 [
-                    "generate-ar-pies",
+                    "generate-ar-inputs",
                     "-b",
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
@@ -779,7 +819,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             )
 
         self.helper.assert_success_with_message(
-            result, "All AR-PIE traces generated successfully"
+            result, "All AR inputs generated successfully"
         )
 
         # Check that body chunks appear in the output with correct ranges
@@ -789,12 +829,12 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         assert "body [4:6]" in result.stdout
         assert "body [6:8]" in result.stdout
 
-    def test_generate_ar_pies_invalid_block_number(self, temp_data_dir):
-        """Test generate_ar_pies with invalid block number."""
+    def test_generate_ar_inputs_invalid_block_number(self, temp_data_dir):
+        """Test generate_ar_inputs with invalid block number."""
         result = self.runner.invoke(
             app,
             [
-                "generate-ar-pies",
+                "generate-ar-inputs",
                 "-b",
                 "19426586",  # Before Cancun fork
                 "--data-dir",
@@ -804,7 +844,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
 
         self.helper.assert_error_with_message(result, "before Cancun fork")
 
-    def test_generate_ar_pies_filename_consistency(
+    def test_generate_ar_inputs_filename_consistency(
         self, temp_data_dir, mock_compiled_program
     ):
         """Test that generated filenames match the expected naming pattern."""
@@ -817,7 +857,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             result = self.runner.invoke(
                 app,
                 [
-                    "generate-ar-pies",
+                    "generate-ar-inputs",
                     "-b",
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
@@ -828,7 +868,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             )
 
         self.helper.assert_success_with_message(
-            result, "All AR-PIE traces generated successfully"
+            result, "All AR inputs generated successfully"
         )
 
         # Check that the output files use the correct naming pattern
@@ -843,3 +883,45 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
                 or filename.endswith("_teardown.json")
                 or "_body_" in filename
             ), f"Unexpected filename pattern: {filename}"
+
+    def test_generate_ar_inputs_command_with_cairo_pie(
+        self, temp_data_dir, mock_compiled_program
+    ):
+        """Test generate_ar_inputs with Cairo PIE output."""
+        # Create mock compiled programs
+        mock_compiled_program(Step.INIT)
+        mock_compiled_program(Step.BODY)
+        mock_compiled_program(Step.TEARDOWN)
+
+        with patch("scripts.keth.run_generate_trace") as mock_trace:
+            result = self.runner.invoke(
+                app,
+                [
+                    "generate-ar-inputs",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                    "--body-chunk-size",
+                    "5",
+                    "--cairo-pie",
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "All AR inputs generated successfully"
+        )
+
+        # Verify cairo_pie parameter was passed correctly to all calls
+        for call in mock_trace.call_args_list:
+            args, kwargs = call
+            assert kwargs["cairo_pie"] is True
+
+        # Verify filenames contain cairo_pie pattern
+        for call in mock_trace.call_args_list:
+            args, kwargs = call
+            output_path = Path(kwargs["output_path"])
+            filename = output_path.name
+            assert filename.startswith("cairo_pie_") and filename.endswith(
+                ".zip"
+            ), f"Expected Cairo PIE filename pattern, got: {filename}"
