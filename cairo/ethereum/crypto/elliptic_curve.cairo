@@ -1,5 +1,6 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
+from starkware.cairo.common.math import assert_le
 from ethereum_types.bytes import Bytes32
 from ethereum.prague.fork_types import Address
 from cairo_ec.curve.secp256k1 import try_recover_public_key
@@ -37,8 +38,12 @@ func secp256k1_recover{
     let r_uint384 = uint256_to_uint384([r.value]);
     let s_uint384 = uint256_to_uint384([s.value]);
     // parameter `v` MUST be a `U256` with `low` value equal to y parity and high value equal to 0
+    // that must also fit in a byte.
     // see: <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/crypto/elliptic_curve.py#L49>
     let y_parity = v.value.low;
+    with_attr error_message("ValueError") {
+        assert_le(y_parity, 255);
+    }
     let msg_hash_uint384 = uint256_to_uint384(msg_hash_reversed);
 
     let (public_key_point_x, public_key_point_y, success) = try_recover_public_key(
