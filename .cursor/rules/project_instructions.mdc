@@ -1,6 +1,7 @@
 ---
 description: Project Instructions
-globs: 
+globs:
+alwaysApply: false
 ---
 # Project Instructions
 
@@ -30,3 +31,8 @@ globs:
 - For generic Cairo questions, refer to @coding_standards.mdc and @common_patterns.mdc
 - For EVM logic, refer to the Ethereum execution specs and the Cairo implementation
 - When implementing new features, follow the established patterns for error handling, type wrapping, and testing
+
+
+## Python project setup
+
+- The python project is set up with `uv`. You can run `uv run <script_path>` to run a python script, or `uv run pytest <path_to_test>` to run tests.
