@@ -32,7 +32,7 @@ jobs:
           flags: nightly-unit
       - name: Notify Slack on Failure
         if: steps.unit-tests.outcome == 'failure'
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v2
         with:
           payload: |
             {
@@ -67,7 +67,7 @@ jobs:
           flags: nightly-ef-tests
       - name: Notify Slack on Failure
         if: steps.ef-tests.outcome == 'failure'
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v2
         with:
           payload: |
             {
