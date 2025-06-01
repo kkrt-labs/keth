@@ -3,8 +3,8 @@ from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
-from ethereum.utils.numeric import U256_le, U256__eq__
-from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
+from ethereum.utils.numeric import U256_le, U256__eq__, max
+from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.prague.fork_types import Address
 from ethereum.prague.vm.gas import init_code_cost
@@ -20,17 +20,18 @@ from ethereum.prague.transactions_types import (
     FeeMarketTransactionStruct,
     BlobTransaction,
     BlobTransactionStruct,
+    SetCodeTransaction,
+    SetCodeTransactionStruct,
     To,
-    ToStruct,
     TupleAccessStruct,
     TX_BASE_COST,
-    TX_DATA_COST_PER_NON_ZERO,
-    TX_DATA_COST_PER_ZERO,
     TX_CREATE_COST,
     TX_ACCESS_LIST_ADDRESS_COST,
     TX_ACCESS_LIST_STORAGE_KEY_COST,
     get_r,
     get_s,
+    get_to,
+    get_data,
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum_rlp.rlp import (
@@ -39,59 +40,69 @@ from ethereum_rlp.rlp import (
     encode_access_list_transaction_for_signing,
     encode_fee_market_transaction_for_signing,
     encode_blob_transaction_for_signing,
+    encode_eip7702_transaction_for_signing,
     decode_to_access_list_transaction,
     decode_to_fee_market_transaction,
     decode_to_blob_transaction,
     encode_legacy_transaction,
+    decode_to_set_code_transaction,
 )
 from ethereum.prague.blocks import UnionBytesLegacyTransaction
 from ethereum.prague.utils.constants import MAX_CODE_SIZE
-
+from ethereum.prague.vm.eoa_delegation import PER_EMPTY_ACCOUNT_COST_LOW
 from cairo_core.control_flow import raise
 from cairo_ec.curve.secp256k1 import secp256k1
 from legacy.utils.array import count_not_zero
 
-func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
+const FLOOR_CALLDATA_COST = 10;
+const STANDARD_CALLDATA_TOKEN_COST = 4;
+
+func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> (Uint, Uint) {
     alloc_locals;
 
+    let transaction_data = get_data(tx);
+    let tokens_in_calldata = _calculate_tokens_in_calldata(transaction_data);
+    let calldata_floor_gas_cost = Uint(tokens_in_calldata * FLOOR_CALLDATA_COST + TX_BASE_COST);
+    let to = get_to(tx);
+    let cost_data_and_create = _calculate_data_and_create_cost(
+        transaction_data, to, tokens_in_calldata
+    );
+
     if (tx.value.legacy_transaction.value != 0) {
-        let legacy_tx = tx.value.legacy_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            legacy_tx.value.data, legacy_tx.value.to
-        );
         let cost = Uint(TX_BASE_COST + cost_data_and_create);
-        return cost;
+        return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.access_list_transaction.value != 0) {
         let access_list_tx = tx.value.access_list_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            access_list_tx.value.data, access_list_tx.value.to
-        );
         let cost_access_list = _calculate_access_list_cost(
             [access_list_tx.value.access_list.value]
         );
         let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
+        return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.fee_market_transaction.value != 0) {
         let fee_market_tx = tx.value.fee_market_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            fee_market_tx.value.data, fee_market_tx.value.to
-        );
         let cost_access_list = _calculate_access_list_cost([fee_market_tx.value.access_list.value]);
         let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
+        return (cost, calldata_floor_gas_cost);
     }
 
     if (tx.value.blob_transaction.value != 0) {
         let blob_tx = tx.value.blob_transaction;
-        tempvar to = new ToStruct(bytes0=cast(0, Bytes0*), address=&blob_tx.value.to);
-        let cost_data_and_create = _calculate_data_and_create_cost(blob_tx.value.data, To(to));
         let cost_access_list = _calculate_access_list_cost([blob_tx.value.access_list.value]);
         let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
+        return (cost, calldata_floor_gas_cost);
+    }
+
+    if (tx.value.set_code_transaction.value != 0) {
+        let set_code_tx = tx.value.set_code_transaction;
+        let cost_access_list = _calculate_access_list_cost([set_code_tx.value.access_list.value]);
+        let authorizations = set_code_tx.value.authorizations;
+        let cost_auth = PER_EMPTY_ACCOUNT_COST_LOW * authorizations.value.len;
+        let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list + cost_auth);
+        return (cost, calldata_floor_gas_cost);
     }
 
     with_attr error_message("InvalidTransaction") {
@@ -99,13 +110,21 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     }
 }
 
-func _calculate_data_and_create_cost{range_check_ptr}(data: Bytes, to: To) -> felt {
+func _calculate_tokens_in_calldata{range_check_ptr}(data: Bytes) -> felt {
     alloc_locals;
     let count = count_not_zero(data.value.len, data.value.data);
     let zeroes = data.value.len - count;
-    let data_cost = zeroes * TX_DATA_COST_PER_ZERO + count * TX_DATA_COST_PER_NON_ZERO;
+    let tokens_in_calldata = zeroes + (data.value.len - zeroes) * 4;
+    return tokens_in_calldata;
+}
 
-    if (cast(to.value.address, felt) != 0) {
+func _calculate_data_and_create_cost{range_check_ptr}(
+    data: Bytes, to: To, tokens_in_calldata: felt
+) -> felt {
+    alloc_locals;
+
+    let data_cost = tokens_in_calldata * STANDARD_CALLDATA_TOKEN_COST;
+    if (cast(to.value, felt) != 0 and cast(to.value.address, felt) != 0) {
         return data_cost;
     }
 
@@ -128,7 +147,7 @@ func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessStruct
     return cost;
 }
 
-func validate_transaction{range_check_ptr}(tx: Transaction) -> Uint {
+func validate_transaction{range_check_ptr}(tx: Transaction) -> (Uint, Uint) {
     alloc_locals;
 
     local tx_gas: Uint;
@@ -164,8 +183,19 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> Uint {
         assert tx_to_ptr = &tx.value.blob_transaction.value.to;
     }
 
-    let intrinsic_cost = calculate_intrinsic_cost(tx);
-    let is_gas_insufficient = is_le_felt(tx_gas.value, intrinsic_cost.value - 1);
+    if (tx.value.set_code_transaction.value != 0) {
+        assert tx_gas = tx.value.set_code_transaction.value.gas;
+        tempvar nonce_u256 = U256(
+            new U256Struct(tx.value.set_code_transaction.value.nonce.value, 0)
+        );
+        assert tx_nonce = nonce_u256;
+        assert tx_data = tx.value.set_code_transaction.value.data;
+        assert tx_to_ptr = &tx.value.set_code_transaction.value.to;
+    }
+
+    let (intrinsic_cost, calldata_floor_gas_cost) = calculate_intrinsic_cost(tx);
+    let max_cost = max(intrinsic_cost.value, calldata_floor_gas_cost.value);
+    let is_gas_insufficient = is_le_felt(tx_gas.value, max_cost - 1);
     if (is_gas_insufficient != FALSE) {
         raise('InvalidTransaction');
     }
@@ -181,7 +211,7 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> Uint {
         raise('InvalidTransaction');
     }
 
-    return intrinsic_cost;
+    return (intrinsic_cost, calldata_floor_gas_cost);
 }
 
 func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
@@ -220,6 +250,14 @@ func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
     tx: BlobTransaction
 ) -> Hash32 {
     let encoded_tx = encode_blob_transaction_for_signing(tx);
+    let hash = keccak256(encoded_tx);
+    return hash;
+}
+
+func signing_hash_7702{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    tx: SetCodeTransaction
+) -> Hash32 {
+    let encoded_tx = encode_eip7702_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
 }
@@ -339,6 +377,22 @@ func recover_sender{
         return sender;
     }
 
+    if (cast(tx.value.set_code_transaction.value, felt) != 0) {
+        let y_parity = tx.value.set_code_transaction.value.y_parity;
+        let y_parity_is_zero = U256__eq__(y_parity, zero);
+        let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
+        with_attr error_message("InvalidSignatureError") {
+            assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
+        }
+        let hash = signing_hash_7702(tx.value.set_code_transaction);
+        let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+        if (cast(error, felt) != 0) {
+            raise('InvalidSignatureError');
+        }
+        let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
+        return sender;
+    }
+
     // Invariant: at least one of the transaction types is non-zero.
     with_attr error_message("InvalidTransaction") {
         jmp raise.raise_label;
@@ -366,6 +420,7 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
                         cast(0, FeeMarketTransactionStruct*)
                     ),
                     blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                    set_code_transaction=SetCodeTransaction(cast(0, SetCodeTransactionStruct*)),
                 ),
             );
             return res;
@@ -381,6 +436,7 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
                     ),
                     fee_market_transaction=fee_market_transaction,
                     blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                    set_code_transaction=SetCodeTransaction(cast(0, SetCodeTransactionStruct*)),
                 ),
             );
             return res;
@@ -398,6 +454,23 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
                         cast(0, FeeMarketTransactionStruct*)
                     ),
                     blob_transaction=blob_transaction,
+                    set_code_transaction=SetCodeTransaction(cast(0, SetCodeTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.SET_CODE) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let set_code_transaction = decode_to_set_code_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                    set_code_transaction=set_code_transaction,
                 ),
             );
             return res;
@@ -412,6 +485,7 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
                 ),
                 fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
                 blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                set_code_transaction=SetCodeTransaction(cast(0, SetCodeTransactionStruct*)),
             ),
         );
         return res;

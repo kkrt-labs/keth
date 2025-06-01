@@ -16,6 +16,7 @@ from ethereum.prague.state import get_account, State, StateStruct, get_account_c
 from ethereum.prague.utils.address import compute_contract_address
 from ethereum.prague.transactions import Transaction
 from ethereum.prague.transactions_types import get_data, get_to, get_value
+from ethereum.prague.vm.eoa_delegation import get_delegated_code_address
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
@@ -75,14 +76,17 @@ func prepare_message{
     let data = get_data(tx);
 
     let state = block_env.value.state;
+    local disabled_precompiles: bool;
     if (cast(to.value.bytes0, felt) != 0) {
         let caller_account = get_account{state=state}(tx_env.value.origin);
         // wont't underflow: the nonce of the caller is always incremented by 1 before `prepare_message`.
         let nonce = Uint(caller_account.value.nonce.value - 1);
         let current_target = compute_contract_address(tx_env.value.origin, nonce);
+        assert disabled_precompiles = bool(0);
 
         let (empty_data: felt*) = alloc();
         tempvar empty_bytes_struct = new BytesStruct(empty_data, 0);
+        tempvar access_list_addresses_ptr = access_list_addresses_ptr;
         tempvar state = state;
         tempvar msg_data = Bytes(empty_bytes_struct);
         tempvar code = data;
@@ -99,6 +103,31 @@ func prepare_message{
         let target_account = get_account{state=state}(current_target);
         tempvar code_address = OptionalAddress(new Address(current_target.value));
         let target_code = get_account_code{state=state}(current_target, target_account);
+        let delegated_address = get_delegated_code_address(target_code);
+        if (cast(delegated_address.value, felt) != 0) {
+            assert disabled_precompiles = bool(1);
+            hashdict_write{dict_ptr=access_list_addresses_ptr}(1, delegated_address.value, 1);
+            tempvar delegated_address_ = Address([delegated_address.value]);
+            let target_account = get_account{state=state}(delegated_address_);
+            let target_code = get_account_code{state=state}(delegated_address_, target_account);
+            tempvar state = state;
+            tempvar access_list_addresses_ptr = access_list_addresses_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar target_code = target_code;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        } else {
+            assert disabled_precompiles = bool(0);
+            tempvar state = state;
+            tempvar access_list_addresses_ptr = access_list_addresses_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar target_code = target_code;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        }
+        tempvar access_list_addresses_ptr = access_list_addresses_ptr;
         tempvar state = state;
         tempvar msg_data = msg_data;
         tempvar code = target_code;
@@ -109,6 +138,7 @@ func prepare_message{
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     }
+    let access_list_addresses_ptr = cast([ap - 10], DictAccess*);
     let state_ = cast([ap - 9], StateStruct*);
     let msg_data = Bytes(cast([ap - 8], BytesStruct*));
     let code = Bytes(cast([ap - 7], BytesStruct*));
@@ -151,7 +181,7 @@ func prepare_message{
             is_static=bool(0),
             accessed_addresses=accessed_addresses,
             accessed_storage_keys=accessed_storage_keys,
-            disable_precompiles=bool(0),
+            disable_precompiles=disabled_precompiles,
             parent_evm=Evm(cast(0, EvmStruct*)),
         ),
     );
@@ -170,5 +200,12 @@ func track_precompiles{dict_ptr: DictAccess*}() {
     dict_write(0x800000000000000000000000000000000000000, 1);
     dict_write(0x900000000000000000000000000000000000000, 1);
     dict_write(0xa00000000000000000000000000000000000000, 1);
+    dict_write(0xb00000000000000000000000000000000000000, 1);
+    dict_write(0xc00000000000000000000000000000000000000, 1);
+    dict_write(0xd00000000000000000000000000000000000000, 1);
+    dict_write(0xe00000000000000000000000000000000000000, 1);
+    dict_write(0xf00000000000000000000000000000000000000, 1);
+    dict_write(0x1000000000000000000000000000000000000000, 1);
+    dict_write(0x1100000000000000000000000000000000000000, 1);
     return ();
 }

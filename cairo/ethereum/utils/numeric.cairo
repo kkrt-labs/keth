@@ -10,7 +10,7 @@ from starkware.cairo.common.uint256 import uint256_le, uint256_mul, word_reverse
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum.crypto.hash import Hash32
-from cairo_core.numeric import OptionalU256, U256, U256Struct, U384, U64, Uint, bool
+from cairo_core.numeric import OptionalU256, U256, U256Struct, U384, U64, Uint, U8, bool
 from cairo_core.maths import (
     unsigned_div_rem,
     felt252_to_bytes_be,
@@ -367,6 +367,16 @@ func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
     }
     let value = bytes_to_felt(bytes.value.len, bytes.value.data);
     tempvar res = Uint(value);
+    return res;
+}
+
+func U8_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U8 {
+    with_attr error_message("ValueError") {
+        assert [range_check_ptr] = 1 - bytes.value.len;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+    let value = bytes_to_felt(bytes.value.len, bytes.value.data);
+    let res = U8(value);
     return res;
 }
 

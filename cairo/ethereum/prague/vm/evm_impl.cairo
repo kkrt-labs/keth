@@ -634,4 +634,104 @@ namespace MessageImpl {
         );
         return ();
     }
+
+    func set_disable_precompiles{message: Message}(new_disable_precompiles: bool) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=message.value.block_env,
+                tx_env=message.value.tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=message.value.code_address,
+                code=message.value.code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=message.value.accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=new_disable_precompiles,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
+
+    func set_code_address{message: Message}(new_code_address: OptionalAddress) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=message.value.block_env,
+                tx_env=message.value.tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=new_code_address,
+                code=message.value.code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=message.value.accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=message.value.disable_precompiles,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
+
+    func set_code{message: Message}(new_code: Bytes) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=message.value.block_env,
+                tx_env=message.value.tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=message.value.code_address,
+                code=new_code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=message.value.accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=message.value.disable_precompiles,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
+
+    func set_accessed_addresses{message: Message}(new_accessed_addresses: SetAddress) {
+        tempvar message = Message(
+            new MessageStruct(
+                block_env=message.value.block_env,
+                tx_env=message.value.tx_env,
+                caller=message.value.caller,
+                target=message.value.target,
+                current_target=message.value.current_target,
+                gas=message.value.gas,
+                value=message.value.value,
+                data=message.value.data,
+                code_address=message.value.code_address,
+                code=message.value.code,
+                depth=message.value.depth,
+                should_transfer_value=message.value.should_transfer_value,
+                is_static=message.value.is_static,
+                accessed_addresses=new_accessed_addresses,
+                accessed_storage_keys=message.value.accessed_storage_keys,
+                disable_precompiles=message.value.disable_precompiles,
+                parent_evm=message.value.parent_evm,
+            ),
+        );
+        return ();
+    }
 }

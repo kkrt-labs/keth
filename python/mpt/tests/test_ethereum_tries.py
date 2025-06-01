@@ -90,7 +90,7 @@ class TestEthereumTries:
 
         block = zkpi["blocks"][0]
         transactions = tuple(
-            TransactionLoad(normalize_transaction(tx), ForkLoad("Prague")).read()
+            TransactionLoad(normalize_transaction(tx), ForkLoad("prague")).read()
             for tx in block["transaction"]
         )
 

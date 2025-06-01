@@ -94,6 +94,7 @@ from ethereum.prague.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
 )
 from ethereum.prague.trie import (
@@ -381,6 +382,12 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "transactions_types",
         "BlobTransaction",
     ): BlobTransaction,
+    (
+        "ethereum",
+        "prague",
+        "transactions_types",
+        "SetCodeTransaction",
+    ): SetCodeTransaction,
     ("ethereum", "prague", "transactions_types", "Transaction"): Transaction,
     ("ethereum", "prague", "vm", "gas", "MessageCallGas"): MessageCallGas,
     ("ethereum_rlp", "rlp", "Simple"): Simple,

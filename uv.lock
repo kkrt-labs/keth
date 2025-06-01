@@ -501,7 +501,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
-    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" },
+    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" },
     { name = "hypothesis", specifier = ">=6.124.3" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=7.0" },
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" },
+    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
 ]
 
@@ -1179,7 +1179,7 @@ wheels = [
 [[package]]
 name = "ethereum-execution"
 version = "1.17.0rc6"
-source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3#8d0c7bf06ac605081ce52ac2215b9776f77230d3" }
+source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee#9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-rlp" },
@@ -2011,7 +2011,7 @@ requires-dist = [
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "eth-rpc", editable = "python/eth-rpc" },
-    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" },
+    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" },
     { name = "garaga" },
     { name = "garaga-zero", git = "https://github.com/kkrt-labs/garaga-zero?rev=08e80a99c60a11adc5715c329a4390937d12d77d" },
     { name = "keth-types", editable = "python/keth-types" },
@@ -2056,7 +2056,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" }]
+requires-dist = [{ name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }]
 
 [[package]]
 name = "lark"
@@ -2282,14 +2282,14 @@ requires-dist = [
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "click", specifier = ">=8.1.7" },
     { name = "eth-rpc", editable = "python/eth-rpc" },
-    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" },
+    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" },
     { name = "maturin", specifier = ">=1.8.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
-    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=8d0c7bf06ac605081ce52ac2215b9776f77230d3" },
+    { name = "ethereum-execution", git = "https://github.com/kkrt-labs/execution-specs.git?rev=9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" },
     { name = "hypothesis", specifier = ">=6.124.3" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=7.0" },
