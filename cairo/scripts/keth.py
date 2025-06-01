@@ -14,7 +14,7 @@ import traceback
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import typer
 from rich.console import Console
@@ -152,6 +152,119 @@ class StepHandler:
                 )
             case Step.TEARDOWN:
                 return load_teardown_input(zkpi_path)
+            case Step.AGGREGATOR:
+                # The input of the aggregator must contain:
+                # - output of the init step
+                # - output of the body step(s)
+                # - output of the teardown step
+                # - program hashes of the init, body, and teardown steps
+                # - number of body chunks ran
+                # These values can only be obtained after running the init, body, and teardown steps
+                # and getting the values back from the output files.
+
+                # Determine the proving run directory from the zkpi_path
+                # zkpi_path structure: data_dir/chain_id/block_number/zkpi_version.json
+                # We need to find the latest proving run directory
+                block_dir = zkpi_path.parent
+                block_number = int(block_dir.name)
+
+                # Find the latest proving run directory (highest numbered directory)
+                proving_run_dirs = [
+                    d for d in block_dir.iterdir() if d.is_dir() and d.name.isdigit()
+                ]
+                if not proving_run_dirs:
+                    console.print(
+                        f"[red]No proving run directories found in {block_dir}[/]"
+                    )
+                    raise typer.Exit(1)
+
+                latest_proving_run_dir = max(
+                    proving_run_dirs, key=lambda d: int(d.name)
+                )
+
+                console.print(
+                    f"[blue]Loading segment outputs from proving run directory: {latest_proving_run_dir}[/]"
+                )
+
+                # Read init output
+                init_outputs = find_step_outputs(
+                    latest_proving_run_dir, Step.INIT, block_number
+                )
+                if not init_outputs:
+                    console.print(
+                        f"[red]No init output files found in {latest_proving_run_dir}[/]"
+                    )
+                    raise typer.Exit(1)
+                init_output = read_program_output(init_outputs[0])
+                console.print(
+                    f"[green]✓[/] Loaded init output: {len(init_output)} values"
+                )
+
+                # Read body outputs (sorted by start_index)
+                body_outputs = find_step_outputs(
+                    latest_proving_run_dir, Step.BODY, block_number
+                )
+                if not body_outputs:
+                    console.print(
+                        f"[red]No body output files found in {latest_proving_run_dir}[/]"
+                    )
+                    raise typer.Exit(1)
+
+                # Sort body outputs by start_index (extract from filename)
+                def extract_body_start_index(path: Path) -> int:
+                    # Extract start_index from filename like "prover_input_info_22188088_body_0_5.run_output.txt"
+                    parts = path.stem.split("_")
+                    for i, part in enumerate(parts):
+                        if part == "body" and i + 1 < len(parts):
+                            return int(parts[i + 1])
+                    return 0
+
+                body_outputs.sort(key=extract_body_start_index)
+                body_output_data = [
+                    read_program_output(output_file) for output_file in body_outputs
+                ]
+                console.print(
+                    f"[green]✓[/] Loaded {len(body_output_data)} body chunk outputs"
+                )
+
+                # Read teardown output
+                teardown_outputs = find_step_outputs(
+                    latest_proving_run_dir, Step.TEARDOWN, block_number
+                )
+                if not teardown_outputs:
+                    console.print(
+                        f"[red]No teardown output files found in {latest_proving_run_dir}[/]"
+                    )
+                    raise typer.Exit(1)
+                teardown_output = read_program_output(teardown_outputs[0])
+                console.print(
+                    f"[green]✓[/] Loaded teardown output: {len(teardown_output)} values"
+                )
+
+                # Load program hashes once
+                program_hashes = load_program_hashes()
+
+                # Get program hashes for each step
+                init_program_hash = get_step_program_hash(Step.INIT, program_hashes)
+                body_program_hash = get_step_program_hash(Step.BODY, program_hashes)
+                teardown_program_hash = get_step_program_hash(
+                    Step.TEARDOWN, program_hashes
+                )
+
+                # Construct aggregator input
+                aggregator_input = {
+                    "keth_segment_outputs": [init_output]
+                    + body_output_data
+                    + [teardown_output],
+                    "keth_segment_program_hashes": {
+                        "init": init_program_hash,
+                        "body": body_program_hash,
+                        "teardown": teardown_program_hash,
+                    },
+                    "n_body_chunks": len(body_output_data),
+                }
+
+                return aggregator_input
             case _:
                 return load_zkpi_fixture(zkpi_path)
 
@@ -222,6 +335,40 @@ def handle_command_error(operation: str) -> Callable:
 # ============================================================================
 # UTILITY FUNCTIONS (unchanged from original)
 # ============================================================================
+
+
+def read_program_output(output_file_path: Path) -> List[int]:
+    """Read program output from a .run_output.txt file and parse it as a list of integers."""
+    try:
+        with open(output_file_path, "r") as f:
+            content = f.read().strip()
+            if not content:
+                return []
+            # Parse the output - assuming it's space or newline separated integers
+            return [int(x) for x in content.split()]
+    except (FileNotFoundError, ValueError) as e:
+        console.print(
+            f"[red]Error reading program output from {output_file_path}: {e}[/]"
+        )
+        raise typer.Exit(1)
+
+
+def find_step_outputs(
+    proving_run_dir: Path, step: Step, block_number: int
+) -> List[Path]:
+    """Find all output files for a given step in the proving run directory."""
+    if step == Step.INIT:
+        pattern = f"*{block_number}_init*.run_output.txt"
+    elif step == Step.TEARDOWN:
+        pattern = f"*{block_number}_teardown*.run_output.txt"
+    elif step == Step.BODY:
+        pattern = f"*{block_number}_body_*.run_output.txt"
+    else:
+        return []
+
+    import glob
+
+    return [Path(p) for p in glob.glob(str(proving_run_dir / pattern))]
 
 
 def get_next_proving_run_id(data_dir: Path, chain_id: int, block_number: int) -> int:
@@ -311,6 +458,42 @@ def validate_body_params(
         if chunk_size <= 0:
             typer.echo("Error: len must be positive")
             raise typer.Exit(1)
+
+
+def load_program_hashes() -> Dict[str, int]:
+    """Load program hashes from the program_hashes.json file."""
+    hashes_file = Path("build/program_hashes.json")
+    try:
+        if not hashes_file.exists():
+            console.print(
+                f"[yellow]Warning: Program hashes file not found at {hashes_file}[/]"
+            )
+            return {}
+
+        with open(hashes_file, "r") as f:
+            program_hashes = json.load(f)
+
+        console.print(f"[blue]Loaded program hashes from {hashes_file}[/]")
+        return program_hashes
+    except Exception as e:
+        console.print(f"[yellow]Warning: Failed to load program hashes: {e}[/]")
+        return {}
+
+
+def get_step_program_hash(step: Step, program_hashes: Dict[str, int]) -> int:
+    """Get the program hash for a given step from the loaded program hashes."""
+    compiled_program_path = get_default_program(step)
+    program_name = compiled_program_path.name
+
+    if program_name in program_hashes:
+        program_hash = program_hashes[program_name]
+        console.print(
+            f"[green]✓[/] Found {step.value} program hash: 0x{program_hash:x}"
+        )
+        return program_hash
+    else:
+        console.print(f"[yellow]Warning: Program hash not found for {program_name}[/]")
+        return 0x0
 
 
 # ============================================================================
@@ -712,6 +895,9 @@ def generate_ar_inputs(
 
     # Step 3: Generate teardown trace
     steps_to_generate.append(("teardown", Step.TEARDOWN, None, None))
+
+    # Step 4: Generate aggregator trace
+    steps_to_generate.append(("aggregator", Step.AGGREGATOR, None, None))
 
     total_steps = len(steps_to_generate)
     console.print(f"[blue]Total steps to generate: {total_steps}[/]")
