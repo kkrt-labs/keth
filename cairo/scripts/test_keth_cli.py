@@ -12,6 +12,7 @@ Refactored to reduce code duplication and improve maintainability.
 import json
 import shutil
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import patch
@@ -89,6 +90,31 @@ def mock_compiled_program(tmp_path):
     return _create_program
 
 
+@pytest.fixture
+def mock_all_programs(mock_compiled_program):
+    """Create mock programs for all steps and provide a patched get_default_program."""
+    # Create all required programs
+    programs = {
+        Step.INIT: mock_compiled_program(Step.INIT),
+        Step.BODY: mock_compiled_program(Step.BODY),
+        Step.TEARDOWN: mock_compiled_program(Step.TEARDOWN),
+        Step.AGGREGATOR: mock_compiled_program(Step.AGGREGATOR),
+        Step.MAIN: mock_compiled_program(Step.MAIN),
+    }
+
+    def mock_get_default_program(step: Step) -> Path:
+        return programs[step]
+
+    @contextmanager
+    def patch_get_default_program():
+        with patch(
+            "scripts.keth.get_default_program", side_effect=mock_get_default_program
+        ):
+            yield programs
+
+    return programs, patch_get_default_program
+
+
 class MockValidationHelper:
     """Helper for mocking typer validation functions."""
 
@@ -123,6 +149,58 @@ class CLITestHelper:
         """Assert CLI result failed and contains expected error message."""
         assert result.exit_code == 1
         assert expected_message in result.stdout
+
+
+@pytest.fixture
+def mock_generate_ar_setup(mock_all_programs):
+    """Setup fixture for generate_ar_inputs tests with all necessary mocks."""
+    programs, patch_get_default_program = mock_all_programs
+
+    def mock_load_program_input_for_aggregator(
+        step, zkpi_path, start_index=None, chunk_size=None
+    ):
+        """Mock load_program_input that handles the aggregator step properly."""
+        if step == Step.AGGREGATOR:
+            # Return mock aggregator input
+            return {
+                "keth_segment_outputs": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                "keth_segment_program_hashes": {
+                    "init": 12345,
+                    "body": 67890,
+                    "teardown": 11111,
+                },
+                "n_body_chunks": 2,
+            }
+        else:
+            # For other steps, use the original implementation
+            from scripts.keth import (
+                load_body_input,
+                load_teardown_input,
+                load_zkpi_fixture,
+            )
+
+            match step:
+                case Step.BODY:
+                    return load_body_input(zkpi_path, start_index, chunk_size)
+                case Step.TEARDOWN:
+                    return load_teardown_input(zkpi_path)
+                case _:
+                    return load_zkpi_fixture(zkpi_path)
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def patch_all_for_generate_ar():
+        with (
+            patch_get_default_program(),
+            patch(
+                "scripts.keth.StepHandler.load_program_input",
+                side_effect=mock_load_program_input_for_aggregator,
+            ),
+        ):
+            yield programs
+
+    return programs, patch_all_for_generate_ar
 
 
 # ============================================================================
@@ -324,12 +402,9 @@ class TestKethCLIBase:
 class TestTraceCommand(TestKethCLIBase):
     """Test suite for the trace command."""
 
-    def test_trace_command_auto_detect_chain_id(
-        self, temp_data_dir, mock_compiled_program
-    ):
+    def test_trace_command_auto_detect_chain_id(self, temp_data_dir, mock_all_programs):
         """Test that trace command can auto-detect chain ID from ZKPI file."""
-        program_path = mock_compiled_program(Step.MAIN)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_generate_trace") as mock_trace:
             result = self.runner.invoke(
                 app,
@@ -339,8 +414,6 @@ class TestTraceCommand(TestKethCLIBase):
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -382,11 +455,10 @@ class TestTraceCommand(TestKethCLIBase):
         )
 
     def test_trace_command_body_step_with_params(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_all_programs
     ):
         """Test body step with valid parameters."""
-        program_path = mock_compiled_program(Step.BODY)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_generate_trace") as mock_trace:
             result = self.runner.invoke(
                 app,
@@ -402,8 +474,6 @@ class TestTraceCommand(TestKethCLIBase):
                     "1",
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -411,11 +481,10 @@ class TestTraceCommand(TestKethCLIBase):
         mock_trace.assert_called_once()
 
     def test_trace_command_with_explicit_chain_id(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_all_programs
     ):
         """Test trace command with explicitly provided chain ID."""
-        program_path = mock_compiled_program(Step.MAIN)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_generate_trace") as mock_trace:
             result = self.runner.invoke(
                 app,
@@ -427,8 +496,6 @@ class TestTraceCommand(TestKethCLIBase):
                     str(TEST_CHAIN_ID),
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -450,10 +517,9 @@ class TestTraceCommand(TestKethCLIBase):
 
         self.helper.assert_error_with_message(result, "before Cancun fork")
 
-    def test_trace_command_with_cairo_pie(self, temp_data_dir, mock_compiled_program):
+    def test_trace_command_with_cairo_pie(self, temp_data_dir, mock_all_programs):
         """Test trace command with Cairo PIE output."""
-        program_path = mock_compiled_program(Step.MAIN)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_generate_trace") as mock_trace:
             result = self.runner.invoke(
                 app,
@@ -463,8 +529,6 @@ class TestTraceCommand(TestKethCLIBase):
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                     "--cairo-pie",
                 ],
             )
@@ -528,10 +592,9 @@ class TestVerifyCommand(TestKethCLIBase):
 class TestE2ECommand(TestKethCLIBase):
     """Test suite for the e2e command."""
 
-    def test_e2e_command_main_step(self, temp_data_dir, mock_compiled_program):
+    def test_e2e_command_main_step(self, temp_data_dir, mock_all_programs):
         """Test e2e command with main step."""
-        program_path = mock_compiled_program(Step.MAIN)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_end_to_end") as mock_e2e:
             result = self.runner.invoke(
                 app,
@@ -543,8 +606,6 @@ class TestE2ECommand(TestKethCLIBase):
                     "main",
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -558,10 +619,9 @@ class TestE2ECommand(TestKethCLIBase):
         proof_path = Path(call_args[0][3])  # positional argument
         assert proof_path.name == "proof.json"
 
-    def test_e2e_command_body_step_filename(self, temp_data_dir, mock_compiled_program):
+    def test_e2e_command_body_step_filename(self, temp_data_dir, mock_all_programs):
         """Test that body step generates correct filename with indices."""
-        program_path = mock_compiled_program(Step.BODY)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_end_to_end") as mock_e2e:
             result = self.runner.invoke(
                 app,
@@ -577,8 +637,6 @@ class TestE2ECommand(TestKethCLIBase):
                     "1",
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -611,11 +669,9 @@ class TestHelpCommands(TestKethCLIBase):
 class TestKethWorkflows(TestKethCLIBase):
     """Integration tests that test multiple commands together."""
 
-    def test_trace_then_prove_workflow(self, temp_data_dir, mock_compiled_program):
+    def test_trace_then_prove_workflow(self, temp_data_dir, mock_all_programs):
         """Test the complete trace -> prove workflow."""
-        program_path = mock_compiled_program(Step.MAIN)
-
-        # Step 1: Generate trace
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_generate_trace"):
             trace_result = self.runner.invoke(
                 app,
@@ -625,8 +681,6 @@ class TestKethWorkflows(TestKethCLIBase):
                     str(TEST_BLOCK_NUMBER),
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -656,10 +710,9 @@ class TestKethWorkflows(TestKethCLIBase):
             prove_result, "Proof generated successfully"
         )
 
-    def test_full_e2e_workflow(self, temp_data_dir, mock_compiled_program):
+    def test_full_e2e_workflow(self, temp_data_dir, mock_all_programs):
         """Test the complete e2e workflow with verification."""
-        program_path = mock_compiled_program(Step.MAIN)
-
+        programs, patch_get_default_program = mock_all_programs
         with patch("scripts.keth.run_end_to_end") as mock_e2e:
             result = self.runner.invoke(
                 app,
@@ -670,8 +723,6 @@ class TestKethWorkflows(TestKethCLIBase):
                     "--verify",
                     "--data-dir",
                     str(temp_data_dir),
-                    "--compiled-program",
-                    str(program_path),
                 ],
             )
 
@@ -731,15 +782,15 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
     """Test suite for the generate_ar_inputs command."""
 
     def test_generate_ar_inputs_command_basic(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_generate_ar_setup
     ):
         """Test basic generate_ar_inputs functionality."""
-        # Create mock compiled programs for all required steps
-        mock_compiled_program(Step.INIT)
-        mock_compiled_program(Step.BODY)
-        mock_compiled_program(Step.TEARDOWN)
+        programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch_all_for_generate_ar(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -753,22 +804,29 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
                 ],
             )
 
+        # Debug output if test fails
+        if result.exit_code != 0:
+            print(f"CLI exit code: {result.exit_code}")
+            print(f"CLI stdout: {result.stdout}")
+            print(f"CLI stderr: {result.stderr}")
+            print(f"CLI exception: {result.exception}")
+
         self.helper.assert_success_with_message(
             result, "All AR inputs generated successfully"
         )
-        # Should call generate_trace multiple times (init + body chunks + teardown)
+        # Should call generate_trace multiple times (init + body chunks + teardown + aggregator)
         assert mock_trace.call_count >= 3
 
     def test_generate_ar_inputs_command_with_options(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_generate_ar_setup
     ):
         """Test generate_ar_inputs with various options."""
-        # Create mock compiled programs
-        mock_compiled_program(Step.INIT)
-        mock_compiled_program(Step.BODY)
-        mock_compiled_program(Step.TEARDOWN)
+        programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch_all_for_generate_ar(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -796,15 +854,12 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             assert kwargs["pi_json"] is True
 
     def test_generate_ar_inputs_command_body_chunking(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_generate_ar_setup
     ):
         """Test that body steps are properly chunked."""
-        # Create mock compiled programs
-        mock_compiled_program(Step.INIT)
-        mock_compiled_program(Step.BODY)
-        mock_compiled_program(Step.TEARDOWN)
+        programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace"):
+        with patch("scripts.keth.run_generate_trace"), patch_all_for_generate_ar():
             result = self.runner.invoke(
                 app,
                 [
@@ -845,15 +900,15 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         self.helper.assert_error_with_message(result, "before Cancun fork")
 
     def test_generate_ar_inputs_filename_consistency(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_generate_ar_setup
     ):
         """Test that generated filenames match the expected naming pattern."""
-        # Create mock compiled programs
-        mock_compiled_program(Step.INIT)
-        mock_compiled_program(Step.BODY)
-        mock_compiled_program(Step.TEARDOWN)
+        programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch_all_for_generate_ar(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -882,18 +937,19 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
                 filename.endswith("_init.json")
                 or filename.endswith("_teardown.json")
                 or "_body_" in filename
+                or filename.endswith("_aggregator.json")
             ), f"Unexpected filename pattern: {filename}"
 
     def test_generate_ar_inputs_command_with_cairo_pie(
-        self, temp_data_dir, mock_compiled_program
+        self, temp_data_dir, mock_generate_ar_setup
     ):
         """Test generate_ar_inputs with Cairo PIE output."""
-        # Create mock compiled programs
-        mock_compiled_program(Step.INIT)
-        mock_compiled_program(Step.BODY)
-        mock_compiled_program(Step.TEARDOWN)
+        programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch_all_for_generate_ar(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
