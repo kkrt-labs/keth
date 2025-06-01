@@ -734,9 +734,31 @@ pub fn generate_trace(
         std::fs::create_dir_all(parent)?;
     }
 
+    // Save the output of the program
+    let mut output_buffer = String::new();
+    let mut cairo_runner_mut = cairo_runner;
+    cairo_runner_mut.vm.write_output(&mut output_buffer).map_err(to_pyerr)?;
+
+    // Determine the base filename from output_path
+    let base_filename = if output_path.is_dir() {
+        // If output_path is a directory, we need to create a default filename
+        "output"
+    } else {
+        // Extract filename without extension
+        output_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output")
+    };
+
+    let run_output_path = if output_path.is_dir() {
+        output_path.join(format!("{}.run_output.txt", base_filename))
+    } else {
+        output_path.with_file_name(format!("{}.run_output.txt", base_filename))
+    };
+
+    std::fs::write(run_output_path, output_buffer)?;
+
     if cairo_pie {
         // Output Cairo PIE
-        let cairo_pie_result = cairo_runner.get_cairo_pie().expect("Unable to get cairo pie");
+        let cairo_pie_result = cairo_runner_mut.get_cairo_pie().expect("Unable to get cairo pie");
         cairo_pie_result.write_zip_file(&output_path, false).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to write Cairo PIE: {}",
@@ -746,7 +768,7 @@ pub fn generate_trace(
     } else {
         // Output prover input info (original behavior)
         let prover_input_info =
-            cairo_runner.get_prover_input_info().expect("Unable to get prover input info");
+            cairo_runner_mut.get_prover_input_info().expect("Unable to get prover input info");
         if pi_json {
             std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
         } else {
@@ -757,17 +779,21 @@ pub fn generate_trace(
     }
 
     if output_trace_components {
-        write_binary_trace(&cairo_runner, &output_path.with_extension("trace"))
+        write_binary_trace(&cairo_runner_mut, &output_path.with_extension("trace"))
             .map_err(to_pyerr)?;
-        write_binary_memory(&cairo_runner, &output_path.with_extension("memory"), 3 * 1024 * 1024)
-            .map_err(to_pyerr)?;
+        write_binary_memory(
+            &cairo_runner_mut,
+            &output_path.with_extension("memory"),
+            3 * 1024 * 1024,
+        )
+        .map_err(to_pyerr)?;
         write_binary_air_public_input(
-            &cairo_runner,
+            &cairo_runner_mut,
             &output_path.with_extension("air_public_input"),
         )
         .map_err(to_pyerr)?;
         write_binary_air_private_input(
-            &cairo_runner,
+            &cairo_runner_mut,
             &output_path.with_extension("trace"),
             &output_path.with_extension("memory"),
             &output_path.with_extension("air_private_input"),
