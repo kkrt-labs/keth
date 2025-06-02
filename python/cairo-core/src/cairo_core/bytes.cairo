@@ -174,11 +174,6 @@ struct ListBytes4 {
     value: ListBytes4Struct*,
 }
 
-struct ListBytesStruct {
-    data: Bytes*,
-    len: felt,
-}
 
-struct ListBytes {
-    value: ListBytesStruct*,
-}
+using ListBytes = TupleBytes;
+using ListBytesStruct = TupleBytesStruct;

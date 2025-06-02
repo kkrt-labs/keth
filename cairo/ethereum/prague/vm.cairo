@@ -119,6 +119,7 @@ func BlockOutput__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     let receipt_keys_commitment = TupleBytes__hash__(block_output.value.receipt_keys);
     let block_logs_commitment = TupleLog__hash__(block_output.value.block_logs);
+    let requests_commitment = TupleBytes__hash__(block_output.value.requests);
 
     let (blake2s_input) = alloc();
     let start = blake2s_input;
@@ -129,6 +130,7 @@ func BlockOutput__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     blake2s_add_uint256{data=blake2s_input}([block_logs_commitment.value]);
     blake2s_add_uint256{data=blake2s_input}([withdrawal_trie_commitment.value]);
     blake2s_add_felt{data=blake2s_input}(block_output.value.blob_gas_used.value, bigend=0);
+    blake2s_add_uint256{data=blake2s_input}([requests_commitment.value]);
 
     let (block_output_commitment) = blake2s(data=start, n_bytes=BlockOutputStruct.SIZE * 32);
     tempvar res = Hash32(new block_output_commitment);
