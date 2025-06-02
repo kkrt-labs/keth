@@ -112,7 +112,7 @@ func bls12_map_fp2_to_g2{
     alloc_locals;
 
     let data = evm.value.message.value.data;
-    if (data.value.len != 64) {
+    if (data.value.len != 128) {
         tempvar err = new EthereumException(InvalidParameter);
         return err;
     }

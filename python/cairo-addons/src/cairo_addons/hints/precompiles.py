@@ -341,8 +341,10 @@ def bls12_map_fp2_to_g2_hint(
             data = bytes(
                 [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
             )
-            if len(data) != 64:
+            if len(data) != 128:
                 write_error(memory, ap, segments, ValueError("Invalid Input Length"))
+                return
+
             field_element = bytes_to_FQ2(data, True)
             assert isinstance(field_element, OPTIMIZED_FQ2)
 
