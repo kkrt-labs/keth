@@ -122,6 +122,7 @@ from ethereum.prague.state import (
     finalize_state,
 )
 from ethereum.prague.transactions_types import (
+    Access,
     Transaction,
     get_transaction_type,
     get_gas,
@@ -130,6 +131,7 @@ from ethereum.prague.transactions_types import (
     get_gas_price,
     get_nonce,
     get_value,
+    get_data,
     TransactionType,
     TupleAccess,
     TupleAccessStruct,
@@ -555,19 +557,14 @@ func process_transaction{
     let sender_account = get_account{state=state}(sender);
 
     // Get relevant transaction data
-    local tx_gas: Uint;
-    local tx_data: Bytes;
-    local tx_to: To;
-    local tx_value: U256;
+    let tx_gas = get_gas(tx);
+    let tx_data = get_data(tx);
+    let tx_to = get_to(tx);
+    let tx_value = get_value(tx);
+
     local blob_gas_fee: Uint;
     local access_lists: TupleAccess;
     if (tx.value.blob_transaction.value != 0) {
-        assert tx_gas = tx.value.blob_transaction.value.gas;
-        assert tx_data = tx.value.blob_transaction.value.data;
-        assert tx_to = To(
-            new ToStruct(bytes0=cast(0, Bytes0*), address=&tx.value.blob_transaction.value.to)
-        );
-        assert tx_value = tx.value.blob_transaction.value.value;
         let blob_gas_fee_res = calculate_data_fee(block_env.value.excess_blob_gas, tx);
         assert blob_gas_fee = blob_gas_fee_res;
         assert access_lists = tx.value.blob_transaction.value.access_list;
@@ -579,30 +576,23 @@ func process_transaction{
     let range_check_ptr = [ap - 1];
 
     if (tx.value.fee_market_transaction.value != 0) {
-        assert tx_gas = tx.value.fee_market_transaction.value.gas;
-        assert tx_data = tx.value.fee_market_transaction.value.data;
-        assert tx_to = tx.value.fee_market_transaction.value.to;
-        assert tx_value = tx.value.fee_market_transaction.value.value;
         assert blob_gas_fee = Uint(0);
         assert access_lists = tx.value.fee_market_transaction.value.access_list;
     }
 
     if (tx.value.legacy_transaction.value != 0) {
-        assert tx_gas = tx.value.legacy_transaction.value.gas;
-        assert tx_data = tx.value.legacy_transaction.value.data;
-        assert tx_to = tx.value.legacy_transaction.value.to;
-        assert tx_value = tx.value.legacy_transaction.value.value;
         assert blob_gas_fee = Uint(0);
-        assert access_lists = TupleAccess(cast(0, TupleAccessStruct*));
+        assert access_lists = TupleAccess(new TupleAccessStruct(data=cast(0, Access*), len=0));
     }
 
     if (tx.value.access_list_transaction.value != 0) {
-        assert tx_gas = tx.value.access_list_transaction.value.gas;
-        assert tx_data = tx.value.access_list_transaction.value.data;
-        assert tx_to = tx.value.access_list_transaction.value.to;
-        assert tx_value = tx.value.access_list_transaction.value.value;
         assert blob_gas_fee = Uint(0);
         assert access_lists = tx.value.access_list_transaction.value.access_list;
+    }
+
+    if (tx.value.set_code_transaction.value != 0) {
+        assert blob_gas_fee = Uint(0);
+        assert access_lists = TupleAccess(new TupleAccessStruct(data=cast(0, Access*), len=0));
     }
 
     let effective_gas_fee = tx_gas.value * effective_gas_price.value;
@@ -1661,9 +1651,7 @@ func state_transition{
 
         assert block_output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
 
-        let req_hash_eq = Bytes32__eq__(
-            requests_hash, block.value.header.value.requests_hash
-        );
+        let req_hash_eq = Bytes32__eq__(requests_hash, block.value.header.value.requests_hash);
         assert req_hash_eq.value = 1;
     }
 
