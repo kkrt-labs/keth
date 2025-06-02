@@ -104,6 +104,9 @@ func bls12_map_fp2_to_g2{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
