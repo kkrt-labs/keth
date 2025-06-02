@@ -35,7 +35,7 @@ from scripts.keth import (
 from typer.testing import CliRunner
 
 # Test data constants
-TEST_ZKPI_FILE = "test_data/22616014.json"
+TEST_ZKPI_FILE = "test_data/22615247.json"
 TEST_BLOCK_NUMBER = PRAGUE_FORK_BLOCK
 TEST_CHAIN_ID = 1
 

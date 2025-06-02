@@ -99,7 +99,7 @@ infrastructure.
 ### Problem
 
 A test failure occurred, particularly noticeable with the
-`test_data/22188102.json` fixture, during the execution of the EELS `apply_body`
+`test_data/22615247.json` fixture, during the execution of the EELS `apply_body`
 function within the Python `load_teardown_input` utility
 (`cairo/utils/fixture_loader.py`). The issue stemmed from a mismatch between
 Keth's internal `State` representation and the format expected by EELS:
@@ -138,7 +138,7 @@ passed to EELS `apply_body` and handling the ZKPI representation consistently:
     the `None` representations back into the `State` object _after_ the
     `apply_body` call, maintaining consistency with Keth's internal logic for
     subsequent steps (like teardown).
-5.  **Testing**: Added `test_data/22188102.json` to `test_teardown.py` and
+5.  **Testing**: Added `test_data/22615247.json` to `test_teardown.py` and
     introduced `test_e2e_eels` in `test_e2e.py` to specifically test EELS
     compatibility and verify gas calculations even when full state root
     verification fails due to partial ZKPI state.

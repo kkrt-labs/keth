@@ -212,7 +212,7 @@ class StepHandler:
 
                 # Sort body outputs by start_index (extract from filename)
                 def extract_body_start_index(path: Path) -> int:
-                    # Extract start_index from filename like "prover_input_info_22188088_body_0_5.run_output.txt"
+                    # Extract start_index from filename like "prover_input_info_22615247_body_0_5.run_output.txt"
                     parts = path.stem.split("_")
                     for i, part in enumerate(parts):
                         if part == "body" and i + 1 < len(parts):

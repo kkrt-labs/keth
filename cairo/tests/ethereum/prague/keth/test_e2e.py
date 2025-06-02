@@ -27,7 +27,7 @@ def program_input(zkpi_path):
 class TestE2E:
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22188102.json")],
+        [Path("test_data/22615247.json")],
     )
     def test_e2e_eels(self, zkpi_path):
         """
@@ -44,7 +44,7 @@ class TestE2E:
 
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22188088.json")],
+        [Path("test_data/22615247.json")],
     )
     def test_e2e(self, cairo_run, cairo_program, zkpi_path, program_input):
         """
@@ -181,7 +181,7 @@ class TestE2E:
 class TestInit:
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22188088.json")],
+        [Path("test_data/22615247.json")],
     )
     def test_init(self, cairo_run, zkpi_path, program_input):
         [
@@ -200,7 +200,7 @@ class TestInit:
 class TestBody:
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22188088.json")],
+        [Path("test_data/22615247.json")],
     )
     def test_body(self, cairo_run, zkpi_path):
         # Run all transactions of the body
@@ -224,7 +224,7 @@ class TestTeardown:
     @pytest.mark.parametrize(
         "zkpi_path",
         [
-            Path("test_data/22188088.json"),
+            Path("test_data/22615247.json"),
         ],
     )
     def test_teardown(self, cairo_run, zkpi_path):
