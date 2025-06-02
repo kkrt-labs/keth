@@ -18,14 +18,11 @@ pytestmark = [
     pytest.mark.max_steps(100_000_000),
 ]
 
-fetch_prague_tests = partial(fetch_state_test_files, network="Prague")
-
-
 ETHEREUM_BLOCKCHAIN_TESTS_DIR = f"{ETHEREUM_TESTS_PATH}/BlockchainTests/"
 EEST_BLOCKCHAIN_TESTS_DIR = f"{EEST_TESTS_PATH}/blockchain_tests/"
-
 NETWORK = "Prague"
 PACKAGE = "prague"
+
 
 SLOW_TESTS = (
     # GeneralStateTests
@@ -140,7 +137,6 @@ fetch_tests = partial(
     big_memory_list=BIG_MEMORY_TESTS,
 )
 
-
 FIXTURES_LOADER = LoadKethFixture(NETWORK, PACKAGE)
 
 
@@ -167,10 +163,8 @@ def test_general_state_tests(test_case: Dict, cairo_state_transition) -> None:
 # Run EEST test fixtures
 @pytest.mark.parametrize(
     "test_case",
-    fetch_prague_tests(EEST_BLOCKCHAIN_TESTS_DIR),
+    fetch_tests(EEST_BLOCKCHAIN_TESTS_DIR),
     ids=idfn,
 )
-def test_execution_specs_generated_tests(
-    test_case: Dict, cairo_state_transition
-) -> None:
+def test_eest_tests(test_case: Dict) -> None:
     cairo_state_transition(test_case)
