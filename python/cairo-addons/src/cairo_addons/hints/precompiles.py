@@ -50,6 +50,7 @@ def bls12_g1_add_hint(
     ap: RelocatableValue,
 ):
 
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.memory import buffer_read
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
         G1_to_bytes,
@@ -61,19 +62,21 @@ def bls12_g1_add_hint(
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
             p1 = bytes_to_G1(buffer_read(data, U256(0), U256(128)))
             p2 = bytes_to_G1(buffer_read(data, U256(128), U256(128)))
 
             result = G1_to_bytes(add(p1, p2))
 
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, result)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, result)
 
     inner()
 
@@ -113,6 +116,7 @@ def bls12_g1_msm_hint(
     ap: RelocatableValue,
 ):
 
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
         G1_to_bytes,
         decode_G1_scalar_pair,
@@ -122,10 +126,10 @@ def bls12_g1_msm_hint(
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
             # Each pair consists of a G1 point (128 bytes) and a scalar (32 bytes)
             LENGTH_PER_PAIR = 160
             k = len(data) // LENGTH_PER_PAIR
@@ -145,11 +149,12 @@ def bls12_g1_msm_hint(
 
             # Convert final result to bytes
             output = G1_to_bytes(result)
-
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, output)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -161,23 +166,26 @@ def bls12_map_fp_to_g1_hint(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
         G1_to_bytes,
         bytes_to_FQ,
     )
     from py_ecc.bls.hash_to_curve import clear_cofactor_G1, map_to_curve_G1
-    from py_ecc.fields.field_elements import FQ as OPTIMIZED_FQ
+    from py_ecc.optimized_bls12_381.optimized_curve import FQ as OPTIMIZED_FQ
     from py_ecc.optimized_bls12_381.optimized_curve import normalize
 
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
-        if len(data) != 64:
-            raise ValueError("Invalid Input Length")
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
+            if len(data) != 64:
+                write_error(memory, ap, segments, ValueError("Invalid Input Length"))
+                return
+
             field_element = bytes_to_FQ(data, True)
             assert isinstance(field_element, OPTIMIZED_FQ)
 
@@ -185,11 +193,12 @@ def bls12_map_fp_to_g1_hint(
             g1_normalised = normalize(g1_uncompressed)
 
             output = G1_to_bytes(g1_normalised)
-
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, output)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -202,6 +211,7 @@ def bls12_g2_add_hint(
     ap: RelocatableValue,
 ):
 
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.memory import buffer_read
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
         G2_to_bytes,
@@ -213,19 +223,20 @@ def bls12_g2_add_hint(
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
             p1 = bytes_to_G2(buffer_read(data, U256(0), U256(256)))
             p2 = bytes_to_G2(buffer_read(data, U256(256), U256(256)))
 
             result = G2_to_bytes(add(p1, p2))
 
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, result)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, result)
 
     inner()
 
@@ -264,6 +275,7 @@ def bls12_g2_msm_hint(
     ap: RelocatableValue,
 ):
 
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
         LENGTH_PER_PAIR,
         G2_to_bytes,
@@ -274,10 +286,10 @@ def bls12_g2_msm_hint(
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
             # Each pair consists of a G2 point (256 bytes) and a scalar (32 bytes)
             k = len(data) // LENGTH_PER_PAIR
 
@@ -296,11 +308,12 @@ def bls12_g2_msm_hint(
 
             # Convert final result to bytes
             output = G2_to_bytes(result)
-
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, output)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -312,23 +325,24 @@ def bls12_map_fp2_to_g2_hint(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
+    from ethereum.prague.vm.exceptions import ExceptionalHalt
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
         G2_to_bytes,
         bytes_to_FQ2,
     )
     from py_ecc.bls.hash_to_curve import clear_cofactor_G2, map_to_curve_G2
-    from py_ecc.fields.field_elements import FQ2 as OPTIMIZED_FQ2
+    from py_ecc.optimized_bls12_381.optimized_curve import FQ2 as OPTIMIZED_FQ2
     from py_ecc.optimized_bls12_381.optimized_curve import normalize
 
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
-        if len(data) != 64:
-            raise ValueError("Invalid Input Length")
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
+            if len(data) != 64:
+                write_error(memory, ap, segments, ValueError("Invalid Input Length"))
             field_element = bytes_to_FQ2(data, True)
             assert isinstance(field_element, OPTIMIZED_FQ2)
 
@@ -336,11 +350,12 @@ def bls12_map_fp2_to_g2_hint(
             g2_normalised = normalize(g2_uncompressed)
 
             output = G2_to_bytes(g2_normalised)
-
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, output)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -352,7 +367,7 @@ def bls12_pairing_hint(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
-    from ethereum.prague.vm.exceptions import InvalidParameter
+    from ethereum.prague.vm.exceptions import ExceptionalHalt, InvalidParameter
     from ethereum.prague.vm.memory import buffer_read
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g1 import (
         bytes_to_G1,
@@ -367,10 +382,10 @@ def bls12_pairing_hint(
     from cairo_addons.hints.precompiles import write_error, write_output
 
     def inner():
-        data = bytes(
-            [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
-        )
         try:
+            data = bytes(
+                [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+            )
             result = FQ12.one()
             k = len(data) // 384
             for i in range(k):
@@ -379,20 +394,34 @@ def bls12_pairing_hint(
 
                 g1_point = bytes_to_G1(buffer_read(data, U256(g1_start), U256(128)))
                 if multiply(g1_point, curve_order) is not None:
-                    raise InvalidParameter("Sub-group check failed.")
+                    write_error(
+                        memory,
+                        ap,
+                        segments,
+                        InvalidParameter("Sub-group check failed."),
+                    )
+                    return
 
                 g2_point = bytes_to_G2(buffer_read(data, U256(g2_start), U256(256)))
                 if multiply(g2_point, curve_order) is not None:
-                    raise InvalidParameter("Sub-group check failed.")
+                    write_error(
+                        memory,
+                        ap,
+                        segments,
+                        InvalidParameter("Sub-group check failed."),
+                    )
+                    return
 
                 result *= pairing(g2_point, g1_point)
             if result == FQ12.one():
                 output = b"\x00" * 31 + b"\x01"
             else:
                 output = b"\x00" * 32
-            memory[ap - 2] = 0
-            write_output(memory, ap, segments, output)
-        except Exception as e:
+        except ExceptionalHalt as e:
             write_error(memory, ap, segments, e)
+            return
+
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()

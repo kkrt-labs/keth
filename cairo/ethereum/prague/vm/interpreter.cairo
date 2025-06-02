@@ -382,7 +382,11 @@ func execute_code{
             %}
 
             if (cast(err, felt) != 0) {
-                %{ logger.trace_cairo(f"OpException: {serialize(ids.err)}") %}
+                %{
+                    error_bytes = ids.err.value.to_bytes(32, "big")
+                    ascii_value = error_bytes.decode('utf-8', errors='replace').strip("\x00")
+                    logger.trace_cairo(f"OpException: {ascii_value}")
+                %}
                 EvmImpl.set_gas_left{evm=evm}(Uint(0));
                 let (output_bytes: felt*) = alloc();
                 tempvar output = Bytes(new BytesStruct(output_bytes, 0));
@@ -610,9 +614,12 @@ func process_message_call{
         if error_int == 0:
             error = None
         else:
-            error_bytes = error_int.to_bytes(32, "big")
-            ascii_value = error_bytes.decode().strip("\x00")
-            error = ascii_value
+            try:
+                error_bytes = error_int.to_bytes(32, "big")
+                ascii_value = error_bytes.decode('utf-8', errors='replace').strip("\x00")
+                error = ascii_value
+            except (UnicodeDecodeError, ValueError):
+                error = f"Error code: {error_int}"
         gas_used = initial_gas - final_gas
         logger.trace_cairo(f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
     %}
