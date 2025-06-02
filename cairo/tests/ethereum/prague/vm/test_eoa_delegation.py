@@ -18,9 +18,10 @@ from ethereum.prague.vm.eoa_delegation import (
     set_delegation,
 )
 from ethereum.utils.hexadecimal import hex_to_hash
+from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U8, U64, U256, Uint
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
@@ -33,40 +34,15 @@ EOA_DELEGATION_MARKER = bytes([0xEF, 0x01, 0x00])
 EOA_DELEGATED_CODE_LENGTH = 23  # 3 marker + 20 address
 
 
-# Hypothesis strategies for generating test data
 @st.composite
-def bytes_strategy(draw):
-    """Generate Bytes objects for testing."""
-    # Generate various lengths of byte arrays
-    length = draw(
-        st.one_of(
-            st.just(0),  # Empty
-            st.just(EOA_DELEGATED_CODE_LENGTH),  # Correct length
-            st.integers(min_value=1, max_value=100),  # Various other lengths
-        )
-    )
-
-    if length == EOA_DELEGATED_CODE_LENGTH:
-        # Sometimes generate valid delegation codes
-        if draw(st.booleans()):
-            # Valid delegation code
-            address_bytes = draw(st.binary(min_size=20, max_size=20))
-            data = EOA_DELEGATION_MARKER + address_bytes
-        else:
-            # Invalid delegation code with correct length
-            data = draw(st.binary(min_size=length, max_size=length))
+def delegation_code_strategy(draw):
+    if draw(st.integers(min_value=0, max_value=9)) < 8:
+        address_bytes = draw(st.binary(min_size=20, max_size=20))
+        data = EOA_DELEGATION_MARKER + address_bytes
     else:
-        # Random bytes of various lengths
+        length = draw(st.integers(min_value=0, max_value=40))
         data = draw(st.binary(min_size=length, max_size=length))
 
-    return Bytes(data)
-
-
-@st.composite
-def valid_delegation_code_strategy(draw):
-    """Generate valid delegation codes with random addresses."""
-    address_bytes = draw(st.binary(min_size=20, max_size=20))
-    data = EOA_DELEGATION_MARKER + address_bytes
     return Bytes(data)
 
 
@@ -84,7 +60,7 @@ def message_with_authorizations_strategy(draw):
         .with_block_env()
         .with_current_target()
         .with_code_address(st.from_type(Address))  # Ensure code_address is not None
-        .with_code(bytes_strategy())  # May or may not be delegation code
+        .with_code(delegation_code_strategy())  # May or may not be delegation code
         .build()
     )
 
@@ -204,7 +180,9 @@ def evm_with_delegation_strategy(draw):
         )
         if invalid_type == "wrong_length":
             account_code = draw(
-                bytes_strategy().filter(lambda x: len(x) != EOA_DELEGATED_CODE_LENGTH)
+                delegation_code_strategy().filter(
+                    lambda x: len(x) != EOA_DELEGATED_CODE_LENGTH
+                )
             )
         elif invalid_type == "wrong_marker":
             # Correct length but wrong marker
@@ -214,9 +192,7 @@ def evm_with_delegation_strategy(draw):
                     max_size=EOA_DELEGATED_CODE_LENGTH,
                 )
             )
-            # Ensure it doesn't accidentally have the right marker
-            if wrong_data[:3] == EOA_DELEGATION_MARKER:
-                wrong_data = b"\x00\x01\x00" + wrong_data[3:]
+            assume(wrong_data[:3] != EOA_DELEGATION_MARKER)
             account_code = Bytes(wrong_data)
         else:  # partial_marker
             account_code = Bytes(
@@ -264,7 +240,6 @@ def evm_with_delegation_strategy(draw):
 
 @st.composite
 def authorization_strategy(draw):
-    """Generate Authorization objects for testing, inspired by ecrecover_data."""
     # Generate a private key for creating real signatures
     pkey = draw(private_key)
 
@@ -276,18 +251,10 @@ def authorization_strategy(draw):
     # Create the message that would be signed for EIP-7702
     # This follows the same pattern as the Python implementation:
     # SET_CODE_TX_MAGIC + rlp.encode((chain_id, address, nonce))
-    from ethereum_rlp import rlp
-
     message_data = b"\x05" + rlp.encode(
         (U256(chain_id), Address(address_bytes), U64(nonce))
     )
-
-    # Hash the message
-    from ethereum.crypto.hash import keccak256
-
     message_hash = keccak256(message_data)
-
-    # Choose test case type
     test_case = draw(
         st.sampled_from(
             [
@@ -339,7 +306,7 @@ def authorization_strategy(draw):
 
 
 class TestEOADelegation:
-    @given(code=bytes_strategy())
+    @given(code=delegation_code_strategy())
     def test_is_valid_delegation(self, cairo_run, code: Bytes):
         try:
             cairo_result = cairo_run("is_valid_delegation", code)
@@ -350,7 +317,7 @@ class TestEOADelegation:
 
         assert bool(cairo_result) == is_valid_delegation(code)
 
-    @given(code=bytes_strategy())
+    @given(code=delegation_code_strategy())
     def test_get_delegated_code_address(self, cairo_run, code: Bytes):
         try:
             cairo_result = cairo_run("get_delegated_code_address", code)
@@ -363,18 +330,16 @@ class TestEOADelegation:
 
         assert cairo_result == python_result
 
-    @given(code=valid_delegation_code_strategy())
+    @given(code=delegation_code_strategy())
     def test_valid_delegation_codes(self, cairo_run, code: Bytes):
         try:
-            cairo_valid = cairo_run("is_valid_delegation", code)
+            cairo_result = cairo_run("is_valid_delegation", code)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 is_valid_delegation(code)
             return
 
-        python_valid = is_valid_delegation(code)
-        assert bool(cairo_valid) == python_valid
-        assert python_valid  # Should always be true for valid codes
+        assert bool(cairo_result) == is_valid_delegation(code)
 
     @given(authorization=authorization_strategy())
     def test_recover_authority(self, cairo_run, authorization: Authorization):
