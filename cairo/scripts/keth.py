@@ -415,7 +415,7 @@ def validate_block_number(block_number: int) -> None:
     """Validate that the block number is after prague fork."""
     if block_number < PRAGUE_FORK_BLOCK:
         typer.echo(
-            f"Error: Block {block_number} is before prague fork ({PRAGUE_FORK_BLOCK})"
+            f"Error: Block {block_number} is before Prague fork ({PRAGUE_FORK_BLOCK})"
         )
         raise typer.Exit(1)
 

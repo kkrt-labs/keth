@@ -113,14 +113,14 @@ using STWO.
 #### Example Usage
 
 ```bash
-# Generate a trace for block 21688509
-uv run keth trace -b 21688509
+# Generate a trace for block 22616014
+uv run keth trace -b 22616014
 
 # Run end-to-end pipeline with verification
-uv run keth e2e -b 21688509 --verify
+uv run keth e2e -b 22616014 --verify
 
 # Generate all AR Cairo PIEs for recursive proving
-uv run keth generate-ar-inputs -b 21688509 --cairo-pie
+uv run keth generate-ar-inputs -b 22616014 --cairo-pie
 ```
 
 ### Prove Cairo CLI (`uv run prove-cairo`)

@@ -173,7 +173,7 @@ def node_store(zkpi):
 
 class TestTrieDiff:
     @pytest.mark.parametrize(
-        "data_path", [Path("test_data/21688509.json")], scope="session"
+        "data_path", [Path("test_data/22616014.json")], scope="session"
     )
     def test_trie_diff(
         self,

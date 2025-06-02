@@ -37,7 +37,7 @@ To profile the non-cairo part, we can use
 [samply](https://github.com/mstange/samply/). Example:
 
 ```bash
-samply record uv run keth trace -b 21688509
+samply record uv run keth trace -b 22616014
 ```
 
 ### Ethereum Foundation Tests

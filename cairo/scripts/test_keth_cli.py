@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 import pytest
 from scripts.keth import (
+    PRAGUE_FORK_BLOCK,
     KethContext,
     Step,
     StepHandler,
@@ -34,8 +35,8 @@ from scripts.keth import (
 from typer.testing import CliRunner
 
 # Test data constants
-TEST_ZKPI_FILE = "test_data/21688509.json"
-TEST_BLOCK_NUMBER = 21688509
+TEST_ZKPI_FILE = "test_data/22616014.json"
+TEST_BLOCK_NUMBER = PRAGUE_FORK_BLOCK
 TEST_CHAIN_ID = 1
 
 
@@ -141,7 +142,7 @@ class CLITestHelper:
     @staticmethod
     def assert_success_with_message(result, expected_message: str):
         """Assert CLI result is successful and contains expected message."""
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"CLI result: {result.stdout}"
         assert expected_message in result.stdout
 
     @staticmethod
@@ -280,12 +281,12 @@ class TestKethUnits:
         """Test block number validation."""
         with patch("scripts.keth.typer.echo"), MockValidationHelper.mock_typer_exit():
 
-            # Valid block number (after Cancun fork)
-            validate_block_number(19426587)  # Should not raise
+            # Valid block number (after Prague fork)
+            validate_block_number(PRAGUE_FORK_BLOCK)  # Should not raise
 
-            # Invalid block number (before Cancun fork)
+            # Invalid block number (before Prague fork)
             with pytest.raises(RuntimeError):
-                validate_block_number(19426586)
+                validate_block_number(PRAGUE_FORK_BLOCK - 1)
 
     def test_get_default_program(self):
         """Test default program path generation."""
@@ -503,19 +504,19 @@ class TestTraceCommand(TestKethCLIBase):
         mock_trace.assert_called_once()
 
     def test_trace_command_invalid_block_number(self, temp_data_dir):
-        """Test trace command with invalid block number (before Cancun fork)."""
+        """Test trace command with invalid block number (before Prague fork)."""
         result = self.runner.invoke(
             app,
             [
                 "trace",
                 "-b",
-                "19426586",  # Before Cancun fork
+                str(PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
                 "--data-dir",
                 str(temp_data_dir),
             ],
         )
 
-        self.helper.assert_error_with_message(result, "before Cancun fork")
+        self.helper.assert_error_with_message(result, "before Prague fork")
 
     def test_trace_command_with_cairo_pie(self, temp_data_dir, mock_all_programs):
         """Test trace command with Cairo PIE output."""
@@ -891,13 +892,13 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             [
                 "generate-ar-inputs",
                 "-b",
-                "19426586",  # Before Cancun fork
+                str(PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
                 "--data-dir",
                 str(temp_data_dir),
             ],
         )
 
-        self.helper.assert_error_with_message(result, "before Cancun fork")
+        self.helper.assert_error_with_message(result, "before Prague fork")
 
     def test_generate_ar_inputs_filename_consistency(
         self, temp_data_dir, mock_generate_ar_setup

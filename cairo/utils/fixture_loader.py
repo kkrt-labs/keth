@@ -9,10 +9,11 @@ from ethereum.crypto.hash import keccak256
 from ethereum.prague.blocks import Block, Log, Receipt, Withdrawal
 from ethereum.prague.fork import (
     BEACON_ROOTS_ADDRESS,
+    HISTORY_STORAGE_ADDRESS,
     BlockChain,
     get_last_256_block_hashes,
-    process_system_transaction,
     process_transaction,
+    process_unchecked_system_transaction,
 )
 from ethereum.prague.fork_types import (
     EMPTY_ACCOUNT,
@@ -355,10 +356,16 @@ def prepare_body_input(
 
     format_state_for_eels(block_env.state)
 
-    process_system_transaction(
+    process_unchecked_system_transaction(
         block_env=block_env,
         target_address=BEACON_ROOTS_ADDRESS,
         data=block_env.parent_beacon_block_root,
+    )
+
+    process_unchecked_system_transaction(
+        block_env=block_env,
+        target_address=HISTORY_STORAGE_ADDRESS,
+        data=block_env.block_hashes[-1],  # The parent hash
     )
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
@@ -550,6 +557,10 @@ def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
     tx["gasLimit"] = tx.pop("gas")
     tx["data"] = tx.pop("input")
     tx["to"] = tx["to"] if tx["to"] is not None else ""
+    # ZKPI returns `yParity` field, expected is `v`
+    if "authorizationList" in tx:
+        for authorization in tx["authorizationList"]:
+            authorization["v"] = authorization["yParity"]
     return tx
 
 
