@@ -595,6 +595,7 @@ func process_message_call{
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
         finalize_evm{evm=evm}();
+        %{ trace_tx_end %}
         let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
         return (msg, block_env);
     }
@@ -606,23 +607,8 @@ func process_message_call{
     let range_check_ptr = range_check_ptr + 1;
 
     let squashed_evm = evm;
-    %{
-        initial_gas = serialize(ids.evm.value.message.value.gas)
-        final_gas = serialize(ids.squashed_evm.value.gas_left)
-        output = serialize(ids.squashed_evm.value.output)
-        error_int = serialize(ids.squashed_evm.value.error)["value"]
-        if error_int == 0:
-            error = None
-        else:
-            try:
-                error_bytes = error_int.to_bytes(32, "big")
-                ascii_value = error_bytes.decode('utf-8', errors='replace').strip("\x00")
-                error = ascii_value
-            except (UnicodeDecodeError, ValueError):
-                error = f"Error code: {error_int}"
-        gas_used = initial_gas - final_gas
-        logger.trace_cairo(f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
-    %}
+    %{ trace_tx_end %}
+
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=squashed_evm.value.gas_left,

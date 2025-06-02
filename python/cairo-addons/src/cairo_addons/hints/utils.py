@@ -157,3 +157,23 @@ def jumpdest_continue_no_push_case(
 @register_hint
 def compare_relocatable_segment_index(ids: VmConsts):
     ids.segment_equal = 1 if ids.lhs.segment_index == ids.rhs.segment_index else 0
+
+
+@register_hint
+def trace_tx_end(ids: VmConsts):
+
+    initial_gas = serialize(ids.evm.value.message.value.gas)
+    final_gas = serialize(ids.evm.value.gas_left)
+    output = serialize(ids.evm.value.output)
+    error_int = serialize(ids.evm.value.error)["value"]
+    if error_int == 0:
+        error = None
+    else:
+        try:
+            error_bytes = error_int.to_bytes(32, "big")
+            ascii_value = error_bytes.decode('utf-8', errors='replace').strip("\x00")
+            error = ascii_value
+        except (UnicodeDecodeError, ValueError):
+            error = f"Error code: {error_int}"
+    gas_used = initial_gas - final_gas
+    logger.trace_cairo(f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
