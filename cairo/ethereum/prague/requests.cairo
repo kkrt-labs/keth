@@ -63,7 +63,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
     // Check that all the offsets are in order
     tempvar pubkey_offset_bytes = Bytes(new BytesStruct(data.value.data, 32));
     let pubkey_offset_u256 = U256_from_be_bytes(pubkey_offset_bytes);
-    assert pubkey_offset_u256.value.high = 0;
+    if (pubkey_offset_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let pubkey_offset = pubkey_offset_u256.value.low;
     if (pubkey_offset != PUBKEY_OFFSET) {
         raise('InvalidBlock');
@@ -71,7 +73,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar withdrawal_credentials_offset_bytes = Bytes(new BytesStruct(data.value.data + 32, 32));
     let withdrawal_credentials_offset_u256 = U256_from_be_bytes(withdrawal_credentials_offset_bytes);
-    assert withdrawal_credentials_offset_u256.value.high = 0;
+    if (withdrawal_credentials_offset_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let withdrawal_credentials_offset = withdrawal_credentials_offset_u256.value.low;
     if (withdrawal_credentials_offset != WITHDRAWAL_CREDENTIALS_OFFSET) {
         raise('InvalidBlock');
@@ -79,7 +83,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar amount_offset_bytes = Bytes(new BytesStruct(data.value.data + 64, 32));
     let amount_offset_u256 = U256_from_be_bytes(amount_offset_bytes);
-    assert amount_offset_u256.value.high = 0;
+    if (amount_offset_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let amount_offset = amount_offset_u256.value.low;
     if (amount_offset != AMOUNT_OFFSET) {
         raise('InvalidBlock');
@@ -87,7 +93,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar signature_offset_bytes = Bytes(new BytesStruct(data.value.data + 96, 32));
     let signature_offset_u256 = U256_from_be_bytes(signature_offset_bytes);
-    assert signature_offset_u256.value.high = 0;
+    if (signature_offset_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let signature_offset = signature_offset_u256.value.low;
     if (signature_offset != SIGNATURE_OFFSET) {
         raise('InvalidBlock');
@@ -95,7 +103,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar index_offset_bytes = Bytes(new BytesStruct(data.value.data + 128, 32));
     let index_offset_u256 = U256_from_be_bytes(index_offset_bytes);
-    assert index_offset_u256.value.high = 0;
+    if (index_offset_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let index_offset = index_offset_u256.value.low;
     if (index_offset != INDEX_OFFSET) {
         raise('InvalidBlock');
@@ -104,7 +114,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
     // Check that all the sizes are in order
     tempvar pubkey_size_bytes = Bytes(new BytesStruct(data.value.data + PUBKEY_OFFSET, 32));
     let pubkey_size_u256 = U256_from_be_bytes(pubkey_size_bytes);
-    assert pubkey_size_u256.value.high = 0;
+    if (pubkey_size_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let pubkey_size = pubkey_size_u256.value.low;
     if (pubkey_size != PUBKEY_SIZE) {
         raise('InvalidBlock');
@@ -115,7 +127,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
         new BytesStruct(data.value.data + WITHDRAWAL_CREDENTIALS_OFFSET, 32)
     );
     let withdrawal_credentials_size_u256 = U256_from_be_bytes(withdrawal_credentials_size_bytes);
-    assert withdrawal_credentials_size_u256.value.high = 0;
+    if (withdrawal_credentials_size_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let withdrawal_credentials_size = withdrawal_credentials_size_u256.value.low;
     if (withdrawal_credentials_size != WITHDRAWAL_CREDENTIALS_SIZE) {
         raise('InvalidBlock');
@@ -128,7 +142,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar amount_size_bytes = Bytes(new BytesStruct(data.value.data + AMOUNT_OFFSET, 32));
     let amount_size_u256 = U256_from_be_bytes(amount_size_bytes);
-    assert amount_size_u256.value.high = 0;
+    if (amount_size_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let amount_size = amount_size_u256.value.low;
     if (amount_size != AMOUNT_SIZE) {
         raise('InvalidBlock');
@@ -137,7 +153,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar signature_size_bytes = Bytes(new BytesStruct(data.value.data + SIGNATURE_OFFSET, 32));
     let signature_size_u256 = U256_from_be_bytes(signature_size_bytes);
-    assert signature_size_u256.value.high = 0;
+    if (signature_size_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let signature_size = signature_size_u256.value.low;
     if (signature_size != SIGNATURE_SIZE) {
         raise('InvalidBlock');
@@ -148,7 +166,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
 
     tempvar index_size_bytes = Bytes(new BytesStruct(data.value.data + INDEX_OFFSET, 32));
     let index_size_u256 = U256_from_be_bytes(index_size_bytes);
-    assert index_size_u256.value.high = 0;
+    if (index_size_u256.value.high != 0) {
+        raise('InvalidBlock');
+    }
     let index_size = index_size_u256.value.low;
     if (index_size != INDEX_SIZE) {
         raise('InvalidBlock');
