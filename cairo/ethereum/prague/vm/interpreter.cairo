@@ -505,6 +505,8 @@ func process_message_call{
         // Process create message
         let evm = process_create_message(message);
 
+        assert refund_counter = 0;
+
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
