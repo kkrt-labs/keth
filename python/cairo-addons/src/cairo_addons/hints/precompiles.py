@@ -233,7 +233,6 @@ def bls12_g2_add_hint(
 @register_hint
 def bls12_g2_msm_gas_hint(
     ids: VmConsts,
-    segments: MemorySegmentManager,
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
@@ -241,11 +240,11 @@ def bls12_g2_msm_gas_hint(
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
         G2_K_DISCOUNT,
         G2_MAX_DISCOUNT,
+        LENGTH_PER_PAIR,
         MULTIPLIER,
     )
     from ethereum_types.numeric import Uint
 
-    LENGTH_PER_PAIR = 256
     data = bytes([memory[ids.data.value.data + i] for i in range(ids.data.value.len)])
     k = len(data) // LENGTH_PER_PAIR
     if k <= 128:
@@ -266,6 +265,7 @@ def bls12_g2_msm_hint(
 ):
 
     from ethereum.prague.vm.precompiled_contracts.bls12_381.bls12_381_g2 import (
+        LENGTH_PER_PAIR,
         G2_to_bytes,
         decode_G2_scalar_pair,
     )
@@ -279,7 +279,6 @@ def bls12_g2_msm_hint(
         )
         try:
             # Each pair consists of a G2 point (256 bytes) and a scalar (32 bytes)
-            LENGTH_PER_PAIR = 288
             k = len(data) // LENGTH_PER_PAIR
 
             # OPERATION
