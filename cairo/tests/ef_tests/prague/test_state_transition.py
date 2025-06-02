@@ -19,7 +19,7 @@ pytestmark = [
 ]
 
 ETHEREUM_BLOCKCHAIN_TESTS_DIR = f"{ETHEREUM_TESTS_PATH}/BlockchainTests/"
-EEST_BLOCKCHAIN_TESTS_DIR = f"{EEST_TESTS_PATH}/blockchain_tests/"
+EEST_BLOCKCHAIN_TESTS_DIR = f"{EEST_TESTS_PATH}/fixtures/blockchain_tests/"
 NETWORK = "Prague"
 PACKAGE = "prague"
 
@@ -41,6 +41,15 @@ SLOW_TESTS = (
     # InvalidBlockTest
     "bcUncleHeaderValidity/nonceWrong.json",
     "bcUncleHeaderValidity/wrongMixHash.json",
+    # slow precompiles
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-bls_pairing_non-degeneracy-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-bls_pairing_bilinearity-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-bls_pairing_e\\(G1,-G2\\)=e\\(-G1,G2\\)-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-bls_pairing_e\\(aG1,bG2\\)=e\\(abG1,G2\\)-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-bls_pairing_e\\(aG1,bG2\\)=e\\(G1,abG2\\)-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-inf_pair-\\]",
+    "tests/prague/eip2537_bls_12_381_precompiles/test_bls12_pairing\\.py\\:\\:test_valid\\[fork_Prague-blockchain_test-multi_inf_pair-\\]",
+    "tests/prague/eip2935_historical_block_hashes_from_state/test_block_hashes\\.py\\:\\:test_block_hashes_history\\[fork_Prague-blockchain_test-full_history_plus_one_check_blockhash_first\\]",
     # Big loops
     "stStaticCall/static_LoopCallsThenRevert.json",
     "stStaticCall/static_LoopCallsDepthThenRevert.json",
@@ -166,5 +175,5 @@ def test_general_state_tests(test_case: Dict, cairo_state_transition) -> None:
     fetch_tests(EEST_BLOCKCHAIN_TESTS_DIR),
     ids=idfn,
 )
-def test_eest_tests(test_case: Dict) -> None:
+def test_eest_tests(test_case: Dict, cairo_state_transition) -> None:
     cairo_state_transition(test_case)
