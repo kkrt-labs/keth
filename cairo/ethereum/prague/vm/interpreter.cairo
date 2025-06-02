@@ -615,7 +615,7 @@ func process_message_call{
             logs=squashed_evm.value.logs,
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             error=squashed_evm.value.error,
-            return_data=squashed_evm.value.return_data,
+            return_data=squashed_evm.value.output,
             accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );

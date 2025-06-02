@@ -26,6 +26,7 @@ from ethereum.prague.fork import (
     get_last_256_block_hashes,
     make_receipt,
     process_checked_system_transaction,
+    process_general_purpose_requests,
     process_system_transaction,
     process_transaction,
     process_unchecked_system_transaction,
@@ -784,6 +785,24 @@ class TestFork:
 
         assert block_env_cairo == block_env
         assert cairo_block_output == output
+
+    @given(block_env=block_env_no_snapshots(), block_output=...)
+    def test_process_general_purpose_requests(
+        self, cairo_run, block_env: BlockEnvironment, block_output: BlockOutput
+    ):
+        try:
+            cairo_block_env, cairo_block_output = cairo_run(
+                "process_general_purpose_requests", block_env, block_output
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_general_purpose_requests(block_env, block_output)
+            return
+
+        process_general_purpose_requests(block_env, block_output)
+
+        assert block_env == cairo_block_env
+        assert block_output == cairo_block_output
 
 
 def _create_erc20_data():
