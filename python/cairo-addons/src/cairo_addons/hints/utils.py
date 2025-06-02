@@ -160,7 +160,7 @@ def compare_relocatable_segment_index(ids: VmConsts):
 
 
 @register_hint
-def trace_tx_end(ids: VmConsts):
+def trace_tx_end(ids: VmConsts, serialize, logger):
 
     initial_gas = serialize(ids.evm.value.message.value.gas)
     final_gas = serialize(ids.evm.value.gas_left)
@@ -171,9 +171,11 @@ def trace_tx_end(ids: VmConsts):
     else:
         try:
             error_bytes = error_int.to_bytes(32, "big")
-            ascii_value = error_bytes.decode('utf-8', errors='replace').strip("\x00")
+            ascii_value = error_bytes.decode("utf-8", errors="replace").strip("\x00")
             error = ascii_value
         except (UnicodeDecodeError, ValueError):
             error = f"Error code: {error_int}"
     gas_used = initial_gas - final_gas
-    logger.trace_cairo(f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
+    logger.trace_cairo(
+        f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}"
+    )

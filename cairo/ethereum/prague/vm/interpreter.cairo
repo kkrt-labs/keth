@@ -502,7 +502,7 @@ func process_message_call{
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
             finalize_message(message);
-            let msg = create_empty_message_call_output(Uint(0), collision_error);
+            let msg = create_empty_message_call_output(Uint(0), 0, collision_error);
             return (msg, block_env);
         }
 
@@ -596,12 +596,11 @@ func process_message_call{
     if (cast(evm.value.error, felt) != 0) {
         finalize_evm{evm=evm}();
         %{ trace_tx_end %}
-        let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
+        let msg = create_empty_message_call_output(evm.value.gas_left, refund_counter, evm.value.error);
         return (msg, block_env);
     }
 
     finalize_evm{evm=evm}();
-
     tempvar updated_refund_counter = refund_counter + evm.value.refund_counter;
     assert [range_check_ptr] = updated_refund_counter;
     let range_check_ptr = range_check_ptr + 1;
@@ -625,7 +624,7 @@ func process_message_call{
 }
 
 func create_empty_message_call_output(
-    gas_left: Uint, error: EthereumException*
+    gas_left: Uint, refund_counter: felt, error: EthereumException*
 ) -> MessageCallOutput {
     alloc_locals;
     let (empty_logs: Log*) = alloc();
@@ -655,7 +654,7 @@ func create_empty_message_call_output(
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=gas_left,
-            refund_counter=U256(new U256Struct(0, 0)),
+            refund_counter=U256(new U256Struct(refund_counter, 0)),
             logs=empty_tuple_log,
             accounts_to_delete=empty_set1,
             error=error,
