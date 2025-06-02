@@ -55,7 +55,8 @@ func empty_block_output() -> BlockOutput {
     tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
     let (receipt_keys: Bytes*) = alloc();
     tempvar tuple_receipt_keys = TupleBytes(new TupleBytesStruct(data=receipt_keys, len=0));
-    tempvar requests = ListBytes(new ListBytesStruct(data=cast(0, Bytes*), len=0));
+    let (requests_data: Bytes*) = alloc();
+    tempvar requests = ListBytes(new ListBytesStruct(data=requests_data, len=0));
 
     tempvar block_output = BlockOutput(
         new BlockOutputStruct(

@@ -169,6 +169,8 @@ def bls12_map_fp_to_g1_hint(
     from py_ecc.fields.field_elements import FQ as OPTIMIZED_FQ
     from py_ecc.optimized_bls12_381.optimized_curve import normalize
 
+    from cairo_addons.hints.precompiles import write_error, write_output
+
     def inner():
         data = bytes(
             [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
