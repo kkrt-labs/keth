@@ -75,6 +75,11 @@ def run_and_prove(
         "--pi-json",
         help="Serialize the prover inputs to a JSON format",
     ),
+    cairo_pie: bool = typer.Option(
+        False,
+        "--cairo-pie",
+        help="Output Cairo PIE file",
+    ),
 ):
     """
     Run a compiled Cairo program, generate a proof, and optionally verify it.
@@ -105,6 +110,7 @@ def run_and_prove(
                 output_path=trace_output_path,
                 output_trace_components=output_trace_components,
                 pi_json=pi_json,
+                cairo_pie=cairo_pie,
             )
             console.print(
                 f"[green]✓[/] Trace generated successfully in {trace_output_path}"
