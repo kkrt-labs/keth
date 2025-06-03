@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_label_location
 from ethereum_rlp.rlp import decode_to_receipt
-from starkware.cairo.common.math import assert_not_zero, assert_le
+from starkware.cairo.common.math_cmp import is_le
 from ethereum.prague.blocks import UnionBytesReceipt, Receipt, TupleLog
 
 from cairo_core.bytes import Bytes, BytesStruct, Bytes32, Bytes32Struct, ListBytes
@@ -72,7 +72,9 @@ func extract_deposit_data{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(data: B
     }
 
     tempvar withdrawal_credentials_offset_bytes = Bytes(new BytesStruct(data.value.data + 32, 32));
-    let withdrawal_credentials_offset_u256 = U256_from_be_bytes(withdrawal_credentials_offset_bytes);
+    let withdrawal_credentials_offset_u256 = U256_from_be_bytes(
+        withdrawal_credentials_offset_bytes
+    );
     if (withdrawal_credentials_offset_u256.value.high != 0) {
         raise('InvalidBlock');
     }
@@ -253,14 +255,16 @@ func _parse_deposit_requests_inner{
     }
 
     let key = block_output.value.receipt_keys.value.data[key_index];
-    let receipt_bytes = trie_get_TrieBytesOptionalUnionBytesReceipt{trie=receipts_trie}(key);
+    let maybe_union_bytes_receipt = trie_get_TrieBytesOptionalUnionBytesReceipt{trie=receipts_trie}(
+        key
+    );
 
     // Check if receipt exists
-    if (cast(receipt_bytes.value, felt) == 0) {
+    if (cast(maybe_union_bytes_receipt.value, felt) == 0) {
         raise('AssertionError');
     }
 
-    let decoded_receipt = decode_receipt(UnionBytesReceipt(receipt_bytes.value));
+    let decoded_receipt = decode_receipt(UnionBytesReceipt(maybe_union_bytes_receipt.value));
     let new_len = _process_receipt_logs(
         decoded_receipt.value.logs, 0, deposit_requests_data, current_len
     );
@@ -363,8 +367,16 @@ func decode_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     if (cast(receipt.value.bytes.value, felt) != 0) {
         // First bytes is the tx type
         let input_bytes = receipt.value.bytes;
-        assert_not_zero(input_bytes.value.data[0]);
-        assert_le(input_bytes.value.data[0], 4);
+        if (input_bytes.value.len == 0) {
+            raise('IndexError');
+        }
+        if (input_bytes.value.data[0] == 0) {
+            raise('AssertionError');
+        }
+        let is_flag_valid = is_le(input_bytes.value.data[0], 4);
+        if (is_flag_valid == 0) {
+            raise('AssertionError');
+        }
 
         tempvar receipt_bytes = Bytes(
             new BytesStruct(input_bytes.value.data + 1, input_bytes.value.len - 1)

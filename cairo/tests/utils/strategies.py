@@ -573,13 +573,13 @@ empty_block_output = st.builds(
     BlockOutput,
     block_gas_used=st.just(Uint(0)),
     transactions_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
     ),
     receipts_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, Receipt]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
@@ -587,7 +587,7 @@ empty_block_output = st.builds(
     receipt_keys=st.just(set()),
     block_logs=st.just(list()),
     withdrawals_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
@@ -602,10 +602,10 @@ block_output_strategy = st.builds(
     transactions_trie=trie_strategy(
         Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]]
     ),
-    receipts_trie=trie_strategy(Trie[Bytes, Optional[Receipt]]),
+    receipts_trie=trie_strategy(Trie[Bytes, Optional[Union[Bytes, Receipt]]]),
     receipt_keys=st.from_type(Tuple[Bytes, ...]),
     block_logs=st.from_type(Tuple[Log, ...]),
-    withdrawals_trie=trie_strategy(Trie[Bytes, Optional[Withdrawal]]),
+    withdrawals_trie=trie_strategy(Trie[Bytes, Optional[Union[Bytes, Withdrawal]]]),
     blob_gas_used=uint64,
     requests=st.lists(small_bytes, max_size=MAX_TUPLE_SIZE).map(tuple),
 )
