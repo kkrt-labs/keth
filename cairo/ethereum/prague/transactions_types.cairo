@@ -440,3 +440,26 @@ func get_authorizations_unchecked(tx: Transaction) -> TupleAuthorization {
     );
     return empty_authorizations;
 }
+
+func get_access_list(tx: Transaction) -> TupleAccess {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        tempvar empty_access_list = TupleAccess(new TupleAccessStruct(data=cast(0, Access*), len=0));
+        return empty_access_list;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.access_list;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.access_list;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.access_list;
+    }
+    if (tx_type == TransactionType.SET_CODE) {
+        return tx.value.set_code_transaction.value.access_list;
+    }
+    with_attr error_message("InvalidTransaction") {
+        jmp raise.raise_label;
+    }
+}

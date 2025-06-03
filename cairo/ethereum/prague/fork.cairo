@@ -122,7 +122,6 @@ from ethereum.prague.state import (
     finalize_state,
 )
 from ethereum.prague.transactions_types import (
-    Access,
     Transaction,
     get_transaction_type,
     get_gas,
@@ -134,11 +133,11 @@ from ethereum.prague.transactions_types import (
     get_data,
     TransactionType,
     TupleAccess,
-    TupleAccessStruct,
     To,
     ToStruct,
     get_to,
     get_authorizations_unchecked,
+    get_access_list,
 )
 from ethereum.prague.transactions import (
     calculate_intrinsic_cost,
@@ -561,39 +560,8 @@ func process_transaction{
     let tx_data = get_data(tx);
     let tx_to = get_to(tx);
     let tx_value = get_value(tx);
-
-    local blob_gas_fee: Uint;
-    local access_lists: TupleAccess;
-    if (tx.value.blob_transaction.value != 0) {
-        let blob_gas_fee_res = calculate_data_fee(block_env.value.excess_blob_gas, tx);
-        assert blob_gas_fee = blob_gas_fee_res;
-        assert access_lists = tx.value.blob_transaction.value.access_list;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar range_check_ptr = range_check_ptr;
-    }
-
-    let range_check_ptr = [ap - 1];
-
-    if (tx.value.fee_market_transaction.value != 0) {
-        assert blob_gas_fee = Uint(0);
-        assert access_lists = tx.value.fee_market_transaction.value.access_list;
-    }
-
-    if (tx.value.legacy_transaction.value != 0) {
-        assert blob_gas_fee = Uint(0);
-        assert access_lists = TupleAccess(new TupleAccessStruct(data=cast(0, Access*), len=0));
-    }
-
-    if (tx.value.access_list_transaction.value != 0) {
-        assert blob_gas_fee = Uint(0);
-        assert access_lists = tx.value.access_list_transaction.value.access_list;
-    }
-
-    if (tx.value.set_code_transaction.value != 0) {
-        assert blob_gas_fee = Uint(0);
-        assert access_lists = TupleAccess(new TupleAccessStruct(data=cast(0, Access*), len=0));
-    }
+    let tx_access_list = get_access_list(tx);
+    let tx_blob_gas_fee = get_blob_gas_fee(tx, block_env.value.excess_blob_gas);
 
     let effective_gas_fee = tx_gas.value * effective_gas_price.value;
 
@@ -606,7 +574,7 @@ func process_transaction{
 
     // Deduct gas fee from sender
     tempvar effective_gas_fee_u256 = U256(new U256Struct(effective_gas_fee, 0));
-    tempvar blob_gas_fee_u256 = U256(new U256Struct(blob_gas_fee.value, 0));
+    tempvar blob_gas_fee_u256 = U256(new U256Struct(tx_blob_gas_fee.value, 0));
     let sender_balance_after_gas_fee = U256_sub(
         sender_account.value.balance, effective_gas_fee_u256
     );
@@ -640,7 +608,7 @@ func process_transaction{
         process_access_list{
             preaccessed_addresses=access_list_addresses,
             preaccessed_storage_keys=access_list_storage_keys,
-        }(access_lists, access_lists.value.len, 0);
+        }(tx_access_list, tx_access_list.value.len, 0);
         tempvar keccak_ptr = keccak_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar range_check_ptr = range_check_ptr;
@@ -1722,5 +1690,17 @@ func encode_receipt{range_check_ptr}(tx: Transaction, receipt: Receipt) -> Union
     tempvar res = UnionBytesReceipt(
         new UnionBytesReceiptEnum(bytes=Bytes(cast(0, BytesStruct*)), receipt=receipt)
     );
+    return res;
+}
+
+func get_blob_gas_fee{range_check_ptr}(tx: Transaction, excess_blob_gas: U64) -> Uint {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.BLOB) {
+        // For blob transactions, calculate the actual data fee
+        let data_fee = calculate_data_fee(excess_blob_gas, tx);
+        return data_fee;
+    }
+    // All non-blob transactions have zero blob gas fee
+    let res = Uint(0);
     return res;
 }
