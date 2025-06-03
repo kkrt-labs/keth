@@ -593,6 +593,7 @@ empty_block_output = st.builds(
         _data=st.just(defaultdict(lambda: None)),
     ),
     blob_gas_used=st.just(U64(0)),
+    requests=st.just(tuple()),
 )
 
 block_output_strategy = st.builds(
@@ -606,6 +607,7 @@ block_output_strategy = st.builds(
     block_logs=st.from_type(Tuple[Log, ...]),
     withdrawals_trie=trie_strategy(Trie[Bytes, Optional[Withdrawal]]),
     blob_gas_used=uint64,
+    requests=st.lists(small_bytes, max_size=MAX_TUPLE_SIZE).map(tuple),
 )
 
 # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
