@@ -1,7 +1,7 @@
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm import BlockEnvironment, Message, TransactionEnvironment
 from ethereum.crypto.hash import Hash32
+from ethereum.prague.fork_types import Address
+from ethereum.prague.state import TransientStorage
+from ethereum.prague.vm import BlockEnvironment, Message, TransactionEnvironment
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import strategies as st
@@ -43,6 +43,7 @@ empty_transaction_environment = st.builds(
     transient_storage=st.just(TransientStorage()),
     blob_versioned_hashes=st.just(tuple()),  # Tuple[VersionedHash, ...]
     index_in_block=st.just(None),  # Optional[Uint]
+    authorizations=st.just(tuple()),  # Tuple[Authorization, ...]
     tx_hash=st.just(None),  # Optional[Hash32]
 )
 
@@ -66,6 +67,7 @@ class MessageBuilder:
         self._accessed_addresses = st.builds(set, st.just(set()))
         self._accessed_storage_keys = st.builds(set, st.just(set()))
         self._parent_evm = st.none()
+        self._disable_precompiles = st.just(False)
 
     def with_caller(self, strategy=st.from_type(Address)):
         self._caller = strategy
@@ -134,6 +136,10 @@ class MessageBuilder:
         self._tx_env = strategy
         return self
 
+    def with_disable_precompiles(self, strategy=st.booleans()):
+        self._disable_precompiles = strategy
+        return self
+
     def build(self):
         return st.builds(
             Message,
@@ -152,5 +158,6 @@ class MessageBuilder:
             is_static=self._is_static,
             accessed_addresses=self._accessed_addresses,
             accessed_storage_keys=self._accessed_storage_keys,
+            disable_precompiles=self._disable_precompiles,
             parent_evm=self._parent_evm,
         )

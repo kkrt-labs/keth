@@ -11,6 +11,10 @@
     "git": {
       "command": "uvx",
       "args": ["mcp-server-git", "--repository", "."]
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
     }
   }
 }

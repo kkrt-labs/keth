@@ -25,7 +25,7 @@ from cairo_addons.rust_bindings.stwo_bindings import verify as run_verify
 from cairo_addons.rust_bindings.vm import generate_trace as run_generate_trace
 from cairo_addons.rust_bindings.vm import run_end_to_end
 from utils.fixture_loader import (
-    CANCUN_FORK_BLOCK,
+    PRAGUE_FORK_BLOCK,
     load_body_input,
     load_teardown_input,
     load_zkpi_fixture,
@@ -212,7 +212,7 @@ class StepHandler:
 
                 # Sort body outputs by start_index (extract from filename)
                 def extract_body_start_index(path: Path) -> int:
-                    # Extract start_index from filename like "prover_input_info_22188088_body_0_5.run_output.txt"
+                    # Extract start_index from filename like "prover_input_info_22615247_body_0_5.run_output.txt"
                     parts = path.stem.split("_")
                     for i, part in enumerate(parts):
                         if part == "body" and i + 1 < len(parts):
@@ -412,10 +412,10 @@ def get_chain_id_from_zkpi(zkpi_path: Path) -> int:
 
 
 def validate_block_number(block_number: int) -> None:
-    """Validate that the block number is after Cancun fork."""
-    if block_number < CANCUN_FORK_BLOCK:
+    """Validate that the block number is after prague fork."""
+    if block_number < PRAGUE_FORK_BLOCK:
         typer.echo(
-            f"Error: Block {block_number} is before Cancun fork ({CANCUN_FORK_BLOCK})"
+            f"Error: Block {block_number} is before Prague fork ({PRAGUE_FORK_BLOCK})"
         )
         raise typer.Exit(1)
 

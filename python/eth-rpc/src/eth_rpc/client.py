@@ -5,8 +5,8 @@ from typing import List, Union
 
 import requests
 from dotenv import load_dotenv
-from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import Hash32
+from ethereum.prague.fork_types import Address
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256
 

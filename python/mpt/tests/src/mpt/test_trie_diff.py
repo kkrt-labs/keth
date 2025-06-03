@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
-from ethereum.cancun.trie import (
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.prague.fork_types import EMPTY_ACCOUNT, Account, Address
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
@@ -12,7 +13,6 @@ from ethereum.cancun.trie import (
     bytes_to_nibble_list,
     encode_internal_node,
 )
-from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
@@ -173,7 +173,7 @@ def node_store(zkpi):
 
 class TestTrieDiff:
     @pytest.mark.parametrize(
-        "data_path", [Path("test_data/21688509.json")], scope="session"
+        "data_path", [Path("test_data/22615247.json")], scope="session"
     )
     def test_trie_diff(
         self,
