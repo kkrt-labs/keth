@@ -6,7 +6,7 @@ from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.cancun.fork_types import (
+from ethereum.prague.fork_types import (
     EMPTY_ACCOUNT,
     Account__eq__,
     OptionalAddress,
@@ -19,7 +19,7 @@ from ethereum.cancun.fork_types import (
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, String, StringStruct
 from ethereum.utils.bytes import Bytes20_to_Bytes
 from cairo_core.numeric import U256, Uint, U256Struct, Bool, bool, OptionalU256
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     LeafNode,
     LeafNodeStruct,
     LeafNode__eq__,

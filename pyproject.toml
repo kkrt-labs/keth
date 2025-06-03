@@ -50,6 +50,7 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
@@ -198,8 +199,8 @@ known_first_party = [
   "cairo_addons",
   "eth_rpc",
   "mpt",
-  "tests",
   "utils",
+  "tests",
   "keth_types",
 ]
 

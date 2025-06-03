@@ -22,7 +22,9 @@ use cairo_vm::{
 };
 
 use crate::vm::{hint_utils::serialize_sequence, hints::Hint};
-use revm_precompile::{blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1};
+use revm_precompile::{
+    blake2, bls12_381, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1,
+};
 
 pub const HINTS: &[fn() -> Hint] = &[
     bytes__eq__,
@@ -51,7 +53,14 @@ lazy_static! {
         map.insert(bn128::mul::BYZANTIUM.0, Felt252::from(6 * 3));              // index 6
         map.insert(bn128::pair::ADDRESS, Felt252::from(7 * 3));          // index 7
         map.insert(blake2::FUN.0, Felt252::from(8 * 3));         // index 8
-        map.insert(kzg_point_evaluation::ADDRESS, Felt252::from(9 * 3));    // index 10
+        map.insert(kzg_point_evaluation::ADDRESS, Felt252::from(9 * 3));    // index 9
+        map.insert(bls12_381::g1_add::PRECOMPILE.0, Felt252::from(10 * 3));    // index 10
+        map.insert(bls12_381::g1_msm::PRECOMPILE.0, Felt252::from(11 * 3));    // index 11
+        map.insert(bls12_381::g2_add::PRECOMPILE.0, Felt252::from(12 * 3));    // index 12
+        map.insert(bls12_381::g2_msm::PRECOMPILE.0, Felt252::from(13 * 3));    // index 13
+        map.insert(bls12_381::pairing::PRECOMPILE.0, Felt252::from(14 * 3));    // index 14
+        map.insert(bls12_381::map_fp_to_g1::PRECOMPILE.0, Felt252::from(15 * 3));    // index 15
+        map.insert(bls12_381::map_fp2_to_g2::PRECOMPILE.0, Felt252::from(16 * 3));    // index 16
         map
     };
 }

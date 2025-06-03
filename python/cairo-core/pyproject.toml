@@ -32,7 +32,9 @@ known_first_party = [
   "cairo_addons",
   "eth_rpc",
   "mpt",
+  "utils",
   "tests",
+  "keth_types",
 ]
 
 [tool.uv]

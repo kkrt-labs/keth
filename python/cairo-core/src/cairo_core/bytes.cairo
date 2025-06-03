@@ -173,3 +173,7 @@ struct ListBytes4Struct {
 struct ListBytes4 {
     value: ListBytes4Struct*,
 }
+
+
+using ListBytes = TupleBytes;
+using ListBytesStruct = TupleBytesStruct;

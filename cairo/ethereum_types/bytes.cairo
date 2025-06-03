@@ -50,6 +50,8 @@ from cairo_core.bytes import (
     TupleBytes32,
     Bytes1DictAccess,
     ListBytes4Struct,
+    ListBytes,
+    ListBytesStruct,
     ListBytes4,
     OptionalBytes,
     OptionalBytes32,

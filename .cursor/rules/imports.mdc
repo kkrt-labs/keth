@@ -27,15 +27,15 @@ This file is a non-exhaustive list of some common imports and their usage.
   - Import: `from ethereum_types.numeric import u8, u16, u32, u64, u128, u160, u256`
 
 ## EVM Components
-- `ethereum/cancun/vm/stack`: EVM stack implementation
+- `ethereum/prague/vm/stack`: EVM stack implementation
   - Used in: VM and instruction files
-  - Import: `from ethereum.cancun.vm.stack import Stack`
-- `ethereum/cancun/vm/memory`: EVM memory implementation
+  - Import: `from ethereum.prague.vm.stack import Stack`
+- `ethereum/prague/vm/memory`: EVM memory implementation
   - Used in: VM execution files
-  - Import: `from ethereum.cancun.vm.memory import Memory`
-- `ethereum/cancun/vm/exceptions`: EVM error types
+  - Import: `from ethereum.prague.vm.memory import Memory`
+- `ethereum/prague/vm/exceptions`: EVM error types
   - Used in: Error handling across the codebase
-  - Import: `from ethereum.cancun.vm.exceptions import OutOfGasError`
+  - Import: `from ethereum.prague.vm.exceptions import OutOfGasError`
 
 ## Import Patterns
 - Only use absolute imports
