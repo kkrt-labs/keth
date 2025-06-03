@@ -49,26 +49,7 @@ directory. For now, only the State Transition tests are implemented. You can run
 them with:
 
 ```bash
-uv run pytest cairo/tests/ef_tests/cancun/test_state_transition.py
-```
-
-### Ethereum Mainnet Tests
-
-To run the `state_transition` function against a given Ethereum Mainnet block,
-you'll need first to generate the Prover Input (ZK-PI) for this block using
-[ZK-PIG](https://github.com/kkrt-labs/zk-pig):
-
-```bash
-zkpig generate
-```
-
-This will generate the ZK-PI for the given block and save it in the
-`data/1/inputs` directory.
-
-Then, you can run the tests with:
-
-```bash
-uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet"
+uv run pytest cairo/tests/ef_tests/prague/test_state_transition.py
 ```
 
 ## Updating Rust Dependencies

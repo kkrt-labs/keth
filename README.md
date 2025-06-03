@@ -150,7 +150,7 @@ To generate a proof for an Ethereum block, you'll need:
 
 ### Requirements
 
-- Block must be of Cancun fork (until Prague changes are merged)
+- Block must be of Prague fork
 - ZKPI data must be available as a JSON file
 - Compiled Cairo program must exist at the specified path
 

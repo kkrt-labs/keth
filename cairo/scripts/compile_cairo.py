@@ -124,7 +124,7 @@ def compile_keth():
             Path("build/teardown_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/aggregator_main.cairo"),
+            Path("cairo/ethereum/prague/keth/aggregator_main.cairo"),
             Path("build/aggregator_compiled.json"),
         ),
     ]
