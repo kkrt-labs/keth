@@ -76,6 +76,7 @@ IGNORE_TESTS = (
     "wrongCoinbase_Prague",
     "wrongStateRoot_Prague",
     # Tests of modexp with big header / base sizes. We reject any header / base length above 48 bytes
+    "fork_Prague-blockchain_test_from_state_test-EIP-198-case3-raw-input-out-of-gas",
     "modexp-fork_Prague-d30g3v0",
     "modexp-fork_Prague-d29g3v0",
     "modexp-fork_Prague-d29g2v0",

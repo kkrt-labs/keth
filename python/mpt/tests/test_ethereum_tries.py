@@ -4,15 +4,19 @@ from pathlib import Path
 import pytest
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.prague.blocks import Block, Header, Withdrawal
+from ethereum.prague.bloom import logs_bloom
 from ethereum.prague.fork import (
     BlockChain,
     apply_body,
-    calculate_excess_blob_gas,
     get_last_256_block_hashes,
     state_transition,
 )
 from ethereum.prague.fork_types import Address
+from ethereum.prague.requests import compute_requests_hash
+from ethereum.prague.state import state_root
 from ethereum.prague.transactions import LegacyTransaction, encode_transaction
+from ethereum.prague.trie import root
+from ethereum.prague.vm import BlockEnvironment
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
@@ -35,7 +39,7 @@ def ethereum_tries(zkpi):
 )
 class TestEthereumTries:
     def test_preimages(self, ethereum_tries, zkpi):
-        access_list = zkpi["accessList"]
+        access_list = zkpi["extra"]["accessList"]
         assert len(access_list) == len(ethereum_tries.address_preimages.keys())
         for access in access_list:
             address = Address.fromhex(access["address"][2:])
@@ -65,7 +69,6 @@ class TestEthereumTries:
             code_hash = keccak256(code)
             assert ethereum_tries.codes[code_hash] == code
 
-    @pytest.mark.slow
     def test_to_state(self, zkpi, ethereum_tries: EthereumTries):
 
         load = LoadKethFixture("Prague", "prague")
@@ -113,29 +116,40 @@ class TestEthereumTries:
             ),
         )
 
-        # TODO: Need to patch state_root, remove when we have a working partial MPT
-        output = apply_body(
+        block_env = BlockEnvironment(
+            chain_id=U64(zkpi["chainConfig"]["chainId"]),
             state=blockchain.state,
+            block_gas_limit=block.header.gas_limit,
             block_hashes=get_last_256_block_hashes(blockchain),
             coinbase=block.header.coinbase,
-            block_number=block.header.number,
+            number=block.header.number,
             base_fee_per_gas=block.header.base_fee_per_gas,
-            block_gas_limit=block.header.gas_limit,
-            block_time=block.header.timestamp,
+            time=block.header.timestamp,
             prev_randao=block.header.prev_randao,
-            transactions=block.transactions,
-            chain_id=blockchain.chain_id,
-            withdrawals=block.withdrawals,
+            excess_blob_gas=block.header.excess_blob_gas,
             parent_beacon_block_root=block.header.parent_beacon_block_root,
-            excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
         )
+
+        # TODO: Need to patch state_root, remove when we have a working partial MPT
+        block_output = apply_body(
+            block_env=block_env,
+            transactions=block.transactions,
+            withdrawals=block.withdrawals,
+        )
+
+        block_state_root = state_root(block_env.state)
+        root(block_output.transactions_trie)
+        root(block_output.receipts_trie)
+        logs_bloom(block_output.block_logs)
+        root(block_output.withdrawals_trie)
+        compute_requests_hash(block_output.requests)
         # We recreate the block to apply with the updated state root, which is a partial state root
         block = Block(
             header=Header(
                 parent_hash=block.header.parent_hash,
                 ommers_hash=block.header.ommers_hash,
                 coinbase=block.header.coinbase,
-                state_root=output.state_root,  # Updated state root
+                state_root=block_state_root,  # Updated state root
                 transactions_root=block.header.transactions_root,
                 receipt_root=block.header.receipt_root,
                 bloom=block.header.bloom,
@@ -152,6 +166,7 @@ class TestEthereumTries:
                 blob_gas_used=block.header.blob_gas_used,
                 excess_blob_gas=block.header.excess_blob_gas,
                 parent_beacon_block_root=block.header.parent_beacon_block_root,
+                requests_hash=block.header.requests_hash,
             ),
             transactions=block.transactions,
             ommers=(),
