@@ -205,13 +205,6 @@ def pytest_addoption(parser):
         type=float,
         help="Minimum available memory in GB before running tests",
     )
-    parser.addoption(
-        "--max-memory-percent",
-        action="store",
-        default=None,
-        type=float,
-        help="Maximum memory usage percentage before pausing tests",
-    )
 
 
 def pytest_runtest_setup(item):
@@ -229,8 +222,6 @@ def pytest_runtest_setup(item):
     # Override with CLI options if provided
     if config.getoption("min_available_memory_gb") is not None:
         memory_reqs["min_available_gb"] = config.getoption("min_available_memory_gb")
-    if config.getoption("max_memory_percent") is not None:
-        memory_reqs["max_memory_percent"] = config.getoption("max_memory_percent")
 
     # Wait for memory to be available
     memory_available = wait_for_memory(**memory_reqs)

@@ -35,16 +35,14 @@ def get_memory_info():
 
 def wait_for_memory(
     min_available_gb: float = 2.0,
-    max_memory_percent: float = 90.0,
     check_interval: float = 1.0,
-    max_wait_time: float = 300.0,  # 5 minutes max wait
+    max_wait_time: float = 120.0,  # 2 minutes max wait
 ) -> bool:
     """
     Wait until sufficient memory is available.
 
     Args:
         min_available_gb: Minimum available memory in GB
-        max_memory_percent: Maximum memory usage percentage
         check_interval: How often to check memory (seconds)
         max_wait_time: Maximum time to wait (seconds)
 
@@ -63,10 +61,7 @@ def wait_for_memory(
             return True  # Can't check, assume it's fine
 
         # Check if memory conditions are met
-        memory_ok = (
-            memory_info["available"] >= min_available_gb
-            and memory_info["percent_used"] <= max_memory_percent
-        )
+        memory_ok = memory_info["available"] >= min_available_gb
 
         if memory_ok:
             if not first_check:
@@ -80,7 +75,6 @@ def wait_for_memory(
             logger.warning(
                 f"Waiting for memory: need {min_available_gb}GB free "
                 f"(have {memory_info['available']:.1f}GB), "
-                f"max {max_memory_percent}% used "
                 f"(current {memory_info['percent_used']:.1f}%)"
             )
             first_check = False
@@ -114,15 +108,13 @@ def get_memory_requirements_for_ci():
         # More conservative settings for CI
         return {
             "min_available_gb": 2.0,  # Need at least 2GB free
-            "max_memory_percent": 97.0,  # Don't use more than 97% of memory
             "check_interval": 1.0,  # Check Every Second
-            "max_wait_time": 120.0,  # Wait longer in CI (2 minutes)
+            "max_wait_time": 60.0,
         }
     else:
         # More relaxed settings for local development
         return {
             "min_available_gb": 1.0,  # Need at least 1GB free
-            "max_memory_percent": 95.0,  # Don't use more than 95% of memory
             "check_interval": 1.0,  # Check every second
-            "max_wait_time": 120.0,  # Wait up to 2 minutes locally
+            "max_wait_time": 60.0,
         }
