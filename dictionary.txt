@@ -326,3 +326,6 @@ EEST
 exitstatus
 PREDEPLOY
 bilinearity
+reqs
+runtest
+psutil

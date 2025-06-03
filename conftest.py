@@ -18,6 +18,12 @@ from ethereum.trace import (
 )
 from hypothesis import HealthCheck, Phase, Verbosity, settings
 
+# Import memory management functionality
+from cairo_addons.testing.memory_manager import (
+    get_memory_requirements_for_ci,
+    wait_for_memory,
+)
+
 load_dotenv()
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -117,8 +123,8 @@ def pytest_configure(config):
     # Patching evm_trace:
     # - Problem: Global patches of `ethereum.trace.evm_trace` are not reflected in places where `evm_trace` is imported in EELS.
     # - Cause: `ethereum.prague.vm.interpreter` (and other modules) imports `evm_trace` locally (e.g., `from ethereum.trace import evm_trace`)
-    #   at module load time, caching the original `discard_evm_trace`. Patching `ethereum.trace.evm_trace` later didn’t
-    #   update this local reference due to Python’s import caching.
+    #   at module load time, caching the original `discard_evm_trace`. Patching `ethereum.trace.evm_trace` later didn't
+    #   update this local reference due to Python's import caching.
     # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
     #   `ethereum.prague.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
     if config.getoption("log_cli_level") == "TRACE":
@@ -182,3 +188,52 @@ settings.register_profile(
 )
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 logger.info(f"Using Hypothesis profile: {os.getenv('HYPOTHESIS_PROFILE', 'default')}")
+
+
+def pytest_addoption(parser):
+    """Add memory management options to pytest."""
+    parser.addoption(
+        "--disable-memory-management",
+        action="store_true",
+        default=False,
+        help="Disable memory monitoring before test execution",
+    )
+    parser.addoption(
+        "--min-available-memory-gb",
+        action="store",
+        default=None,
+        type=float,
+        help="Minimum available memory in GB before running tests",
+    )
+    parser.addoption(
+        "--max-memory-percent",
+        action="store",
+        default=None,
+        type=float,
+        help="Maximum memory usage percentage before pausing tests",
+    )
+
+
+def pytest_runtest_setup(item):
+    """
+    Hook that runs before each test to ensure sufficient memory is available.
+    """
+    config = item.config
+    # Skip memory check if disabled
+    if config.getoption("disable_memory_management"):
+        return
+
+    # Get memory requirements - prefer CLI options, fall back to CI detection
+    memory_reqs = get_memory_requirements_for_ci()
+
+    # Override with CLI options if provided
+    if config.getoption("min_available_memory_gb") is not None:
+        memory_reqs["min_available_gb"] = config.getoption("min_available_memory_gb")
+    if config.getoption("max_memory_percent") is not None:
+        memory_reqs["max_memory_percent"] = config.getoption("max_memory_percent")
+
+    # Wait for memory to be available
+    memory_available = wait_for_memory(**memory_reqs)
+
+    if not memory_available:
+        pytest.fail(f"Test {item.nodeid} failed due to insufficient memory")

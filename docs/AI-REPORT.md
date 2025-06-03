@@ -1,5 +1,51 @@
 # AI-Reports
 
+## AI-REPORT: Memory Management for pytest-xdist Workers (June 3, 2025)
+
+### Problem
+
+CI jobs were crashing with "node down: Not properly terminated" errors when
+running pytest-xdist with high parallelism (48 workers for EF tests). Memory
+exhaustion during test execution caused worker processes to crash, interrupting
+the test suite.
+
+### Solution
+
+Implemented a simple hook-based memory management system that pauses test
+execution when memory is insufficient:
+
+1. **Pre-Test Memory Check**: Added `pytest_runtest_setup` hook that checks
+   available memory before each test runs
+2. **Automatic Pausing**: When memory is low, test execution pauses until
+   sufficient memory becomes available
+3. **Environment-Aware Thresholds**: Different memory requirements for CI (3GB
+   free, max 90% usage) vs local development (1GB free, max 90% usage)
+4. **Zero Configuration**: Works out of the box with automatic CI detection
+
+### Implementation
+
+- **`memory_manager.py`**: Simple utilities with `wait_for_memory()` function
+  and environment detection
+- **`hooks.py`**: Added memory check in `pytest_runtest_setup` hook before each
+  test
+- **`pyproject.toml`**: Added `psutil>=6.1.0` dependency for memory monitoring
+
+### Key Features
+
+- **Non-intrusive**: No changes to worker counts or pytest-xdist configuration
+- **Automatic Recovery**: Workers resume when memory becomes available
+- **Timeout Protection**: Tests fail gracefully if memory doesn't become
+  available within timeout (2 minutes CI, 2 minutes local)
+- **Configurable**: CLI options for custom thresholds
+  (`--min-available-memory-gb`, `--max-memory-percent`,
+  `--disable-memory-management`)
+
+### Impact
+
+Prevents CI crashes while maintaining maximum parallelism. Workers automatically
+pause/resume based on memory availability, eliminating "node down" errors
+without reducing test concurrency.
+
 ## AI-REPORT: Cairo PIE Support and AR Inputs Generation for External Users (May 30, 2025)
 
 ### Context & Motivation
