@@ -113,31 +113,23 @@ func recover_authority{
         tempvar err_ptr = new EthereumException(InvalidSignatureError);
         return (authority=Address(0), err=err_ptr);
     }
-    let r_u256 = authorization.value.r;
-    let (zero_ptr) = get_label_location(U256_ZERO);
-    let r_eq_zero = U256__eq__(r_u256, U256(cast(zero_ptr, U256Struct*)));
-    if (r_eq_zero.value == TRUE) {
-        tempvar err_ptr = new EthereumException(InvalidSignatureError);
-        return (authority=Address(0), err=err_ptr);
-    }
+
     tempvar SECP256K1N = U256(new U256Struct(low=secp256k1.N_LOW_128, high=secp256k1.N_HIGH_128));
-    let r_ge_n = U256_le(SECP256K1N, r_u256);
-    if (r_ge_n.value == TRUE) {
-        tempvar err_ptr = new EthereumException(InvalidSignatureError);
-        return (authority=Address(0), err=err_ptr);
-    }
-    let s_u256 = authorization.value.s;
-    let (zero_ptr) = get_label_location(U256_ZERO);
-    let s_eq_zero = U256__eq__(s_u256, U256(cast(zero_ptr, U256Struct*)));
-    if (s_eq_zero.value == TRUE) {
-        tempvar err_ptr = new EthereumException(InvalidSignatureError);
-        return (authority=Address(0), err=err_ptr);
-    }
-    tempvar secp256k1n_div_2 = U256(
+    tempvar SECP256K1N_DIVIDED_BY_2 = U256(
         new U256Struct(low=secp256k1.N_DIVIDED_BY_2_LOW_128, high=secp256k1.N_DIVIDED_BY_2_HIGH_128)
     );
-    let s_gt_n_div_2 = U256_le(secp256k1n_div_2, s_u256);
-    if (s_gt_n_div_2.value == TRUE) {
+    tempvar zero = U256(new U256Struct(low=0, high=0));
+
+    let r_is_zero = U256__eq__(authorization.value.r, zero);
+    let r_is_out_of_range = U256_le(SECP256K1N, authorization.value.r);
+
+    let s_is_zero = U256__eq__(authorization.value.s, zero);
+    let s_is_within_range = U256_le(authorization.value.s, SECP256K1N_DIVIDED_BY_2);
+
+    let is_error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+        1 - s_is_within_range.value
+    );
+    if (is_error != 0) {
         tempvar err_ptr = new EthereumException(InvalidSignatureError);
         return (authority=Address(0), err=err_ptr);
     }
@@ -179,7 +171,7 @@ func recover_authority{
     tempvar v_param = U256(new U256Struct(low=authorization.value.y_parity.value, high=0));
 
     let (pk_x, pk_y, recovery_err) = secp256k1_recover(
-        r=r_u256, s=s_u256, v=v_param, msg_hash=signing_hash_for_recover
+        r=authorization.value.r, s=authorization.value.s, v=v_param, msg_hash=signing_hash_for_recover
     );
     if (cast(recovery_err, felt) != 0) {
         return (authority=Address(0), err=recovery_err);
