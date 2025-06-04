@@ -6,7 +6,7 @@ description = "Integration of the Kakarot Ethereum execution layer in the Reth c
 homepage = "https://github.com/kkrt-labs"
 repository = "https://github.com/kkrt-labs/keth"
 readme = "./README.md"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 exclude = [".github/"]
 
 [workspace]
