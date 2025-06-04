@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "An EVM proving backend in Cairo"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT OR Apache-2.0"
+license = { text = "MIT OR Apache-2.0" }
 
 dependencies = [
   "keth-types",
