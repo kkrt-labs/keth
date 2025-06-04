@@ -42,7 +42,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use stwo_cairo_adapter::adapter::adapt_finished_runner;
+use stwo_cairo_adapter::adapter::adapter;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
@@ -697,7 +697,6 @@ pub fn generate_trace(
     compiled_program_path: String,
     output_path: PathBuf,
     output_trace_components: bool,
-    pi_json: bool,
     cairo_pie: bool,
 ) -> PyResult<()> {
     setup_logging().map_err(|e| {
@@ -769,16 +768,12 @@ pub fn generate_trace(
             ))
         })?;
     } else {
-        // Output prover input info (original behavior)
+        // Output prover input info
         let prover_input_info =
             cairo_runner_mut.get_prover_input_info().expect("Unable to get prover input info");
-        if pi_json {
-            std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
-        } else {
-            // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
-            let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
-            std::fs::write(&output_path, bytes)?;
-        }
+        // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
+        let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
+        std::fs::write(&output_path, bytes)?;
     }
 
     if output_trace_components {
@@ -847,7 +842,8 @@ pub fn run_end_to_end(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
-    let cairo_input = adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
+    let mut runner_input_info = cairo_runner.get_prover_input_info().map_err(to_pyerr)?;
+    let cairo_input = adapter(&mut runner_input_info).map_err(to_pyerr)?;
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }
