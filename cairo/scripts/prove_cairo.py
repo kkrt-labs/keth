@@ -89,7 +89,11 @@ def run_and_prove(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     program_name = compiled_program.stem
-    trace_output_path = output_dir / f"prover_input_info_{program_name}.json"
+    trace_output_path = (
+        output_dir / f"prover_input_info_{program_name}.json"
+        if not cairo_pie
+        else output_dir / f"cairo_pie_{program_name}.zip"
+    )
     proof_path = output_dir / f"proof_{program_name}.json"
 
     with console.status(f"[bold green]Processing {program_name}..."):
@@ -115,6 +119,10 @@ def run_and_prove(
             console.print(
                 f"[green]✓[/] Trace generated successfully in {trace_output_path}"
             )
+
+            if cairo_pie:
+                console.print("[green]✓[/] Cairo PIE file generated successfully")
+                return
 
             # Step 2: Generate proof
             console.print("[blue]Generating proof...[/]")
