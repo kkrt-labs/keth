@@ -615,7 +615,10 @@ fn prepare_cairo_execution<'a>(
         entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::all_cairo_stwo,
+        // Choose layout based on intended prover:
+        // - all_cairo: for Cairo PIEs consumed by STONE prover
+        // - all_cairo_stwo: for proof generation with STWO prover
+        layout: if cairo_pie { LayoutName::all_cairo } else { LayoutName::all_cairo_stwo },
         proof_mode,
         secure_run: Some(true),
         disable_trace_padding: proof_mode,
