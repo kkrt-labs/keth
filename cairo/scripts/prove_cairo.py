@@ -70,11 +70,6 @@ def run_and_prove(
         "--output-trace-components",
         help="Output trace components",
     ),
-    pi_json: bool = typer.Option(
-        False,
-        "--pi-json",
-        help="Serialize the prover inputs to a JSON format",
-    ),
     cairo_pie: bool = typer.Option(
         False,
         "--cairo-pie",
@@ -90,7 +85,7 @@ def run_and_prove(
     output_dir.mkdir(parents=True, exist_ok=True)
     program_name = compiled_program.stem
     trace_output_path = (
-        output_dir / f"prover_input_info_{program_name}.json"
+        output_dir / f"prover_input_info_{program_name}"
         if not cairo_pie
         else output_dir / f"cairo_pie_{program_name}.zip"
     )
@@ -113,7 +108,6 @@ def run_and_prove(
                 compiled_program_path=str(compiled_program),
                 output_path=trace_output_path,
                 output_trace_components=output_trace_components,
-                pi_json=pi_json,
                 cairo_pie=cairo_pie,
             )
             console.print(

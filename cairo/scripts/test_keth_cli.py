@@ -339,23 +339,23 @@ class TestStepHandler:
         """Test output filename generation for different steps."""
         # Regular step
         filename = StepHandler.get_output_filename(Step.MAIN, 12345)
-        assert filename == "prover_input_info_12345.json"
+        assert filename == "prover_input_info_12345"
 
         # Init step
         filename = StepHandler.get_output_filename(Step.INIT, 12345)
-        assert filename == "prover_input_info_12345_init.json"
+        assert filename == "prover_input_info_12345_init"
 
         # Teardown step
         filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345)
-        assert filename == "prover_input_info_12345_teardown.json"
+        assert filename == "prover_input_info_12345_teardown"
 
         # Aggregator step
         filename = StepHandler.get_output_filename(Step.AGGREGATOR, 12345)
-        assert filename == "prover_input_info_12345_aggregator.json"
+        assert filename == "prover_input_info_12345_aggregator"
 
         # Body step with indices
         filename = StepHandler.get_output_filename(Step.BODY, 12345, 0, 5)
-        assert filename == "prover_input_info_12345_body_0_5.json"
+        assert filename == "prover_input_info_12345_body_0_5"
 
         # Cairo PIE files
         filename = StepHandler.get_output_filename(Step.INIT, 12345, cairo_pie=True)
@@ -839,7 +839,6 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
                     "--body-chunk-size",
                     "3",
                     "--output-trace-components",
-                    "--pi-json",
                     "--proving-run-id",
                     "42",
                 ],
@@ -852,7 +851,6 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         for call in mock_trace.call_args_list:
             args, kwargs = call
             assert kwargs["output_trace_components"] is True
-            assert kwargs["pi_json"] is True
 
     def test_generate_ar_inputs_command_body_chunking(
         self, temp_data_dir, mock_generate_ar_setup
@@ -935,10 +933,10 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
 
             # Should match the expected patterns
             assert (
-                filename.endswith("_init.json")
-                or filename.endswith("_teardown.json")
+                filename.endswith("_init")
+                or filename.endswith("_teardown")
                 or "_body_" in filename
-                or filename.endswith("_aggregator.json")
+                or filename.endswith("_aggregator")
             ), f"Unexpected filename pattern: {filename}"
 
     def test_generate_ar_inputs_command_with_cairo_pie(

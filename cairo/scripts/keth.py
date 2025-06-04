@@ -294,7 +294,7 @@ class StepHandler:
         if cairo_pie:
             return f"cairo_pie_{base_name}.zip"
         else:
-            return f"{file_type}_{base_name}.json"
+            return f"{file_type}_{base_name}"
 
     @staticmethod
     def get_proof_filename(
@@ -559,11 +559,6 @@ def trace(
         "--output-trace-components",
         help="Output trace components",
     ),
-    pi_json: bool = typer.Option(
-        False,
-        "--pi-json",
-        help="Output prover inputs in JSON format",
-    ),
     cairo_pie: bool = typer.Option(
         False,
         "--cairo-pie",
@@ -609,7 +604,6 @@ def trace(
             compiled_program_path=str(compiled_program),
             output_path=output_path,
             output_trace_components=output_trace_components,
-            pi_json=pi_json,
             cairo_pie=cairo_pie,
         )
         console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
@@ -842,11 +836,6 @@ def generate_ar_inputs(
         "--output-trace-components",
         help="Output trace components",
     ),
-    pi_json: bool = typer.Option(
-        False,
-        "--pi-json",
-        help="Output prover inputs in JSON format",
-    ),
     cairo_pie: bool = typer.Option(
         False,
         "--cairo-pie",
@@ -941,7 +930,6 @@ def generate_ar_inputs(
                     compiled_program_path=str(compiled_program),
                     output_path=output_path,
                     output_trace_components=output_trace_components,
-                    pi_json=pi_json,
                     cairo_pie=cairo_pie,
                 )
                 console.print(
