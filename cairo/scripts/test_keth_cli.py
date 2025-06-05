@@ -215,25 +215,25 @@ class TestKethUnits:
 
     def test_proving_run_id_generation(self, temp_data_dir):
         """Test that proving run IDs are generated correctly."""
-        # First run should be 1
+        # First run should be "1"
         run_id = get_next_proving_run_id(temp_data_dir, 1, 19426587)
-        assert run_id == 1
+        assert run_id == "1"
 
         # Create directory for run 1
         run_dir = temp_data_dir / "1" / "19426587" / "1"
         run_dir.mkdir(parents=True)
 
-        # Next run should be 2
+        # Next run should be "2"
         run_id = get_next_proving_run_id(temp_data_dir, 1, 19426587)
-        assert run_id == 2
+        assert run_id == "2"
 
         # Create directory for run 3 (skipping 2)
         run_dir_3 = temp_data_dir / "1" / "19426587" / "3"
         run_dir_3.mkdir(parents=True)
 
-        # Next run should be 4 (max + 1)
+        # Next run should be "4" (max + 1)
         run_id = get_next_proving_run_id(temp_data_dir, 1, 19426587)
-        assert run_id == 4
+        assert run_id == "4"
 
     def test_path_generation(self):
         """Test path generation functions."""
@@ -245,7 +245,7 @@ class TestKethUnits:
         assert zkpi_path == expected
 
         # Test proving run directory
-        run_dir = get_proving_run_dir(data_dir, 1, 19426587, 3)
+        run_dir = get_proving_run_dir(data_dir, 1, 19426587, "3")
         expected = data_dir / "1" / "19426587" / "3"
         assert run_dir == expected
 
@@ -316,7 +316,7 @@ class TestKethContext:
 
         assert ctx.chain_id == TEST_CHAIN_ID
         assert ctx.block_number == TEST_BLOCK_NUMBER
-        assert ctx.proving_run_id == 1
+        assert ctx.proving_run_id == "1"
         assert ctx.zkpi_path.exists()
         assert ctx.proving_run_dir.exists()
 
@@ -768,10 +768,12 @@ try:
             assert version in str(zkpi_path)
 
             # Test proving run directory generation
-            proving_run_dir = get_proving_run_dir(data_dir, chain_id, block_number, 1)
+            proving_run_dir = get_proving_run_dir(
+                data_dir, chain_id, block_number, "proving-id-number"
+            )
             assert str(chain_id) in str(proving_run_dir)
             assert str(block_number) in str(proving_run_dir)
-            assert "1" in str(proving_run_dir)
+            assert "proving-id-number" in str(proving_run_dir)
 
 except ImportError:
     # Hypothesis not available, skip property-based tests

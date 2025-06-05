@@ -66,7 +66,7 @@ class KethContext:
     chain_id: int
     block_number: int
     zkpi_version: str
-    proving_run_id: int
+    proving_run_id: str
     zkpi_path: Path
     proving_run_dir: Path
 
@@ -77,7 +77,7 @@ class KethContext:
         block_number: int,
         chain_id: Optional[int] = None,
         zkpi_version: str = "1",
-        proving_run_id: Optional[int] = None,
+        proving_run_id: Optional[str] = None,
     ) -> "KethContext":
         """Create a KethContext with automatic resolution of missing values."""
         # Resolve chain ID if not provided
@@ -371,11 +371,11 @@ def find_step_outputs(
     return [Path(p) for p in glob.glob(str(proving_run_dir / pattern))]
 
 
-def get_next_proving_run_id(data_dir: Path, chain_id: int, block_number: int) -> int:
+def get_next_proving_run_id(data_dir: Path, chain_id: int, block_number: int) -> str:
     """Get the next sequential proving run ID for a given chain and block."""
     block_dir = data_dir / str(chain_id) / str(block_number)
     if not block_dir.exists():
-        return 1
+        return "1"
 
     # Find existing proving run directories
     existing_runs = []
@@ -383,7 +383,7 @@ def get_next_proving_run_id(data_dir: Path, chain_id: int, block_number: int) ->
         if item.is_dir() and item.name.isdigit():
             existing_runs.append(int(item.name))
 
-    return max(existing_runs, default=0) + 1
+    return str(max(existing_runs, default=0) + 1)
 
 
 def get_zkpi_path(
@@ -394,10 +394,10 @@ def get_zkpi_path(
 
 
 def get_proving_run_dir(
-    data_dir: Path, chain_id: int, block_number: int, proving_run_id: int
+    data_dir: Path, chain_id: int, block_number: int, proving_run_id: str
 ) -> Path:
     """Get the proving run directory for a given chain, block, and proving run ID."""
-    return data_dir / str(chain_id) / str(block_number) / str(proving_run_id)
+    return data_dir / str(chain_id) / str(block_number) / proving_run_id
 
 
 def get_chain_id_from_zkpi(zkpi_path: Path) -> int:
@@ -512,7 +512,7 @@ def trace(
         dir_okay=True,
         file_okay=False,
     ),
-    proving_run_id: Optional[int] = typer.Option(
+    proving_run_id: Optional[str] = typer.Option(
         None,
         help="Proving run ID (if not provided, will use next available)",
     ),
@@ -717,7 +717,7 @@ def e2e(
         "1",
         help="ZKPI version",
     ),
-    proving_run_id: Optional[int] = typer.Option(
+    proving_run_id: Optional[str] = typer.Option(
         None,
         help="Proving run ID (if not provided, will use next available)",
     ),
@@ -814,7 +814,7 @@ def generate_ar_inputs(
         dir_okay=True,
         file_okay=False,
     ),
-    proving_run_id: Optional[int] = typer.Option(
+    proving_run_id: Optional[str] = typer.Option(
         None,
         help="Proving run ID (if not provided, will use next available)",
     ),
