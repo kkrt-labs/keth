@@ -25,7 +25,7 @@ The project uses [uv](https://github.com/astral-sh/uv) to manage python
 dependencies and run commands. To install uv:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://github.com/astral-sh/uv/releases/latest/download/uv-installer.sh | sh
 ```
 
 Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust
