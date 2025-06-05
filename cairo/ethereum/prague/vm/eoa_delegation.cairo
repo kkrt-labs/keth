@@ -390,30 +390,6 @@ func set_delegation{
         raise('InvalidBlock');
     }
 
-    let message_code_address_account = get_account{state=state}(Address([message.value.code_address.value]));
-    let message_code = get_account_code{state=state}(Address([message.value.code_address.value]), message_code_address_account);
-    MessageImpl.set_code{message=message}(message_code);
-
-    let is_delegated_final_check = is_valid_delegation(message_code);
-
-    if (is_delegated_final_check.value != FALSE) {
-        MessageImpl.set_disable_precompiles(bool(TRUE));
-
-        let delegated_code_address = get_delegated_code_address(message_code);
-        MessageImpl.set_code_address(delegated_code_address);
-
-        set_address_add{set_address=accessed_addresses}(Address([message.value.code_address.value]));
-        MessageImpl.set_accessed_addresses{message=message}(accessed_addresses);
-
-        let message_code_address_account_post_delegation = get_account{state=state}(Address([message.value.code_address.value]));
-        let message_code_post_delegation = get_account_code{state=state}(Address([message.value.code_address.value]), message_code_address_account_post_delegation);
-        MessageImpl.set_code{message=message}(message_code_post_delegation);
-
-        BlockEnvImpl.set_state{block_env=block_env}(state);
-        MessageImpl.set_block_env(block_env);
-        return final_refund_counter;
-    }
-
     BlockEnvImpl.set_state{block_env=block_env}(state);
     MessageImpl.set_block_env(block_env);
     MessageImpl.set_accessed_addresses(accessed_addresses);

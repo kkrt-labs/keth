@@ -53,6 +53,6 @@ known_first_party = [
 ]
 
 [tool.uv.sources]
-ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "fceaa9b8d0598e1a208acaca537d2c48676d9593" }
 cairo-addons = { workspace = true }
 cairo-core = { workspace = true }

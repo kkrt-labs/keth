@@ -11,6 +11,7 @@ from ethereum_types.numeric import Uint, bool, SetUint, SetUintStruct, SetUintDi
 from ethereum.prague.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.prague.vm.gas import GasConstants, charge_gas
 from ethereum.prague.fork_types import (
+    Address,
     SetAddress,
     SetTupleAddressBytes32,
     SetTupleAddressBytes32Struct,
@@ -19,6 +20,7 @@ from ethereum.prague.fork_types import (
     SetTupleAddressBytes32DictAccess,
 )
 
+from ethereum.utils.hash_dicts import set_address_add
 from ethereum.prague.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.prague.vm.evm_impl import Evm, EvmStruct, Message, MessageImpl, MessageStruct
 from ethereum.prague.vm.env_impl import BlockEnvironment, BlockEnvImpl, TransactionEnvImpl
@@ -54,8 +56,10 @@ from ethereum.prague.state import (
     set_code,
     State,
     StateStruct,
+    get_account,
+    get_account_code,
 )
-from ethereum.prague.vm.eoa_delegation import set_delegation
+from ethereum.prague.vm.eoa_delegation import set_delegation, get_delegated_code_address
 
 from ethereum.prague.vm.evm_impl import EvmImpl
 
@@ -557,7 +561,55 @@ func process_message_call{
         let range_check96_ptr = cast([ap - 4], felt*);
         let add_mod_ptr = cast([ap - 3], ModBuiltin*);
         let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
-        let message = Message(cast([ap - 1], MessageStruct*));
+        tempvar message = Message(cast([ap - 1], MessageStruct*));
+
+        let maybe_delegated_address = get_delegated_code_address(message.value.code);
+        if (maybe_delegated_address.value != 0) {
+            tempvar delegated_address = Address([maybe_delegated_address.value]);
+            MessageImpl.set_disable_precompiles{message=message}(bool(1));
+            let accessed_addresses = message.value.accessed_addresses;
+            set_address_add{set_address=accessed_addresses}(delegated_address);
+            MessageImpl.set_accessed_addresses{message=message}(accessed_addresses);
+
+            MessageImpl.set_code_address{message=message}(maybe_delegated_address);
+
+            let message_code_address_account_post_delegation = get_account{state=state}(
+                delegated_address
+            );
+            let message_code_post_delegation = get_account_code{state=state}(
+                delegated_address, message_code_address_account_post_delegation
+            );
+            MessageImpl.set_code{message=message}(message_code_post_delegation);
+
+            BlockEnvImpl.set_state{block_env=block_env}(state);
+            MessageImpl.set_block_env{message=message}(block_env);
+
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        } else {
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar range_check96_ptr = range_check96_ptr;
+            tempvar add_mod_ptr = add_mod_ptr;
+            tempvar mul_mod_ptr = mul_mod_ptr;
+            tempvar message = message;
+        }
+        let range_check_ptr = [ap - 8];
+        let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+        let keccak_ptr = cast([ap - 6], felt*);
+        let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+        let range_check96_ptr = cast([ap - 4], felt*);
+        let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+        let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
+        tempvar message = Message(cast([ap - 1], MessageStruct*));
 
         // Regular message call path
         let evm = process_message(message);
@@ -596,7 +648,9 @@ func process_message_call{
     if (cast(evm.value.error, felt) != 0) {
         finalize_evm{evm=evm}();
         %{ trace_tx_end %}
-        let msg = create_empty_message_call_output(evm.value.gas_left, refund_counter, evm.value.error);
+        let msg = create_empty_message_call_output(
+            evm.value.gas_left, refund_counter, evm.value.error
+        );
         return (msg, block_env);
     }
 
