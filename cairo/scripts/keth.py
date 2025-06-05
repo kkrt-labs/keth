@@ -163,7 +163,7 @@ class StepHandler:
                 # and getting the values back from the output files.
 
                 # Determine the proving run directory from the zkpi_path
-                # zkpi_path structure: data_dir/chain_id/block_number/zkpi_version.json
+                # zkpi_path structure: data_dir/chain_id/block_number/zkpi.json
                 # We need to find the latest proving run directory
                 block_dir = zkpi_path.parent
                 block_number = int(block_dir.name)
@@ -390,7 +390,7 @@ def get_zkpi_path(
     data_dir: Path, chain_id: int, block_number: int, version: str = "1"
 ) -> Path:
     """Get the path to the ZKPI file for a given chain, block, and version."""
-    return data_dir / str(chain_id) / str(block_number) / f"zkpi_{version}.json"
+    return data_dir / str(chain_id) / str(block_number) / "zkpi.json"
 
 
 def get_proving_run_dir(

@@ -61,7 +61,7 @@ def temp_data_dir():
         # Set up test ZKPI file
         zkpi_dir = data_dir / str(TEST_CHAIN_ID) / str(TEST_BLOCK_NUMBER)
         zkpi_dir.mkdir(parents=True, exist_ok=True)
-        zkpi_dest = zkpi_dir / "zkpi_1.json"
+        zkpi_dest = zkpi_dir / "zkpi.json"
         shutil.copy2(TEST_ZKPI_FILE, zkpi_dest)
 
         yield data_dir
@@ -241,7 +241,7 @@ class TestKethUnits:
 
         # Test ZKPI path
         zkpi_path = get_zkpi_path(data_dir, 1, 19426587, "2")
-        expected = data_dir / "1" / "19426587" / "zkpi_2.json"
+        expected = data_dir / "1" / "19426587" / "zkpi.json"
         assert zkpi_path == expected
 
         # Test proving run directory
@@ -765,7 +765,6 @@ try:
             zkpi_path = get_zkpi_path(data_dir, chain_id, block_number, version)
             assert str(chain_id) in str(zkpi_path)
             assert str(block_number) in str(zkpi_path)
-            assert version in str(zkpi_path)
 
             # Test proving run directory generation
             proving_run_dir = get_proving_run_dir(
