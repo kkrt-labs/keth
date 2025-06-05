@@ -48,6 +48,7 @@ dev-dependencies = [
   "pyinstrument>=5.0.0",
   "gitpython>=3.1.44",
   "filelock>=3.17.0",
+  "psutil>=6.1.0",
 ]
 
 [tool.uv.sources]
