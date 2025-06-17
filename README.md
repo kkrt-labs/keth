@@ -17,7 +17,7 @@ Keth makes it possible to prove a given state transition asynchronously by:
 For instance, this can be run for a given block to prove the Ethereum protocol's
 State Transition Function (STF).
 
-## Getting started
+## Getting Started
 
 ### Requirements
 
@@ -63,133 +63,113 @@ output format of logs from the Rust components. Supported values are:
 - `plain` (default): Human-readable, colored log output.
 - `json`: Structured JSON logging, useful to be stored.
 
-### Running tests
+## Usage
+
+Keth provides two main CLI tools for different use cases.
+
+First, you'll need to compile the Cairo programs.
 
 ```bash
-uv run pytest <optional pytest args>
+uv run compile_keth
 ```
 
-Some tests require to compile solidity code, which requires `forge` to be
-installed, and `foundry` to be in the path, and to run `forge build`.
+### Keth CLI (`uv run keth`)
 
-#### Profiling Cairo Tests
+The main Keth CLI for generating execution traces and proofs for Ethereum blocks
+using STWO.
 
-To generate a profiling graph, you need to add `--profile-cairo` to your pytest
-command. For example:
+#### Commands
+
+- **`trace`** - Generate execution traces from Ethereum block data
+
+  - Uses ZK-PI (Zero-Knowledge Prover Input) data to create block execution
+    traces
+  - Supports different execution steps: `main` (run everything sequentially),
+    `init`, `body`, `teardown`, `aggregator`.
+  - Can output traces as prover inputs JSON, binary files, or Cairo PIE files
+
+- **`prove`** - Generate STWO proofs from prover input files
+
+  - Takes prover input information and generates cryptographic proofs
+  - Supports Cairo-compatible serialization format to verify the proof in a
+    Cairo program
+
+- **`verify`** - Verify generated proofs
+
+  - Validates proof correctness using the Rust STWO verifier
+
+- **`e2e`** - End-to-end pipeline (trace + prove + verify)
+
+  - Runs the complete workflow without intermediate file I/O
+  - Optionally includes proof verification
+  - Has high RAM requirements, and is not recommended for regular sized blocks
+
+- **`generate-ar-inputs`** - Generate all prover inputs / Cairo PIEs for an
+  Applicative Recursion run.
+  - Creates all necessary traces for recursive proving
+  - Automatically chunks body transactions for efficient processing
+  - Outputs a Cairo PIE file for each step.
+
+#### Example Usage
 
 ```bash
-uv run pytest -k get_u384_bits_little --profile-cairo
+# Generate a trace for block 22615247
+uv run keth trace -b 22615247
+
+# Run end-to-end pipeline with verification
+uv run keth e2e -b 22615247 --verify
+
+# Generate all AR Cairo PIEs for recursive proving
+uv run keth generate-ar-inputs -b 22615247 --cairo-pie
 ```
+
+### Prove Cairo CLI (`uv run prove-cairo`)
+
+A tool for running and proving arbitrary Cairo programs.
+
+#### Commands
+
+- **`run-and-prove`** - Execute Cairo programs and generate proofs
+  - Runs compiled Cairo programs with specified entrypoints and arguments
+  - Generates execution traces and STWO proofs
+  - Optionally verifies the generated proof
+
+#### Example Usage
 
 ```bash
-# find the generated .prof file corresponding to your test execution
-ls cairo/tests/ethereum/utils/test_numeric*.prof
--rw-r--r--@ 1 kkrt  staff   854B 31 mar 13:20 cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
+uv run prove-cairo --compiled-program cairo/tests/programs/fibonacci.json --arguments 1,1,20000
 ```
 
-```bash
-# use snakeviz to display the graph in a browser web page
-snakeviz cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
-```
-
-#### Profiling runs of blocks
-
-To profile the non-cairo part, we can use
-[samply](https://github.com/mstange/samply/). Example:
-
-```bash
-samply record uv run keth trace -b 21688509
-```
-
-#### Ethereum Foundation Tests
-
-We adapted the testing framework from the
-[Ethereum Execution Specs](https://github.com/ethereum/execution-specs) to be
-able to run on Keth. These tests are located in the `cairo/tests/ef_tests`
-directory. For now, only the State Transition tests are implemented. You can run
-them with:
-
-```bash
-uv run pytest cairo/tests/ef_tests/cancun/test_state_transition.py
-```
-
-#### Ethereum Mainnet Tests
-
-To run the `state_transition` function against a given Ethereum Mainnet block,
-you'll need first to generate the Prover Input (ZK-PI) for this block using
-[ZK-PIG](https://github.com/kkrt-labs/zk-pig):
-
-```bash
-zkpig generate
-```
-
-This will generate the ZK-PI for the given block and save it in the
-`data/1/inputs` directory.
-
-Then, you can run the tests with:
-
-```bash
-uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet"
-```
-
-### Proving a Block
-
-To generate a proof for an Ethereum block, use the `prove_block.py` script:
-
-```bash
-uv run prove-block <BLOCK_NUMBER>
-```
-
-```bash
-usage: prove-block [-h] [--output-dir OUTPUT_DIR] [--data-dir DATA_DIR] [--compiled-program COMPILED_PROGRAM]
-                   block_number
-```
-
-Requirements:
-
-- Block must be post-Cancun fork (block number ≥ 19426587)
-- ZKPI data must be available as a JSON file
-- Compiled Cairo program must exist at the specified path (you can run
-  `uv run compile_keth`)
-
-The script will load the ZKPI data for the specified block, convert it to the
-format required by Keth, run the proof generation process, and save proof
-artifacts to the output directory.
-
-### Updating Rust dependencies
-
-Any changes to the rust code requires a re-build and re-install of the python
-package, see
-[the uv docs](https://docs.astral.sh/uv/concepts/projects/init/#projects-with-extension-modules)
-for more information.
-
-The tl;dr is:
-
-```bash
-uv run --reinstall <command>
-```
-
-Forgetting the `--reinstall` flag will not re-build the python package and
-consequentially not use any changes to the rust code.
-
-## Status
-
-Keth is a work in progress (WIP ⚠️) and as such is not suitable for production.
-
-## Generating a proof
+## Generating Proofs for Ethereum Blocks
 
 To generate a proof for an Ethereum block, you'll need:
 
-- Prover inputs (ZK-PI) for the given block, generated with Kakarot's
-  [ZK-PIG](https://github.com/kkrt-labs/zk-pig)
-- The compiled Keth program (`uv run compile_keth`)
-- Then, you can generate the proof with:
+1. **Prover inputs (ZK-PI)** for the given block, generated with Kakarot's
+   [ZK-PIG](https://github.com/kkrt-labs/zk-pig)
+2. **The compiled Keth program** (`uv run compile_keth`)
+
+### Requirements
+
+- Block must be of Prague fork
+- ZKPI data must be available as a JSON file
+- Compiled Cairo program must exist at the specified path
+
+### Quick Start
 
 ```bash
+# Generate proof for a specific block
 uv run keth e2e -b <BLOCK_NUMBER>
+
+# Or use the legacy prove-block script
+uv run prove-block <BLOCK_NUMBER>
 ```
 
-Run `uv run keth --help` for more information.
+Run `uv run keth --help` for detailed command options and parameters.
+
+## Development
+
+For development-specific information including testing, profiling, and
+contributing guidelines, see [docs/development.md](docs/development.md).
 
 ## Architecture Diagram
 
@@ -199,3 +179,7 @@ Coming soon 🏗️.
 
 - Ethereum Foundation: We are grateful to the Ethereum Foundation for the python
   execution specs and tests.
+
+## Status
+
+Keth is a work in progress (WIP ⚠️) and as such is not suitable for production.

@@ -57,11 +57,18 @@ def print_maybe_relocatable_hint(ids: VmConsts):
 @register_hint
 def precompile_index_from_address(ids: VmConsts):
 
-    from ethereum.cancun.vm.precompiled_contracts import (
+    from ethereum.prague.vm.precompiled_contracts import (
         ALT_BN128_ADD_ADDRESS,
         ALT_BN128_MUL_ADDRESS,
         ALT_BN128_PAIRING_CHECK_ADDRESS,
         BLAKE2F_ADDRESS,
+        BLS12_G1_ADD_ADDRESS,
+        BLS12_G1_MSM_ADDRESS,
+        BLS12_G2_ADD_ADDRESS,
+        BLS12_G2_MSM_ADDRESS,
+        BLS12_MAP_FP2_TO_G2_ADDRESS,
+        BLS12_MAP_FP_TO_G1_ADDRESS,
+        BLS12_PAIRING_ADDRESS,
         ECRECOVER_ADDRESS,
         IDENTITY_ADDRESS,
         MODEXP_ADDRESS,
@@ -83,6 +90,13 @@ def precompile_index_from_address(ids: VmConsts):
         ALT_BN128_PAIRING_CHECK_ADDRESS: 7 * 3,
         BLAKE2F_ADDRESS: 8 * 3,
         POINT_EVALUATION_ADDRESS: 9 * 3,
+        BLS12_G1_ADD_ADDRESS: 10 * 3,
+        BLS12_G1_MSM_ADDRESS: 11 * 3,
+        BLS12_G2_ADD_ADDRESS: 12 * 3,
+        BLS12_G2_MSM_ADDRESS: 13 * 3,
+        BLS12_PAIRING_ADDRESS: 14 * 3,
+        BLS12_MAP_FP_TO_G1_ADDRESS: 15 * 3,
+        BLS12_MAP_FP2_TO_G2_ADDRESS: 16 * 3,
     }
 
     ids.index = ADDRESS_TO_INDEX[ids.address.to_bytes(20, "little")]
@@ -98,7 +112,7 @@ def initialize_jumpdests(
 ):
     from collections import defaultdict
 
-    from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+    from ethereum.prague.vm.runtime import get_valid_jump_destinations
     from starkware.cairo.common.dict import DictTracker
 
     bytecode = bytes(
@@ -143,3 +157,25 @@ def jumpdest_continue_no_push_case(
 @register_hint
 def compare_relocatable_segment_index(ids: VmConsts):
     ids.segment_equal = 1 if ids.lhs.segment_index == ids.rhs.segment_index else 0
+
+
+@register_hint
+def trace_tx_end(ids: VmConsts, serialize, logger):
+
+    initial_gas = serialize(ids.evm.value.message.value.gas)
+    final_gas = serialize(ids.evm.value.gas_left)
+    output = serialize(ids.evm.value.output)
+    error_int = serialize(ids.evm.value.error)["value"]
+    if error_int == 0:
+        error = None
+    else:
+        try:
+            error_bytes = error_int.to_bytes(32, "big")
+            ascii_value = error_bytes.decode("utf-8", errors="replace").strip("\x00")
+            error = ascii_value
+        except (UnicodeDecodeError, ValueError):
+            error = f"Error code: {error_int}"
+    gas_used = initial_gas - final_gas
+    logger.trace_cairo(
+        f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}"
+    )

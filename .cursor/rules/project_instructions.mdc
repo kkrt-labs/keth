@@ -1,6 +1,6 @@
 ---
 description: Project Instructions
-globs: 
+globs:
 ---
 # Project Instructions
 
@@ -15,7 +15,7 @@ globs:
   - Test Runner (`runner.py`): Orchestrates program execution and manages memory segments
 
 - Implements the Ethereum Virtual Machine (EVM) in Cairo Zero
-  - Core EVM components in `cairo/ethereum/cancun/`
+  - Core EVM components in `cairo/ethereum/prague/`
   - Type system in `cairo/ethereum_types/`
   - Test framework adapted from Ethereum Execution Specs
 
@@ -23,10 +23,15 @@ globs:
 - Implement a complete EVM in Cairo for provable execution
 - Maintain strict compatibility with Ethereum's execution semantics
 - Optimize for provability while maintaining readability
-- Support the Cancun fork of Ethereum
+- Support the prague fork of Ethereum
 
 ## AI Guidance
 - For type system questions, focus on both the Cairo implementation and Python bridging, refer to patterns in @common_patterns.mdc
 - For generic Cairo questions, refer to @coding_standards.mdc and @common_patterns.mdc
 - For EVM logic, refer to the Ethereum execution specs and the Cairo implementation
 - When implementing new features, follow the established patterns for error handling, type wrapping, and testing
+
+
+## Python project setup
+
+- The python project is set up with `uv`. You can run `uv run <script_path>` to run a python script, or `uv run pytest <path_to_test>` to run tests.

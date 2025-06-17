@@ -180,6 +180,7 @@ nodeid
 noncanonical
 nondet
 norecursedirs
+normalised
 notive
 numprocesses
 OMMER
@@ -323,3 +324,5 @@ tempvar
 dhat
 EEST
 exitstatus
+PREDEPLOY
+bilinearity

@@ -6,7 +6,7 @@ description = "Integration of the Kakarot Ethereum execution layer in the Reth c
 homepage = "https://github.com/kkrt-labs"
 repository = "https://github.com/kkrt-labs/keth"
 readme = "./README.md"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 exclude = [".github/"]
 
 [workspace]
@@ -66,8 +66,8 @@ cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.1"
 cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "5f97264eac172331e64030d5f1cc97c3ca94a429" }
 
 [patch.crates-io]
-stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "e4835385b6d5ec746ca3b6496db3f84e510297c5" }
-stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "e4835385b6d5ec746ca3b6496db3f84e510297c5" }
-cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "e4835385b6d5ec746ca3b6496db3f84e510297c5" }
-stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "e4835385b6d5ec746ca3b6496db3f84e510297c5" }
-stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "e4835385b6d5ec746ca3b6496db3f84e510297c5" }
+stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
+stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
+stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
+stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }

@@ -1,34 +1,24 @@
 import hashlib
+from dataclasses import fields
 from typing import List, Tuple, Union
 
-from ethereum.cancun.blocks import Header, Log, Withdrawal
-from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.crypto.hash import Hash32
+from ethereum.prague.blocks import Header, Log, Withdrawal
+from ethereum.prague.transactions import LegacyTransaction
 from ethereum_types.bytes import Bytes, Bytes32
 
 
 def LegacyTransaction__hash__(tx: LegacyTransaction) -> Hash32:
-    nonce_hash = hashlib.blake2s(tx.nonce.to_bytes(32, "little")).digest()
-    gas_price_hash = hashlib.blake2s(tx.gas_price.to_bytes(32, "little")).digest()
-    gas_hash = hashlib.blake2s(tx.gas.to_bytes(32, "little")).digest()
-    to_hash = hashlib.blake2s(tx.to).digest()
-    value_hash = hashlib.blake2s(tx.value.to_bytes(32, "little")).digest()
-    data_hash = hashlib.blake2s(tx.data).digest()
-    v_hash = hashlib.blake2s(tx.v.to_bytes(32, "little")).digest()
-    r_hash = hashlib.blake2s(tx.r.to_bytes(32, "little")).digest()
-    s_hash = hashlib.blake2s(tx.s.to_bytes(32, "little")).digest()
+    field_hashes = []
+    for field in fields(tx):
+        field_value = getattr(tx, field.name)
+        if isinstance(field_value, bytes):
+            field_bytes = field_value
+        else:
+            field_bytes = field_value.to_bytes(32, "little")
+        field_hashes.append(hashlib.blake2s(field_bytes).digest())
 
-    input_bytes = (
-        nonce_hash
-        + gas_price_hash
-        + gas_hash
-        + to_hash
-        + value_hash
-        + data_hash
-        + v_hash
-        + r_hash
-        + s_hash
-    )
+    input_bytes = b"".join(field_hashes)
     return hashlib.blake2s(input_bytes).digest()
 
 
@@ -79,35 +69,48 @@ def TupleLog__hash__(tuple_log: Tuple[Log, ...]) -> Hash32:
 
 def Header__hash__(header: Header) -> Hash32:
     acc = []
-    acc.append(header.parent_hash)
-    acc.append(header.ommers_hash)
-    acc.append(header.coinbase + b"\x00" * 12)  # Pad 20-byte address to 32 bytes
-    acc.append(header.state_root)
-    acc.append(header.transactions_root)
-    acc.append(header.receipt_root)
-    acc.append(hashlib.blake2s(header.bloom).digest())
-    acc.append(header.difficulty.to_bytes(32, "little"))
-    acc.append(header.number.to_bytes(32, "little"))
-    acc.append(header.gas_limit.to_bytes(32, "little"))
-    acc.append(header.gas_used.to_bytes(32, "little"))
-    acc.append(header.timestamp.to_bytes(32, "little"))
-    acc.append(hashlib.blake2s(header.extra_data).digest())
-    acc.append(header.prev_randao)
-    acc.append(header.nonce + b"\x00" * 24)
-    acc.append(header.base_fee_per_gas.to_bytes(32, "little"))
-    acc.append(header.withdrawals_root)
-    acc.append(header.blob_gas_used.to_bytes(32, "little"))
-    acc.append(header.excess_blob_gas.to_bytes(32, "little"))
-    acc.append(header.parent_beacon_block_root)
+
+    # Iterate through all fields in the dataclass
+    for field in fields(header):
+        value = getattr(header, field.name)
+
+        # Convert non-bytes instances to 32-byte representations
+        if isinstance(value, bytes):
+            # Special handling for fields that need hashing or padding
+            if field.name == "bloom":
+                acc.append(hashlib.blake2s(value).digest())
+            elif field.name == "extra_data":
+                acc.append(hashlib.blake2s(value).digest())
+            elif field.name == "coinbase":
+                acc.append(value + b"\x00" * 12)  # Pad 20-byte address to 32 bytes
+            elif field.name == "nonce":
+                acc.append(value + b"\x00" * 24)  # Pad 8-byte nonce to 32 bytes
+            else:
+                acc.append(value)
+        else:
+            # Convert numeric types to 32-byte little-endian representation
+            acc.append(value.to_bytes(32, "little"))
+
     return hashlib.blake2s(b"".join(acc)).digest()
 
 
 def Withdrawal__hash__(withdrawal: Withdrawal) -> Hash32:
     acc = []
-    acc.append(withdrawal.index.to_bytes(32, "little"))
-    acc.append(withdrawal.validator_index.to_bytes(32, "little"))
-    acc.append(withdrawal.address + b"\x00" * 12)
-    acc.append(withdrawal.amount.to_bytes(32, "little"))
+
+    # Iterate through all fields in the dataclass
+    for field in fields(withdrawal):
+        value = getattr(withdrawal, field.name)
+
+        # Convert non-bytes instances to 32-byte representations
+        if isinstance(value, bytes):
+            if field.name == "address":
+                acc.append(value + b"\x00" * 12)  # Pad 20-byte address to 32 bytes
+            else:
+                acc.append(value)
+        else:
+            # Convert numeric types to 32-byte little-endian representation
+            acc.append(value.to_bytes(32, "little"))
+
     return hashlib.blake2s(b"".join(acc)).digest()
 
 

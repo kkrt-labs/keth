@@ -8,7 +8,7 @@ use pyo3::{
     types::{PyModule, PyModuleMethods},
     wrap_pyfunction, Bound, PyResult,
 };
-use stwo_cairo_adapter::{adapter::prover_input_from_vm_output, ProverInput};
+use stwo_cairo_adapter::{adapter::read_and_adapt_prover_input_info_file, ProverInput};
 use stwo_cairo_prover::{
     prover::{prove_cairo, ChannelHash, ProverParameters},
     stwo_prover::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
@@ -34,7 +34,8 @@ pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool)
     let _profiler = dhat::Profiler::new_heap();
 
     let _ = setup_logging();
-    let prover_input = prover_input_from_vm_output(&prover_input_path).map_err(to_pyerr)?;
+    let prover_input =
+        read_and_adapt_prover_input_info_file(&prover_input_path).map_err(to_pyerr)?;
     prove_with_stwo(prover_input, proof_path, serde_cairo, false).map_err(to_pyerr)
 }
 

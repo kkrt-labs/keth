@@ -1,9 +1,9 @@
 from typing import Tuple
 
-from ethereum.cancun.blocks import Log
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm import Evm
 from ethereum.exceptions import EthereumException
+from ethereum.prague.blocks import Log
+from ethereum.prague.fork_types import Address
+from ethereum.prague.vm import Evm
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import strategies as st

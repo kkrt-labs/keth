@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "An EVM proving backend in Cairo"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT OR Apache-2.0" }
 
 dependencies = [
   "keth-types",
@@ -50,6 +51,7 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
+ethereum-execution = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "9e5f36b4d7f8e8ae2d8831d2460fbd88648fcdee" }
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
@@ -179,6 +181,8 @@ markers = [
   "slow",
   "cairo_file(path): mark test with cairo source file path to compile",
   "bigmem",
+  "unit",
+  "integration",
 ]
 norecursedirs = ".* cairo/tests/ef_tests/fixtures"
 addopts = [
@@ -196,8 +200,8 @@ known_first_party = [
   "cairo_addons",
   "eth_rpc",
   "mpt",
-  "tests",
   "utils",
+  "tests",
   "keth_types",
 ]
 

@@ -42,7 +42,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use stwo_cairo_adapter::adapter::adapt_finished_runner;
+use stwo_cairo_adapter::adapter::adapter;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
@@ -591,20 +591,38 @@ impl PyCairoRunner {
 }
 
 /// Initialize Cairo execution environment with the given program and inputs.
+///
+/// # Arguments
+/// * `entrypoint` - The entrypoint of the program
+/// * `program_input` - The input to the program
+/// * `compiled_program_path` - The path to the compiled program
+/// * `proof_mode` - Whether to run in proof mode
+/// * `cairo_pie` - Whether to output Cairo PIE
+///
+/// Note that if cairo_pie is true, proof_mode must be false.
 fn prepare_cairo_execution<'a>(
     entrypoint: &'a str,
     program_input: PyObject,
     compiled_program_path: &str,
+    proof_mode: bool,
+    cairo_pie: bool,
 ) -> PyResult<(Program, ExecutionScopes, CairoRunConfig<'a>)> {
+    if proof_mode && cairo_pie {
+        panic!("Proof mode and Cairo PIE cannot be used together");
+    }
+
     let cairo_run_config: CairoRunConfig<'a> = CairoRunConfig {
         entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::all_cairo_stwo,
-        proof_mode: true,
+        // Choose layout based on intended prover:
+        // - all_cairo: for Cairo PIEs consumed by STONE prover
+        // - all_cairo_stwo: for proof generation with STWO prover
+        layout: if cairo_pie { LayoutName::all_cairo } else { LayoutName::all_cairo_stwo },
+        proof_mode,
         secure_run: Some(true),
-        disable_trace_padding: true,
-        allow_missing_builtins: Default::default(),
+        disable_trace_padding: proof_mode,
+        allow_missing_builtins: Some(true),
         dynamic_layout_params: Default::default(),
     };
 
@@ -679,14 +697,19 @@ pub fn generate_trace(
     compiled_program_path: String,
     output_path: PathBuf,
     output_trace_components: bool,
-    pi_json: bool,
+    cairo_pie: bool,
 ) -> PyResult<()> {
     setup_logging().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to setup logging: {}", e))
     })?;
 
-    let (program, exec_scopes, cairo_run_config) =
-        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
+    let (program, exec_scopes, cairo_run_config) = prepare_cairo_execution(
+        &entrypoint,
+        program_input,
+        &compiled_program_path,
+        !cairo_pie,
+        cairo_pie,
+    )?;
 
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
     let _run_span_guard = run_span.enter();
@@ -708,32 +731,67 @@ pub fn generate_trace(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
-    // Write prover input infos
-    let prover_input_info =
-        cairo_runner.get_prover_input_info().expect("Unable to get prover input info");
+    // Create output directory if needed
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    if pi_json {
-        std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
+
+    // Save the output of the program
+    let mut output_buffer = String::new();
+    let mut cairo_runner_mut = cairo_runner;
+    cairo_runner_mut.vm.write_output(&mut output_buffer).map_err(to_pyerr)?;
+
+    // Determine the base filename from output_path
+    let base_filename = if output_path.is_dir() {
+        // If output_path is a directory, we need to create a default filename
+        "output"
     } else {
+        // Extract filename without extension
+        output_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output")
+    };
+
+    let run_output_path = if output_path.is_dir() {
+        output_path.join(format!("{}.run_output.txt", base_filename))
+    } else {
+        output_path.with_file_name(format!("{}.run_output.txt", base_filename))
+    };
+
+    std::fs::write(run_output_path, output_buffer)?;
+
+    if cairo_pie {
+        // Output Cairo PIE
+        let cairo_pie_result = cairo_runner_mut.get_cairo_pie().expect("Unable to get cairo pie");
+        cairo_pie_result.write_zip_file(&output_path, false).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to write Cairo PIE: {}",
+                e
+            ))
+        })?;
+    } else {
+        // Output prover input info
+        let prover_input_info =
+            cairo_runner_mut.get_prover_input_info().expect("Unable to get prover input info");
         // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
         let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
         std::fs::write(&output_path, bytes)?;
     }
 
     if output_trace_components {
-        write_binary_trace(&cairo_runner, &output_path.with_extension("trace"))
+        write_binary_trace(&cairo_runner_mut, &output_path.with_extension("trace"))
             .map_err(to_pyerr)?;
-        write_binary_memory(&cairo_runner, &output_path.with_extension("memory"), 3 * 1024 * 1024)
-            .map_err(to_pyerr)?;
+        write_binary_memory(
+            &cairo_runner_mut,
+            &output_path.with_extension("memory"),
+            3 * 1024 * 1024,
+        )
+        .map_err(to_pyerr)?;
         write_binary_air_public_input(
-            &cairo_runner,
+            &cairo_runner_mut,
             &output_path.with_extension("air_public_input"),
         )
         .map_err(to_pyerr)?;
         write_binary_air_private_input(
-            &cairo_runner,
+            &cairo_runner_mut,
             &output_path.with_extension("trace"),
             &output_path.with_extension("memory"),
             &output_path.with_extension("air_private_input"),
@@ -764,7 +822,7 @@ pub fn run_end_to_end(
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
     let _run_span_guard = run_span.enter();
     let (program, exec_scopes, run_config) =
-        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
+        prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path, true, false)?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
     let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
@@ -784,7 +842,8 @@ pub fn run_end_to_end(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
-    let cairo_input = adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
+    let mut runner_input_info = cairo_runner.get_prover_input_info().map_err(to_pyerr)?;
+    let cairo_input = adapter(&mut runner_input_info).map_err(to_pyerr)?;
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }

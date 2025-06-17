@@ -1,7 +1,7 @@
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import Uint
-from ethereum.cancun.state import (
+from ethereum.prague.state import (
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
     TupleAddressBytes32U256DictAccess,

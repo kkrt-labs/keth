@@ -3,7 +3,7 @@ import os
 
 import pytest
 from dotenv import load_dotenv
-from ethereum.cancun.vm import Evm
+from ethereum.prague.vm import Evm
 from ethereum.trace import (
     EvmStop,
     GasAndRefund,
@@ -104,7 +104,7 @@ def init_tracer():
     setattr(logging.getLoggerClass(), "debug_cairo", debug_cairo)
 
 
-collect_ignore_glob = ["cairo/tests/ef_tests/fixtures/*"]
+collect_ignore_glob = ["tests/fixtures/*"]
 
 
 def pytest_configure(config):
@@ -116,16 +116,16 @@ def pytest_configure(config):
 
     # Patching evm_trace:
     # - Problem: Global patches of `ethereum.trace.evm_trace` are not reflected in places where `evm_trace` is imported in EELS.
-    # - Cause: `ethereum.cancun.vm.interpreter` (and other modules) imports `evm_trace` locally (e.g., `from ethereum.trace import evm_trace`)
+    # - Cause: `ethereum.prague.vm.interpreter` (and other modules) imports `evm_trace` locally (e.g., `from ethereum.trace import evm_trace`)
     #   at module load time, caching the original `discard_evm_trace`. Patching `ethereum.trace.evm_trace` later didn’t
     #   update this local reference due to Python’s import caching.
     # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
-    #   `ethereum.cancun.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
+    #   `ethereum.prague.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
     if config.getoption("log_cli_level") == "TRACE":
-        import ethereum.cancun.vm.interpreter
+        import ethereum.prague.vm.interpreter
 
-        setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
-        setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
+        setattr(ethereum.prague.vm.interpreter, "evm_trace", evm_trace)
+        setattr(ethereum.prague.vm.gas, "evm_trace", evm_trace)
 
 
 @pytest.fixture(autouse=True, scope="session")

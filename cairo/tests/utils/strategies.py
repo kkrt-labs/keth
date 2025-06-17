@@ -15,37 +15,6 @@ from typing import (
 )
 
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import (
-    Account,
-    Address,
-    Bloom,
-    Root,
-    VersionedHash,
-)
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
-    AccessListTransaction,
-    BlobTransaction,
-    FeeMarketTransaction,
-    LegacyTransaction,
-)
-from ethereum.cancun.trie import (
-    BranchNode,
-    ExtensionNode,
-    LeafNode,
-    Trie,
-    copy_trie,
-    encode_internal_node,
-)
-from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.vm import (
-    BlockEnvironment,
-    BlockOutput,
-    Evm,
-    Message,
-    TransactionEnvironment,
-)
 from ethereum.crypto.alt_bn128 import (
     BNF,
     BNF2,
@@ -58,7 +27,41 @@ from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.crypto.kzg import BLS_MODULUS, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
+from ethereum.prague.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.prague.fork_types import (
+    Account,
+    Address,
+    Authorization,
+    Bloom,
+    Root,
+    VersionedHash,
+)
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    SetCodeTransaction,
+)
+from ethereum.prague.trie import (
+    BranchNode,
+    ExtensionNode,
+    LeafNode,
+    Trie,
+    copy_trie,
+    encode_internal_node,
+)
+from ethereum.prague.trie import root as compute_root
+from ethereum.prague.vm import (
+    BlockEnvironment,
+    BlockOutput,
+    Evm,
+    Message,
+    TransactionEnvironment,
+)
 from ethereum_types.bytes import (
+    Bytes,
     Bytes0,
     Bytes4,
     Bytes8,
@@ -68,7 +71,7 @@ from ethereum_types.bytes import (
     Bytes64,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
+from ethereum_types.numeric import U8, U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from py_ecc.bls.hash_to_curve import (
     map_to_curve_G1,
@@ -416,6 +419,9 @@ transaction_environment_lite = st.builds(
     blob_versioned_hashes=st.lists(
         st.from_type(VersionedHash), max_size=MAX_TUPLE_SIZE
     ).map(tuple),
+    authorizations=st.lists(st.from_type(Authorization), max_size=MAX_TUPLE_SIZE).map(
+        tuple
+    ),
     index_in_block=st.none() | uint,
     tx_hash=st.none() | hash32,
 )
@@ -437,6 +443,7 @@ message_lite = st.builds(
     is_static=st.booleans(),
     accessed_addresses=st.builds(set, st.just(set())),
     accessed_storage_keys=st.builds(set, st.just(set())),
+    disable_precompiles=st.just(False),
     parent_evm=st.none(),
 )
 
@@ -476,6 +483,7 @@ message = st.builds(
     is_static=st.booleans(),
     accessed_addresses=accessed_addresses,
     accessed_storage_keys=accessed_storage_keys,
+    disable_precompiles=st.booleans(),
     parent_evm=st.none() | evm_strategy,
 )
 
@@ -565,13 +573,13 @@ empty_block_output = st.builds(
     BlockOutput,
     block_gas_used=st.just(Uint(0)),
     transactions_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
     ),
     receipts_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, Receipt]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
@@ -579,12 +587,27 @@ empty_block_output = st.builds(
     receipt_keys=st.just(set()),
     block_logs=st.just(list()),
     withdrawals_trie=st.builds(
-        Trie,
+        Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
         secured=st.just(False),
         default=st.just(None),
         _data=st.just(defaultdict(lambda: None)),
     ),
     blob_gas_used=st.just(U64(0)),
+    requests=st.just(tuple()),
+)
+
+block_output_strategy = st.builds(
+    BlockOutput,
+    block_gas_used=uint,
+    transactions_trie=trie_strategy(
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]]
+    ),
+    receipts_trie=trie_strategy(Trie[Bytes, Optional[Union[Bytes, Receipt]]]),
+    receipt_keys=st.from_type(Tuple[Bytes, ...]),
+    block_logs=st.from_type(Tuple[Log, ...]),
+    withdrawals_trie=trie_strategy(Trie[Bytes, Optional[Union[Bytes, Withdrawal]]]),
+    blob_gas_used=uint64,
+    requests=st.lists(small_bytes, max_size=MAX_TUPLE_SIZE).map(tuple),
 )
 
 # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
@@ -696,6 +719,7 @@ header = st.builds(
     prev_randao=bytes32,
     nonce=bytes8,
     base_fee_per_gas=uint,
+    requests_hash=hash32,
 )
 
 
@@ -761,6 +785,7 @@ assertion_error = st.builds(AssertionError, st.text())
 
 
 def register_type_strategies():
+    st.register_type_strategy(U8, uint8.map(U8))
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
     st.register_type_strategy(FixedUnsigned, uint)
@@ -796,6 +821,9 @@ def register_type_strategies():
     )
     st.register_type_strategy(
         BlobTransaction, st.builds(BlobTransaction, data=small_bytes)
+    )
+    st.register_type_strategy(
+        SetCodeTransaction, st.builds(SetCodeTransaction, data=small_bytes)
     )
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(
@@ -885,3 +913,5 @@ def register_type_strategies():
     st.register_type_strategy(KZGProof, bytes48.map(KZGProof))
     st.register_type_strategy(ValueError, value_error)
     st.register_type_strategy(AssertionError, assertion_error)
+    st.register_type_strategy(Authorization, st.builds(Authorization))
+    st.register_type_strategy(BlockOutput, block_output_strategy)

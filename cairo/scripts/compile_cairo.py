@@ -3,6 +3,8 @@ import json
 import logging
 from pathlib import Path
 
+from starkware.cairo.bootloaders.hash_program import compute_program_hash_chain
+
 from cairo_addons.compiler import cairo_compile, implement_hints
 
 # Configure the logger
@@ -37,6 +39,20 @@ def compile_cairo(
         logger.info(f"Writing compiled program to {output_path}")
         json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
+    # Compute program hash
+    program_hash = compute_program_hash_chain(program=program, use_poseidon=True)
+    logger.info(f"Computed program hash for {output_path.name}: 0x{program_hash:x}")
+
+    return output_path.name, program_hash
+
+
+def save_program_hashes(program_hashes, output_dir):
+    """Save program hashes to a JSON file in the output directory."""
+    hashes_file = Path(output_dir) / "program_hashes.json"
+    with open(hashes_file, "w") as f:
+        json.dump(program_hashes, f, indent=4, sort_keys=True)
+    logger.info(f"Saved program hashes to {hashes_file}")
+
 
 parser = argparse.ArgumentParser(description="Compile Cairo program")
 parser.add_argument(
@@ -58,7 +74,7 @@ parser.add_argument(
 def main():
     parser.add_argument(
         "path",
-        default="cairo/ethereum/cancun/keth/main.cairo",
+        default="cairo/ethereum/prague/keth/main.cairo",
         help="The Cairo file to compile",
     )
     parser.add_argument(
@@ -74,12 +90,15 @@ def main():
         required=False,
     )
     args = parser.parse_args()
-    compile_cairo(
+    program_name, program_hash = compile_cairo(
         args.path,
         args.debug_info,
         args.proof_mode,
         args.implement_hints,
         args.output_path,
+    )
+    logger.info(
+        f"Compilation complete. Program: {program_name}, Hash: 0x{program_hash:x}"
     )
 
 
@@ -89,26 +108,32 @@ def compile_keth():
 
     programs = [
         (
-            Path("cairo/ethereum/cancun/keth/init_main.cairo"),
+            Path("cairo/ethereum/prague/keth/init_main.cairo"),
             Path("build/init_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/main.cairo"),
+            Path("cairo/ethereum/prague/keth/main.cairo"),
             Path("build/main_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/body_main.cairo"),
+            Path("cairo/ethereum/prague/keth/body_main.cairo"),
             Path("build/body_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/teardown_main.cairo"),
+            Path("cairo/ethereum/prague/keth/teardown_main.cairo"),
             Path("build/teardown_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/prague/keth/aggregator_main.cairo"),
+            Path("build/aggregator_compiled.json"),
         ),
     ]
 
     for _, output_path in programs:
         if not output_path.exists():
             output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    program_hashes = {}
 
     with ThreadPoolExecutor() as executor:
         futures = [
@@ -124,7 +149,11 @@ def compile_keth():
         ]
 
         for future in futures:
-            future.result()
+            program_name, program_hash = future.result()
+            program_hashes[program_name] = program_hash
+
+    # Save program hashes to JSON file
+    save_program_hashes(program_hashes, "build")
 
 
 if __name__ == "__main__":

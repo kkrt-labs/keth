@@ -5,7 +5,7 @@ version = "0.1.0"
 description = "A CLI tool to format Cairo files and remove unused imports."
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "MIT" }
+license = { text = "MIT OR Apache-2.0" }
 dependencies = ["typer>=0.15.3", "rich>=14.0.0", "cairo-lang>=0.13.3", "toml"]
 
 [tool.uv]

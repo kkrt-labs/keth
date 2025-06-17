@@ -73,44 +73,46 @@ from typing import (
     get_origin,
 )
 
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import BlockChain
-from ethereum.cancun.fork_types import (
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
+from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.exceptions import EthereumException
+from ethereum.prague.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.prague.fork import BlockChain
+from ethereum.prague.fork_types import (
     Account,
     Address,
+    Authorization,
     Bloom,
     Root,
     VersionedHash,
 )
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
+from ethereum.prague.state import State, TransientStorage
+from ethereum.prague.transactions import (
     Access,
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    SetCodeTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import (
+from ethereum.prague.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
     LeafNode,
     Trie,
 )
-from ethereum.cancun.vm import (
+from ethereum.prague.vm import (
     BlockEnvironment,
     BlockOutput,
     Evm,
     Message,
     TransactionEnvironment,
 )
-from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
-from ethereum.cancun.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
-from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
-from ethereum.exceptions import EthereumException
+from ethereum.prague.vm.gas import ExtendMemory, MessageCallGas
+from ethereum.prague.vm.interpreter import MessageCallOutput
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
     Bytes,
@@ -123,7 +125,7 @@ from ethereum_types.bytes import (
     Bytes48,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, Uint
+from ethereum_types.numeric import U8, U64, U256, Uint
 from py_ecc.bls.typing import G1Uncompressed
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
@@ -200,14 +202,14 @@ builtins_exception_mappings = {
 }
 
 vm_exception_classes = inspect.getmembers(
-    sys.modules["ethereum.cancun.vm.exceptions"],
+    sys.modules["ethereum.prague.vm.exceptions"],
     lambda x: inspect.isclass(x) and issubclass(x, EthereumException),
 )
 
 vm_exception_mappings = {
     (
         "ethereum",
-        "cancun",
+        "prague",
         "vm",
         "exceptions",
         f"{name}",
@@ -254,6 +256,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     **builtins_exception_mappings,
     ("ethereum_types", "others", "None"): type(None),
     ("cairo_core", "numeric", "bool"): bool,
+    ("cairo_core", "numeric", "U8"): U8,
     ("cairo_core", "numeric", "U64"): U64,
     ("cairo_core", "numeric", "Uint"): Uint,
     ("cairo_core", "numeric", "OptionalUint"): Optional[Uint],
@@ -283,177 +286,188 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Mapping[Bytes, Bytes], ...
     ],
     ("cairo_core", "bytes", "ListBytes4"): List[Bytes4],
+    ("cairo_core", "bytes", "ListBytes"): List[Bytes],
     ("cairo_ec", "curve", "g1_point", "G1Point"): ECBase,
-    ("ethereum", "cancun", "blocks", "Header"): Header,
-    ("ethereum", "cancun", "blocks", "TupleHeader"): Tuple[Header, ...],
-    ("ethereum", "cancun", "blocks", "Withdrawal"): Withdrawal,
-    ("ethereum", "cancun", "blocks", "TupleWithdrawal"): Tuple[Withdrawal, ...],
-    ("ethereum", "cancun", "blocks", "Log"): Log,
-    ("ethereum", "cancun", "blocks", "TupleLog"): Tuple[Log, ...],
-    ("ethereum", "cancun", "blocks", "Receipt"): Receipt,
-    ("ethereum", "cancun", "fork", "UnionBytesReceipt"): Union[Bytes, Receipt],
-    ("ethereum", "cancun", "blocks", "UnionBytesLegacyTransaction"): Union[
+    ("ethereum", "prague", "blocks", "Header"): Header,
+    ("ethereum", "prague", "blocks", "TupleHeader"): Tuple[Header, ...],
+    ("ethereum", "prague", "blocks", "Withdrawal"): Withdrawal,
+    ("ethereum", "prague", "blocks", "TupleWithdrawal"): Tuple[Withdrawal, ...],
+    ("ethereum", "prague", "blocks", "Log"): Log,
+    ("ethereum", "prague", "blocks", "TupleLog"): Tuple[Log, ...],
+    ("ethereum", "prague", "blocks", "Receipt"): Receipt,
+    ("ethereum", "prague", "fork", "UnionBytesReceipt"): Union[Bytes, Receipt],
+    ("ethereum", "prague", "blocks", "UnionBytesLegacyTransaction"): Union[
         Bytes, LegacyTransaction
     ],
-    ("ethereum", "cancun", "blocks", "OptionalUnionBytesLegacyTransaction"): Optional[
+    ("ethereum", "prague", "blocks", "OptionalUnionBytesLegacyTransaction"): Optional[
         Union[Bytes, LegacyTransaction]
     ],
-    ("ethereum", "cancun", "blocks", "TupleUnionBytesLegacyTransaction"): Tuple[
+    ("ethereum", "prague", "blocks", "TupleUnionBytesLegacyTransaction"): Tuple[
         Union[Bytes, LegacyTransaction], ...
     ],
-    ("ethereum", "cancun", "blocks", "UnionBytesReceipt"): Union[Bytes, Receipt],
-    ("ethereum", "cancun", "blocks", "OptionalUnionBytesReceipt"): Optional[
+    ("ethereum", "prague", "blocks", "UnionBytesReceipt"): Union[Bytes, Receipt],
+    ("ethereum", "prague", "blocks", "OptionalUnionBytesReceipt"): Optional[
         Union[Bytes, Receipt]
     ],
-    ("ethereum", "cancun", "blocks", "UnionBytesWithdrawal"): Union[Bytes, Withdrawal],
-    ("ethereum", "cancun", "blocks", "OptionalUnionBytesWithdrawal"): Optional[
+    ("ethereum", "prague", "blocks", "UnionBytesWithdrawal"): Union[Bytes, Withdrawal],
+    ("ethereum", "prague", "blocks", "OptionalUnionBytesWithdrawal"): Optional[
         Union[Bytes, Withdrawal]
     ],
-    ("ethereum", "cancun", "blocks", "Block"): Block,
-    ("ethereum", "cancun", "blocks", "ListBlock"): List[Block],
-    ("ethereum", "cancun", "fork", "BlockChain"): BlockChain,
-    ("ethereum", "cancun", "fork_types", "MappingAddressBytes32"): Mapping[
+    ("ethereum", "prague", "blocks", "Block"): Block,
+    ("ethereum", "prague", "blocks", "ListBlock"): List[Block],
+    ("ethereum", "prague", "fork", "BlockChain"): BlockChain,
+    ("ethereum", "prague", "fork_types", "MappingAddressBytes32"): Mapping[
         Address, Bytes32
     ],
-    ("ethereum", "cancun", "fork_types", "OptionalMappingAddressBytes32"): Optional[
+    ("ethereum", "prague", "fork_types", "OptionalMappingAddressBytes32"): Optional[
         Mapping[Address, Bytes32]
     ],
-    ("ethereum", "cancun", "fork_types", "Address"): Address,
-    ("ethereum", "cancun", "fork_types", "SetAddress"): Set[Address],
-    ("ethereum", "cancun", "fork_types", "Root"): Root,
-    ("ethereum", "cancun", "fork_types", "Account"): Account,
-    ("ethereum", "cancun", "fork_types", "OptionalAccount"): Optional[Account],
-    ("ethereum", "cancun", "fork_types", "OptionalAddress"): Optional[Address],
+    ("ethereum", "prague", "fork_types", "Address"): Address,
+    ("ethereum", "prague", "fork_types", "SetAddress"): Set[Address],
+    ("ethereum", "prague", "fork_types", "Root"): Root,
+    ("ethereum", "prague", "fork_types", "Account"): Account,
+    ("ethereum", "prague", "fork_types", "OptionalAccount"): Optional[Account],
+    ("ethereum", "prague", "fork_types", "OptionalAddress"): Optional[Address],
     ("ethereum", "exceptions", "OptionalEthereumException"): Optional[
         EthereumException
     ],
-    ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
-    ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
-    ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
+    ("ethereum", "prague", "fork_types", "Bloom"): Bloom,
+    ("ethereum", "prague", "bloom", "MutableBloom"): MutableBloom,
+    ("ethereum", "prague", "fork_types", "VersionedHash"): VersionedHash,
     (
         "ethereum",
-        "cancun",
+        "prague",
         "fork_types",
         "TupleAddressUintTupleVersionedHashU64",
     ): Tuple[Address, Uint, Tuple[VersionedHash, ...], U64],
-    ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
+    ("ethereum", "prague", "fork_types", "TupleVersionedHash"): Tuple[
         VersionedHash, ...
     ],
-    ("ethereum", "cancun", "transactions_types", "To"): Union[Bytes0, Address],
-    ("ethereum", "cancun", "fork_types", "TupleAddressBytes32"): Tuple[
+    ("ethereum", "prague", "transactions_types", "To"): Union[Bytes0, Address],
+    ("ethereum", "prague", "fork_types", "TupleAddressBytes32"): Tuple[
         Address, Bytes32
     ],
-    ("ethereum", "cancun", "fork_types", "SetTupleAddressBytes32"): Set[
+    ("ethereum", "prague", "fork_types", "SetTupleAddressBytes32"): Set[
         Tuple[Address, Bytes32]
+    ],
+    ("ethereum", "prague", "fork_types", "Authorization"): Authorization,
+    ("ethereum", "prague", "fork_types", "TupleAuthorization"): Tuple[
+        Authorization, ...
     ],
     ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
     ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
-    ("ethereum", "cancun", "transactions_types", "Access"): Access,
-    ("ethereum", "cancun", "transactions_types", "TupleAccess"): Tuple[Access, ...],
+    ("ethereum", "prague", "transactions_types", "Access"): Access,
+    ("ethereum", "prague", "transactions_types", "TupleAccess"): Tuple[Access, ...],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "transactions_types",
         "LegacyTransaction",
     ): LegacyTransaction,
     (
         "ethereum",
-        "cancun",
+        "prague",
         "transactions_types",
         "AccessListTransaction",
     ): AccessListTransaction,
     (
         "ethereum",
-        "cancun",
+        "prague",
         "transactions_types",
         "FeeMarketTransaction",
     ): FeeMarketTransaction,
     (
         "ethereum",
-        "cancun",
+        "prague",
         "transactions_types",
         "BlobTransaction",
     ): BlobTransaction,
-    ("ethereum", "cancun", "transactions_types", "Transaction"): Transaction,
-    ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
+    (
+        "ethereum",
+        "prague",
+        "transactions_types",
+        "SetCodeTransaction",
+    ): SetCodeTransaction,
+    ("ethereum", "prague", "transactions_types", "Transaction"): Transaction,
+    ("ethereum", "prague", "vm", "gas", "MessageCallGas"): MessageCallGas,
     ("ethereum_rlp", "rlp", "Simple"): Simple,
     ("ethereum_rlp", "rlp", "Extended"): Extended,
     ("ethereum_rlp", "rlp", "SequenceSimple"): Sequence[Simple],
     ("ethereum_rlp", "rlp", "SequenceExtended"): Sequence[Extended],
-    ("ethereum", "cancun", "trie", "MappingAddressTrieBytes32U256"): Mapping[
+    ("ethereum", "prague", "trie", "MappingAddressTrieBytes32U256"): Mapping[
         Address, Trie[Bytes32, U256]
     ],
-    ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
-    ("ethereum", "cancun", "trie", "OptionalLeafNode"): Optional[LeafNode],
-    ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
-    ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
-    ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
-    ("ethereum", "cancun", "trie", "Node"): Node,
-    ("ethereum", "cancun", "trie", "MappingBytes32U256"): Mapping[Bytes32, U256],
-    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
-    ("ethereum", "cancun", "trie", "TrieAddressOptionalAccount"): Trie[
+    ("ethereum", "prague", "trie", "LeafNode"): LeafNode,
+    ("ethereum", "prague", "trie", "OptionalLeafNode"): Optional[LeafNode],
+    ("ethereum", "prague", "trie", "ExtensionNode"): ExtensionNode,
+    ("ethereum", "prague", "trie", "BranchNode"): BranchNode,
+    ("ethereum", "prague", "trie", "InternalNode"): InternalNode,
+    ("ethereum", "prague", "trie", "Node"): Node,
+    ("ethereum", "prague", "trie", "MappingBytes32U256"): Mapping[Bytes32, U256],
+    ("ethereum", "prague", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
+    ("ethereum", "prague", "trie", "TrieAddressOptionalAccount"): Trie[
         Address, Optional[Account]
     ],
-    ("ethereum", "cancun", "trie", "TrieTupleAddressBytes32U256"): Trie[
+    ("ethereum", "prague", "trie", "TrieTupleAddressBytes32U256"): Trie[
         Tuple[Address, Bytes32], U256
     ],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "MappingBytesOptionalUnionBytesLegacyTransaction",
     ): Mapping[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "TrieBytesOptionalUnionBytesLegacyTransaction",
     ): Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "MappingBytesOptionalUnionBytesReceipt",
     ): Mapping[Bytes, Optional[Union[Bytes, Receipt]]],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "TrieBytesOptionalUnionBytesReceipt",
     ): Trie[Bytes, Optional[Union[Bytes, Receipt]]],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "MappingBytesOptionalUnionBytesWithdrawal",
     ): Mapping[Bytes, Optional[Union[Bytes, Withdrawal]]],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "trie",
         "TrieBytesOptionalUnionBytesWithdrawal",
     ): Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
-    ("ethereum", "cancun", "trie", "OptionalInternalNode"): Optional[InternalNode],
-    ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
+    ("ethereum", "prague", "trie", "OptionalInternalNode"): Optional[InternalNode],
+    ("ethereum", "prague", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
-    ("ethereum", "cancun", "fork_types", "MappingTupleAddressBytes32U256"): Mapping[
+    ("ethereum", "prague", "fork_types", "MappingTupleAddressBytes32U256"): Mapping[
         Tuple[Address, Bytes32], U256
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
-    ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
-    ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
-    ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
-    ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "fork_types", "ListTupleAddressBytes32"): List[
+    ("ethereum", "prague", "vm", "memory", "Memory"): Memory,
+    ("ethereum", "prague", "vm", "stack", "Stack"): Stack[U256],
+    ("ethereum", "prague", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
+    ("ethereum", "prague", "state", "TransientStorage"): TransientStorage,
+    ("ethereum", "prague", "fork_types", "ListTupleAddressBytes32"): List[
         Tuple[Address, Bytes32]
     ],
-    ("ethereum", "cancun", "state", "ListTrieTupleAddressBytes32U256"): List[
+    ("ethereum", "prague", "state", "ListTrieTupleAddressBytes32U256"): List[
         Trie[Tuple[Address, Bytes32], U256]
     ],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "state",
         "ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): List[
@@ -461,27 +475,27 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     (
         "ethereum",
-        "cancun",
+        "prague",
         "state",
         "TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]],
-    ("ethereum", "cancun", "state", "State"): State,
-    ("ethereum", "cancun", "vm", "env_impl", "BlockEnvironment"): BlockEnvironment,
+    ("ethereum", "prague", "state", "State"): State,
+    ("ethereum", "prague", "vm", "env_impl", "BlockEnvironment"): BlockEnvironment,
     (
         "ethereum",
-        "cancun",
+        "prague",
         "vm",
         "env_impl",
         "TransactionEnvironment",
     ): TransactionEnvironment,
-    ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
-    ("ethereum", "cancun", "vm", "evm_impl", "Message"): Message,
-    ("ethereum", "cancun", "vm", "evm_impl", "Evm"): Evm,
-    ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
-    ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
-    ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
-    ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "vm", "BlockOutput"): BlockOutput,
+    ("ethereum", "prague", "fork_types", "ListHash32"): List[Hash32],
+    ("ethereum", "prague", "vm", "evm_impl", "Message"): Message,
+    ("ethereum", "prague", "vm", "evm_impl", "Evm"): Evm,
+    ("ethereum", "prague", "vm", "Stack"): Stack[U256],
+    ("ethereum", "prague", "vm", "gas", "ExtendMemory"): ExtendMemory,
+    ("ethereum", "prague", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
+    ("ethereum", "prague", "trie", "EthereumTries"): EthereumTries,
+    ("ethereum", "prague", "vm", "BlockOutput"): BlockOutput,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,
@@ -501,7 +515,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "types", "AccountDiff"): List[AddressAccountDiffEntry],
     ("mpt", "types", "StorageDiffEntry"): StorageDiffEntry,
     ("mpt", "types", "StorageDiff"): List[StorageDiffEntry],
-    ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
+    ("ethereum", "prague", "fork_types", "HashedTupleAddressBytes32"): Uint,
     ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
     ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,
     ("ethereum", "crypto", "bls12_381", "BLSF2"): BLSF2,
@@ -907,7 +921,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, [bytes_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
+    if arg_type in (int, bool, U8, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
         # Case short string: arg type is int but actual type is str
         if type(arg) is str:
             arg = int.from_bytes(arg.encode(), "big")
