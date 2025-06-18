@@ -30,7 +30,8 @@ fn setup_logging() -> Result<(), Box<dyn std::error::Error>> {
                 .with_ansi(false) // Disable colors
                 .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE);
 
-            let _ = tracing_subscriber::registry().with(json_layer).with(env_filter).try_init();
+            tracing_subscriber::registry().with(json_layer).with(env_filter).try_init()
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
         }
         _ => {
             // Plain text logging with ANSI colors (default)
@@ -38,7 +39,8 @@ fn setup_logging() -> Result<(), Box<dyn std::error::Error>> {
                 .with_ansi(true) // Keep colors for plain text
                 .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE);
 
-            let _ = tracing_subscriber::registry().with(fmt_layer).with(env_filter).try_init();
+            tracing_subscriber::registry().with(fmt_layer).with(env_filter).try_init()
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
         }
     }
 
