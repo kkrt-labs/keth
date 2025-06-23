@@ -5,6 +5,7 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.math import assert_not_zero
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.prague.fork_types import (
     EMPTY_ACCOUNT,
@@ -553,6 +554,170 @@ func _process_storage_diff{
     return ();
 }
 
+// @notice Given two MPT root nodes, returns the (pre,post) nodes to explore for this branch index
+func find_branches_to_explore{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: felt*,
+    poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
+}(left: OptionalUnionInternalNodeExtended, right: OptionalUnionInternalNodeExtended, branch_index: felt) -> (OptionalUnionInternalNodeExtended, Bytes, OptionalUnionInternalNodeExtended, Bytes) {
+    alloc_locals;
+
+
+    // Validate branch index is in range [0, 15]
+    with_attr error_message("Invalid branch index: must be between 0 and 15") {
+        assert [range_check_ptr] = branch_index;
+        assert [range_check_ptr + 1] = 15 - branch_index;
+    }
+    let range_check_ptr = range_check_ptr + 2;
+
+    let l_resolved = resolve(left);
+    let r_resolved = resolve(right);
+
+    // Pattern matching on the types of nodes.
+    // In most cases we expect both nodes to be branches, but it is theoretically possible that they're of other kinds.
+
+    local left_branch: OptionalUnionInternalNodeExtended;
+    local right_branch: OptionalUnionInternalNodeExtended;
+    local left_path: Bytes;
+    local right_path: Bytes;
+
+    // Validate nodes are not null
+    if (cast(l_resolved.value, felt) == 0) {
+        with_attr error_message("Left root cannot be null") {
+            assert 1 = 0;
+        }
+    }
+    if (cast(r_resolved.value, felt) == 0) {
+        with_attr error_message("Right root cannot be null") {
+            assert 1 = 0;
+        }
+    }
+
+    // Validate nodes are not leaf nodes (roots should be branch or extension)
+    if (cast(l_resolved.value.leaf_node.value, felt) != 0) {
+        with_attr error_message("Left root cannot be a leaf node") {
+            assert 1 = 0;
+        }
+    }
+    if (cast(r_resolved.value.leaf_node.value, felt) != 0) {
+        with_attr error_message("Right root cannot be a leaf node") {
+            assert 1 = 0;
+        }
+    }
+
+    // Process left node
+    if (cast(l_resolved.value.branch_node.value, felt) != 0) {
+        // Left is a branch node - get the subnode at branch_index
+        let l_branch = l_resolved.value.branch_node;
+        let subnodes_left_ptr = cast(l_branch.value.subnodes.value, felt*);
+        let subnode_left_extended = Extended(cast(subnodes_left_ptr[branch_index], ExtendedEnum*));
+        let subnode_left = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_left_extended);
+        assert left_branch = subnode_left;
+
+        let (buffer) = alloc();
+        assert [buffer] = branch_index;
+        assert left_path = Bytes(new BytesStruct(buffer, 1));
+
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar node_store = node_store;
+    } else {
+        // Left must be an extension node - traverse through it to find the branch
+        let l_ext = l_resolved.value.extension_node;
+        let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(l_ext.value.subnode);
+        let l_subnode_resolved = resolve(l_subnode);
+
+        // The subnode of an extension at the root level must be a branch
+        with_attr error_message("Extension subnode must be a branch node") {
+            assert_not_zero(cast(l_subnode_resolved.value.branch_node.value, felt));
+        }
+
+        let l_branch = l_subnode_resolved.value.branch_node;
+        let subnodes_left_ptr = cast(l_branch.value.subnodes.value, felt*);
+        let subnode_left_extended = Extended(cast(subnodes_left_ptr[branch_index], ExtendedEnum*));
+        let subnode_left = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_left_extended);
+        assert left_branch = subnode_left;
+
+        let (buffer) = alloc();
+        tempvar path = Bytes(new BytesStruct(buffer, 0));
+        let updated_path = Bytes__add__(path, l_ext.value.key_segment);
+        assert updated_path.value.data[updated_path.value.len] = branch_index;
+        assert left_path = Bytes(new BytesStruct(updated_path.value.data, updated_path.value.len + 1));
+
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar node_store = node_store;
+    }
+
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 2], felt*);
+    let node_store = NodeStore(cast([ap - 1], NodeStoreStruct*));
+
+    // Process right node
+    if (cast(r_resolved.value.branch_node.value, felt) != 0) {
+        // Right is a branch node - get the subnode at branch_index
+        let r_branch = r_resolved.value.branch_node;
+        let subnodes_right_ptr = cast(r_branch.value.subnodes.value, felt*);
+        let subnode_right_extended = Extended(cast(subnodes_right_ptr[branch_index], ExtendedEnum*));
+        let subnode_right = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_right_extended);
+        assert right_branch = subnode_right;
+
+        let (buffer) = alloc();
+        assert [buffer] = branch_index;
+        assert right_path = Bytes(new BytesStruct(buffer, 1));
+
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar node_store = node_store;
+    } else {
+        // Right must be an extension node - traverse through it to find the branch
+        let r_ext = r_resolved.value.extension_node;
+        let r_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(r_ext.value.subnode);
+        let r_subnode_resolved = resolve(r_subnode);
+
+        // The subnode of an extension at the root level must be a branch
+        with_attr error_message("Extension subnode must be a branch node") {
+            assert_not_zero(cast(r_subnode_resolved.value.branch_node.value, felt));
+        }
+
+        let r_branch = r_subnode_resolved.value.branch_node;
+        let subnodes_right_ptr = cast(r_branch.value.subnodes.value, felt*);
+        let subnode_right_extended = Extended(cast(subnodes_right_ptr[branch_index], ExtendedEnum*));
+        let subnode_right = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_right_extended);
+        assert right_branch = subnode_right;
+
+        let (buffer) = alloc();
+        tempvar path = Bytes(new BytesStruct(buffer, 0));
+        let updated_path = Bytes__add__(path, r_ext.value.key_segment);
+        assert updated_path.value.data[updated_path.value.len] = branch_index;
+        assert right_path = Bytes(new BytesStruct(updated_path.value.data, updated_path.value.len + 1));
+
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar node_store = node_store;
+    }
+
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 2], felt*);
+    let node_store = NodeStore(cast([ap - 1], NodeStoreStruct*));
+
+    return (left_branch, left_path, right_branch, right_path);
+}
+
 // @notice Entry point for computing the difference between two Ethereum tries (state or storage).
 // @dev Initializes diff lists, calls the recursive `_compute_diff` function, and returns the
 //      collected account and storage differences.
@@ -571,18 +736,14 @@ func compute_diff_entrypoint{
     storage_key_preimages: MappingBytes32Bytes32,
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
+    start_path: Bytes,
+    main_trie_start: AddressAccountDiffEntry*,
+    main_trie_end: AddressAccountDiffEntry*,
+    storage_tries_start: StorageDiffEntry*,
+    storage_tries_end: StorageDiffEntry*,
 ) -> (AccountDiff, StorageDiff) {
     alloc_locals;
-    let (main_trie_end: AddressAccountDiffEntry*) = alloc();
-
-    local main_trie_start: AddressAccountDiffEntry* = main_trie_end;
-
-    let (storage_tries_end: StorageDiffEntry*) = alloc();
-    let storage_tries_start = storage_tries_end;
-
     tempvar account_address = OptionalAddress(cast(0, felt*));
-    let (buffer) = alloc();
-    tempvar path = Bytes(new BytesStruct(buffer, 0));
 
     _compute_diff{
         node_store=node_store,
@@ -595,7 +756,7 @@ func compute_diff_entrypoint{
         right=right,
         parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
         parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
-        path=path,
+        path=start_path,
         account_address=account_address,
     );
 

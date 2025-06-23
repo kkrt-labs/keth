@@ -192,14 +192,14 @@ class TestTrieDiff:
             python_prev, python_new = state_diff._main_trie.get(address)
             assert cairo_prev == python_prev and cairo_new == python_new
 
-        # Cairo
         main_trie_diff_cairo, storage_trie_diff_cairo = cairo_run(
-            "compute_diff_entrypoint",
+            "test__compute_diff_entrypoint",
             node_store=ethereum_trie_transition_db.nodes,
             address_preimages=ethereum_trie_transition_db.address_preimages,
             storage_key_preimages=ethereum_trie_transition_db.storage_key_preimages,
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
+            start_path=Bytes(),
         )
 
         accounts_lookup: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = {
@@ -258,6 +258,8 @@ class TestTrieDiff:
         trie = EthereumTrieTransitionDB.from_pre_and_post_tries(
             empty_ethereum_tries, invalid_post_trie
         )
+        main_trie_start = main_trie_end = []
+        storage_tries_start = storage_tries_end = []
         with pytest.raises(Exception, match=re.escape(invalid_case)):
             cairo_run(
                 "compute_diff_entrypoint",
@@ -266,6 +268,11 @@ class TestTrieDiff:
                 storage_key_preimages=trie.storage_key_preimages,
                 left=trie.state_root,
                 right=trie.post_state_root,
+                start_path=Bytes(),
+                main_trie_start=main_trie_start,
+                main_trie_end=main_trie_end,
+                storage_tries_start=storage_tries_start,
+                storage_tries_end=storage_tries_end,
             )
         with pytest.raises(Exception, match=re.escape(invalid_case)):
             StateDiff.from_tries(trie)

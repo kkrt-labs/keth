@@ -12,7 +12,13 @@ from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
 from ethereum.prague.bloom import logs_bloom
-from ethereum.prague.fork import BlockChainStruct, _process_withdrawals_inner, BlockChain, Block, process_general_purpose_requests
+from ethereum.prague.fork import (
+    BlockChainStruct,
+    _process_withdrawals_inner,
+    BlockChain,
+    Block,
+    process_general_purpose_requests,
+)
 from ethereum.prague.vm import BlockOutput, BlockOutput__hash__
 from ethereum.prague.vm.env_impl import (
     BlockEnvironment,
@@ -21,7 +27,7 @@ from ethereum.prague.vm.env_impl import (
     BlockEnvImpl,
 )
 from legacy.utils.dict import default_dict_finalize
-from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
+from ethereum.utils.bytes import Bytes256__eq__, Bytes32__eq__
 from ethereum.prague.trie import (
     EthereumTriesImpl,
     TrieAddressOptionalAccountStruct,
@@ -39,7 +45,7 @@ from ethereum.prague.trie import (
     TrieBytes32U256Struct,
 )
 
-from ethereum.prague.state import State, StateStruct, state_root, finalize_state
+from ethereum.prague.state import State, StateStruct, finalize_state
 from ethereum.prague.keth.commitments import teardown_commitments, body_commitments
 
 from ethereum.prague.blocks import Header, Header__hash__, TupleUnionBytesLegacyTransaction
@@ -50,22 +56,7 @@ from ethereum.prague.fork_types import (
     MappingAddressBytes32Struct,
 )
 
-from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
-
-from mpt.hash_diff import (
-    hash_state_storage_diff,
-    hash_state_account_diff,
-    hash_account_diff_segment,
-    hash_storage_diff_segment,
-)
-from mpt.types import (
-    NodeStore,
-    OptionalUnionInternalNodeExtended,
-    MappingBytes32Bytes32,
-    MappingBytes32Address,
-)
-from mpt.trie_diff import compute_diff_entrypoint
-from mpt.utils import sort_account_diff, sort_storage_diff
+from mpt.hash_diff import hash_state_storage_diff, hash_state_account_diff
 
 func teardown{
     output_ptr: felt*,
@@ -92,12 +83,6 @@ func teardown{
     local block_transactions: TupleUnionBytesLegacyTransaction;
     local block_env: BlockEnvironment;
     local block_output: BlockOutput;
-
-    // MPT diffs inputs
-    local node_store: NodeStore;
-    local address_preimages: MappingBytes32Address;
-    local storage_key_preimages: MappingBytes32Bytes32;
-    local post_state_root: OptionalUnionInternalNodeExtended;
 
     // Fill-in the program inputs through the hints.
     %{ teardown_inputs %}
@@ -157,9 +142,7 @@ func teardown{
     let block_output_commitment = BlockOutput__hash__(block_output);
 
     // Commit to the teardown program
-    let null_account_roots = OptionalMappingAddressBytes32(
-            cast(0, MappingAddressBytes32Struct*)
-    );
+    let null_account_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
     let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(init_withdrawals_trie);
     let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
     let teardown_commitment = teardown_commitments(
@@ -260,6 +243,7 @@ func teardown{
 
     let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
     // Diff with EELS: we don't compute the full state root here - because we have a diff-based approach with the hinted sparse MPT
+    // through the mpt_diff program.
     let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
     let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
     let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
@@ -300,39 +284,21 @@ func teardown{
         assert block_output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
     }
 
-    // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
-    let parent_header = chain.value.blocks.value.data[
-        chain.value.blocks.value.len - 1
-    ].value.header;
-    let pre_state_root = parent_header.value.state_root;
-    let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);
-    let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
-        pre_state_root_bytes
-    );
-    let (account_diff, storage_diff) = compute_diff_entrypoint(
-        node_store=node_store,
-        address_preimages=address_preimages,
-        storage_key_preimages=storage_key_preimages,
-        left=pre_state_root_node,
-        right=post_state_root,
-    );
+    // End of teardown - we need to, in another step, ensure the STF diff matches MPT diffs (split through multiple programs).
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
 
     // # Compute commitments for the state diffs and the trie diffs.
-    let account_diff = sort_account_diff(account_diff);
-    let storage_diff = sort_storage_diff(storage_diff);
-
-    let trie_account_diff_commitment = hash_account_diff_segment(account_diff);
-    let trie_storage_diff_commitment = hash_storage_diff_segment(storage_diff);
-
     let state_account_diff_commitment = hash_state_account_diff(chain.value.state);
     let state_storage_diff_commitment = hash_state_storage_diff(chain.value.state);
 
-    with_attr error_message("STF and Trie diffs are not equal") {
-        assert state_account_diff_commitment = trie_account_diff_commitment;
-        assert state_storage_diff_commitment = trie_storage_diff_commitment;
-    }
+    assert [output_ptr] = state_account_diff_commitment;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = state_storage_diff_commitment;
+    let output_ptr = output_ptr + 1;
+
+    // Consistency between the STF diffs and the MPT diffs.
+    // done at the aggregator level.
 
     let keccak_ptr = builtin_keccak_ptr;
     return ();

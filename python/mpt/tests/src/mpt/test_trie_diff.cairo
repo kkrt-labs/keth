@@ -3,6 +3,7 @@ from starkware.cairo.common.alloc import alloc
 from mpt.trie_diff import (
     _process_account_diff,
     _process_storage_diff,
+    compute_diff_entrypoint,
     MappingBytes32Address,
     AddressAccountDiffEntry,
     AccountDiff,
@@ -12,8 +13,9 @@ from mpt.trie_diff import (
     StorageDiffEntry,
     MappingBytes32Bytes32,
     NodeStore,
+    OptionalUnionInternalNodeExtended
 )
-from ethereum_types.bytes import Bytes32
+from ethereum_types.bytes import Bytes32, Bytes
 from ethereum.prague.trie import OptionalLeafNode
 from ethereum.prague.fork_types import Address
 
@@ -72,4 +74,25 @@ func test__process_storage_diff{
     );
 
     return storage_diff;
+}
+
+func test__compute_diff_entrypoint{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*
+}(
+    node_store: NodeStore,
+    address_preimages: MappingBytes32Address,
+    storage_key_preimages: MappingBytes32Bytes32,
+    left: OptionalUnionInternalNodeExtended,
+    right: OptionalUnionInternalNodeExtended,
+    start_path: Bytes,
+) -> (AccountDiff, StorageDiff) {
+    alloc_locals;
+    let (main_trie_start: AddressAccountDiffEntry*) = alloc();
+    let main_trie_end = main_trie_start;
+
+    let (storage_tries_start: StorageDiffEntry*) = alloc();
+    let storage_tries_end = storage_tries_start;
+
+    let res = compute_diff_entrypoint(node_store=node_store, address_preimages=address_preimages, storage_key_preimages=storage_key_preimages, left=left, right=right, start_path=start_path, main_trie_start=main_trie_start, main_trie_end=main_trie_end, storage_tries_start=storage_tries_start, storage_tries_end=storage_tries_end);
+    return res;
 }

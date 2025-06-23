@@ -106,9 +106,6 @@ func hash_storage_diff{range_check_ptr}(diff: StorageDiffEntry) -> felt {
 func hash_account_diff_segment{range_check_ptr}(account_diff: AccountDiff) -> felt {
     alloc_locals;
     let len = account_diff.value.len;
-    if (len == 0) {
-        return 0;
-    }
     let (hashes_buffer) = alloc();
     let buffer_len = _accumulate_diff_hashes(hashes_buffer, account_diff, 0);
     let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
@@ -141,9 +138,6 @@ func _accumulate_diff_hashes{range_check_ptr}(
 func hash_storage_diff_segment{range_check_ptr}(storage_diff: StorageDiff) -> felt {
     alloc_locals;
     let len = storage_diff.value.len;
-    if (len == 0) {
-        return 0;
-    }
     let (hashes_buffer) = alloc();
     let buffer_len = _accumulate_storage_diff_hashes(hashes_buffer, storage_diff, 0);
     let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
@@ -184,10 +178,6 @@ func hash_state_account_diff{range_check_ptr}(
     let dict_ptr_start = state.value._main_trie.value._data.value.dict_ptr_start;
     let dict_ptr_end = state.value._main_trie.value._data.value.dict_ptr;
     let (len, _) = divmod(dict_ptr_end - dict_ptr_start, AddressAccountDictAccess.SIZE);
-    if (len == 0) {
-        return 0;
-    }
-
     let (hashes_buffer) = alloc();
     let buffer_end = _accumulate_state_diff_hashes(hashes_buffer, dict_ptr_start, 0, len);
     let buffer_len = buffer_end - hashes_buffer;
@@ -255,10 +245,6 @@ func hash_state_storage_diff{range_check_ptr}(
     let dict_ptr_end = state.value._storage_tries.value._data.value.dict_ptr;
 
     let (len, _) = divmod(dict_ptr_end - dict_ptr_start, TupleAddressBytes32U256DictAccess.SIZE);
-    if (len == 0) {
-        return 0;
-    }
-
     // We cast the state dict pointer to a StorageDiffEntry pointer as the two underlying types are identical.
     let casted_dict_ptr_start = cast(dict_ptr_start, TupleAddressBytes32U256DictAccess*);
     let (hashes_buffer) = alloc();

@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ethereum.crypto.hash import Hash32
 from ethereum.prague.fork_types import Account, Address
@@ -15,7 +15,7 @@ from ethereum_types.numeric import U256, Uint
 
 from cairo_addons.rust_bindings.vm import blake2s_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
-from keth_types.types import EMPTY_TRIE_HASH
+from keth_types.types import EMPTY_TRIE_HASH, AddressAccountDiffEntry, StorageDiffEntry
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
@@ -119,35 +119,44 @@ class StateDiff:
 
         return state_diff
 
-    def compute_commitments(self) -> Tuple[int, int]:
+    def get_diff_segments(
+        self,
+    ) -> Tuple[List[AddressAccountDiffEntry], List[StorageDiffEntry]]:
         from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
-        account_diffs = []
-        for address, (pre_account, post_account) in self._main_trie.items():
-            account_diffs.append(
-                AddressAccountDiffEntry(address, pre_account, post_account)
-            )
         account_diffs = sorted(
-            account_diffs, key=lambda x: int.from_bytes(x.key, "little")
+            [
+                AddressAccountDiffEntry(addr, pre, post)
+                for addr, (pre, post) in self._main_trie.items()
+            ],
+            key=lambda x: int.from_bytes(x.key, "little"),
         )
 
-        storage_diffs = []
-        for address, (storage_trie) in self._storage_tries.items():
-            for key, (pre, post) in storage_trie.items():
-                key = int_to_uint256(int.from_bytes(key, "little"))
-                key_hashed = blake2s_hash_many(
-                    (int.from_bytes(address, "little"), *key)
+        storage_diffs = sorted(
+            [
+                StorageDiffEntry(
+                    # hash the key from (address, storage_key_u256)
+                    blake2s_hash_many(
+                        (
+                            int.from_bytes(address, "little"),
+                            *int_to_uint256(int.from_bytes(key, "little")),
+                        )
+                    ),
+                    pre,
+                    post,
                 )
-                storage_diffs.append(StorageDiffEntry(key_hashed, pre, post))
-        storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
+                for address, storage_trie in self._storage_tries.items()
+                for key, (pre, post) in storage_trie.items()
+            ],
+            key=lambda x: x.key,
+        )
 
-        account_diff_hashes = [diff.hash_cairo() for diff in account_diffs]
-        storage_diff_hashes = [diff.hash_cairo() for diff in storage_diffs]
+        return account_diffs, storage_diffs
 
-        account_diff_commitment = blake2s_hash_many(account_diff_hashes)
-        storage_diff_commitment = blake2s_hash_many(storage_diff_hashes)
+    def compute_commitments(self) -> Tuple[int, int]:
+        account_diffs, storage_diffs = self.get_diff_segments()
 
-        return account_diff_commitment, storage_diff_commitment
+        return compute_commitment(account_diffs), compute_commitment(storage_diffs)
 
     @classmethod
     def from_tries(cls, tries: EthereumTrieTransitionDB) -> "StateDiff":
@@ -164,6 +173,42 @@ class StateDiff:
             Bytes(),
             left_parent=None,
             right_parent=None,
+            process_leaf_diff=diff._process_account_diff,
+        )
+        return diff
+
+    @classmethod
+    def from_tries_and_branch_index(
+        cls, tries: EthereumTrieTransitionDB, branch_index: int
+    ) -> "StateDiff":
+        diff = cls(
+            {}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages
+        )
+
+        # Resolve roots to branch nodes
+        roots = (tries.state_root, tries.post_state_root)
+        branches = tuple(resolve(root, tries.nodes) for root in roots)
+
+        # Validate that both are branch nodes
+        for i, branch in enumerate(branches):
+            assert isinstance(branch, BranchNode), (
+                f"Expected branch node for {'left' if i == 0 else 'right'} root, "
+                f"got {type(branch)}"
+            )
+
+        l_branch, r_branch = branches
+
+        # Extract subnodes at the specified index
+        l_subnode = l_branch.subnodes[branch_index]
+        r_subnode = r_branch.subnodes[branch_index]
+
+        # Compute diff for the specific branch
+        diff._compute_diff(
+            l_subnode,
+            r_subnode,
+            Bytes([branch_index]),
+            left_parent=l_branch,
+            right_parent=r_branch,
             process_leaf_diff=diff._process_account_diff,
         )
         return diff
@@ -641,3 +686,9 @@ def resolve(
     if isinstance(node, list):
         return deserialize_to_internal_node(node)
     raise ValueError(f"Invalid node type: {type(node)}")
+
+
+def compute_commitment(
+    diffs: List[Union[AddressAccountDiffEntry, StorageDiffEntry]],
+) -> Hash32:
+    return blake2s_hash_many([diff.hash_cairo() for diff in diffs])

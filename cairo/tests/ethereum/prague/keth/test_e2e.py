@@ -1,12 +1,19 @@
 from pathlib import Path
+from typing import List, Mapping, Optional, Union
 
 import pytest
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import InvalidBlock
 from ethereum.prague.fork import state_transition
+from ethereum.prague.trie import InternalNode
+from ethereum_rlp import Extended
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U64
 from starkware.cairo.bootloaders.hash_program import compute_program_hash_chain
 
 from cairo_addons.testing.utils import flatten
+from mpt.ethereum_tries import EthereumTrieTransitionDB
+from mpt.trie_diff import StateDiff, compute_commitment
 from utils.fixture_loader import (
     load_body_input,
     load_teardown_input,
@@ -101,6 +108,8 @@ class TestE2E:
             teardown_init_commitment_high,
             teardown_body_commitment_low,
             teardown_body_commitment_high,
+            stf_account_diff_commitment,
+            stf_storage_diff_commitment,
         ] = teardown_output = cairo_run(
             "test_teardown", verify_squashed_dicts=True, **teardown_input
         )
@@ -129,6 +138,17 @@ class TestE2E:
         assert init_teardown_commitment_low == teardown_init_commitment_low
         assert init_teardown_commitment_high == teardown_init_commitment_high
 
+        # execute the mpt_diffs. we verify the sequence of inputs during execution.
+        mpt_diff_data = execute_mpt_diffs(zkpi_path, cairo_run)
+
+        # ensure that both teardown and mpt_diffs have the same final commitments.
+        assert (
+            mpt_diff_data.final_account_diff_commitment == stf_account_diff_commitment
+        )
+        assert (
+            mpt_diff_data.final_storage_diff_commitment == stf_storage_diff_commitment
+        )
+
         # --- Run Cairo Aggregator ---
         # Prepare input for the aggregator Cairo function
         aggregator_input = {
@@ -143,8 +163,14 @@ class TestE2E:
                 "init": cairo_test_program_hash,
                 "body": cairo_test_program_hash,
                 "teardown": cairo_test_program_hash,
+                "mpt_diff": cairo_test_program_hash,
             },
             "n_body_chunks": 2,
+            "mpt_diff_segment_outputs": mpt_diff_data.segment_outputs,
+            "n_mpt_diff_chunks": 16,
+            "left_mpt": mpt_diff_data.left_mpt,
+            "right_mpt": mpt_diff_data.right_mpt,
+            "node_store": mpt_diff_data.node_store,
         }
 
         aggregator_output = cairo_run(
@@ -152,6 +178,19 @@ class TestE2E:
         )
 
         TASK_OUTPUT_HEADER_SIZE = 2
+
+        # Create mpt_diff expected outputs
+        mpt_diff_expected_outputs = []
+        for mpt_diff_output in mpt_diff_data.segment_outputs:
+            mpt_diff_expected_outputs.extend(
+                [
+                    (
+                        TASK_OUTPUT_HEADER_SIZE + len(mpt_diff_output),
+                        cairo_test_program_hash,
+                    ),
+                    mpt_diff_output,
+                ]
+            )
 
         expected_aggregator_output = flatten(
             [
@@ -172,6 +211,7 @@ class TestE2E:
                     cairo_test_program_hash,
                 ),
                 teardown_output,
+                *mpt_diff_expected_outputs,
             ]
         )
 
@@ -235,9 +275,99 @@ class TestTeardown:
             teardown_commitment_high,
             body_commitment_low,
             body_commitment_high,
+            stf_account_diff_commitment,
+            stf_storage_diff_commitment,
         ) = cairo_run("test_teardown", verify_squashed_dicts=True, **teardown_input)
 
         assert teardown_commitment_low
         assert teardown_commitment_high
         assert body_commitment_low
         assert body_commitment_high
+        assert stf_account_diff_commitment
+        assert stf_storage_diff_commitment
+
+
+class MptDiffData:
+    left_mpt: Optional[Union[InternalNode, Extended]]
+    right_mpt: Optional[Union[InternalNode, Extended]]
+    node_store: Mapping[Hash32, Bytes]
+    final_account_diff_commitment: int
+    final_storage_diff_commitment: int
+    segment_outputs: List[List[int]]
+
+
+def execute_mpt_diffs(zkpi_path, cairo_run) -> MptDiffData:
+    tries = EthereumTrieTransitionDB.from_json(zkpi_path)
+
+    mpt_diff_data = MptDiffData()
+    mpt_diff_data.segment_outputs = []
+    mpt_diff_data.left_mpt = tries.state_root
+    mpt_diff_data.right_mpt = tries.post_state_root
+    mpt_diff_data.node_store = tries.nodes
+
+    teardown_input = load_teardown_input(zkpi_path)
+    account_diffs = []
+    storage_diffs = []
+    prev_account_diff_commitment = compute_commitment(account_diffs)
+    prev_storage_diff_commitment = compute_commitment(storage_diffs)
+
+    for i in range(16):
+        if i != 0:
+            input_to_step = StateDiff.from_tries_and_branch_index(tries, i - 1)
+            local_account_diffs, local_storage_diffs = input_to_step.get_diff_segments()
+            account_diffs.extend(local_account_diffs)
+            storage_diffs.extend(local_storage_diffs)
+            account_diffs = sorted(
+                account_diffs, key=lambda x: int.from_bytes(x.key, "little")
+            )
+            storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
+
+        program_input = {
+            **teardown_input,
+            "branch_index": i,
+            "input_trie_account_diff": account_diffs,
+            "input_trie_storage_diff": storage_diffs,
+        }
+        # TODO: verify the branch hashes at some point.
+        (
+            input_trie_account_diff_commitment,
+            input_trie_storage_diff_commitment,
+            branch_index,
+            left_hash_low,
+            left_hash_high,
+            right_hash_low,
+            right_hash_high,
+            account_diff_commitment,
+            storage_diff_commitment,
+        ) = mpt_diff_output = cairo_run(
+            "test_mpt_diff", verify_squashed_dicts=True, **program_input
+        )
+
+        # The input to the program must be the hash of what we gave it.
+        assert input_trie_account_diff_commitment == prev_account_diff_commitment, (
+            f"Input account diff commitment mismatch at branch {i}: "
+            f"expected {prev_account_diff_commitment}, got {input_trie_account_diff_commitment}"
+        )
+        assert input_trie_storage_diff_commitment == prev_storage_diff_commitment, (
+            f"Input storage diff commitment mismatch at branch {i}: "
+            f"expected {prev_storage_diff_commitment}, got {input_trie_storage_diff_commitment}"
+        )
+        assert (
+            branch_index == i
+        ), f"Branch index mismatch: expected {i}, got {branch_index}"
+
+        prev_account_diff_commitment = account_diff_commitment
+        prev_storage_diff_commitment = storage_diff_commitment
+
+        mpt_diff_data.segment_outputs.append(list(mpt_diff_output))
+
+    expected_account_diff_commitment, expected_storage_diff_commitment = (
+        StateDiff.from_tries(tries).compute_commitments()
+    )
+    assert account_diff_commitment == expected_account_diff_commitment
+    assert storage_diff_commitment == expected_storage_diff_commitment
+
+    mpt_diff_data.final_account_diff_commitment = account_diff_commitment
+    mpt_diff_data.final_storage_diff_commitment = storage_diff_commitment
+
+    return mpt_diff_data
