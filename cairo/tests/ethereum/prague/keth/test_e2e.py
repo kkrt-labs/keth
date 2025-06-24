@@ -16,6 +16,7 @@ from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, compute_commitment
 from utils.fixture_loader import (
     load_body_input,
+    load_mpt_diff_input,
     load_teardown_input,
     load_zkpi_fixture,
     zkpi_fixture_eels_compatible,
@@ -305,30 +306,15 @@ def execute_mpt_diffs(zkpi_path, cairo_run) -> MptDiffData:
     mpt_diff_data.right_mpt = tries.post_state_root
     mpt_diff_data.node_store = tries.nodes
 
-    teardown_input = load_teardown_input(zkpi_path)
-    account_diffs = []
-    storage_diffs = []
-    prev_account_diff_commitment = compute_commitment(account_diffs)
-    prev_storage_diff_commitment = compute_commitment(storage_diffs)
+    prev_account_diff_commitment = compute_commitment([])
+    prev_storage_diff_commitment = compute_commitment([])
 
     for i in range(16):
-        if i != 0:
-            input_to_step = StateDiff.from_tries_and_branch_index(tries, i - 1)
-            local_account_diffs, local_storage_diffs = input_to_step.get_diff_segments()
-            account_diffs.extend(local_account_diffs)
-            storage_diffs.extend(local_storage_diffs)
-            account_diffs = sorted(
-                account_diffs, key=lambda x: int.from_bytes(x.key, "little")
-            )
-            storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
-
-        program_input = {
-            **teardown_input,
-            "branch_index": i,
-            "input_trie_account_diff": account_diffs,
-            "input_trie_storage_diff": storage_diffs,
-        }
         # TODO: verify the branch hashes at some point.
+        program_input = load_mpt_diff_input(
+            zkpi_path=zkpi_path,
+            branch_index=i,
+        )
         (
             input_trie_account_diff_commitment,
             input_trie_storage_diff_commitment,

@@ -27,6 +27,7 @@ from cairo_addons.rust_bindings.vm import run_end_to_end
 from utils.fixture_loader import (
     PRAGUE_FORK_BLOCK,
     load_body_input,
+    load_mpt_diff_input,
     load_teardown_input,
     load_zkpi_fixture,
 )
@@ -56,6 +57,7 @@ class Step(str, Enum):
     BODY = "body"
     TEARDOWN = "teardown"
     AGGREGATOR = "aggregator"
+    MPT_DIFF = "mpt_diff"
 
 
 @dataclass
@@ -129,11 +131,16 @@ class StepHandler:
 
     @staticmethod
     def validate_step_params(
-        step: Step, start_index: Optional[int], chunk_size: Optional[int]
+        step: Step,
+        start_index: Optional[int],
+        chunk_size: Optional[int],
+        branch_index: Optional[int] = None,
     ) -> None:
         """Validate step-specific parameters."""
         if step == Step.BODY:
             validate_body_params(step, start_index, chunk_size)
+        elif step == Step.MPT_DIFF:
+            validate_mpt_diff_params(branch_index)
 
     @staticmethod
     def load_program_input(
@@ -141,6 +148,7 @@ class StepHandler:
         zkpi_path: Path,
         start_index: Optional[int] = None,
         chunk_size: Optional[int] = None,
+        branch_index: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Load program input based on step type."""
         match step:
@@ -152,6 +160,13 @@ class StepHandler:
                 )
             case Step.TEARDOWN:
                 return load_teardown_input(zkpi_path)
+            case Step.MPT_DIFF:
+                if branch_index is None:
+                    raise ValueError("branch_index is required for mpt_diff step")
+                return load_mpt_diff_input(
+                    zkpi_path=zkpi_path,
+                    branch_index=branch_index,
+                )
             case Step.AGGREGATOR:
                 # The input of the aggregator must contain:
                 # - output of the init step
@@ -241,6 +256,35 @@ class StepHandler:
                     f"[green]✓[/] Loaded teardown output: {len(teardown_output)} values"
                 )
 
+                # Read MPT diff outputs (optional - may not exist for older runs)
+                mpt_diff_outputs = find_step_outputs(
+                    latest_proving_run_dir, Step.MPT_DIFF, block_number
+                )
+                mpt_diff_output_data = []
+                if mpt_diff_outputs:
+                    # Sort MPT diff outputs by branch index
+                    def extract_mpt_diff_branch_index(path: Path) -> int:
+                        # Extract branch_index from filename like "prover_input_info_22615247_mpt_diff_0.run_output.txt"
+                        # First split by .run_output to get the base name
+                        base_name = path.stem.split(".run_output")[0]
+                        parts = base_name.split("_")
+                        for i, part in enumerate(parts):
+                            if part == "diff" and i + 1 < len(parts):
+                                try:
+                                    return int(parts[i + 1])
+                                except ValueError:
+                                    return 0
+                        return 0
+
+                    mpt_diff_outputs.sort(key=extract_mpt_diff_branch_index)
+                    mpt_diff_output_data = [
+                        read_program_output(output_file)
+                        for output_file in mpt_diff_outputs
+                    ]
+                    console.print(
+                        f"[green]✓[/] Loaded {len(mpt_diff_output_data)} MPT diff outputs"
+                    )
+
                 # Load program hashes once
                 program_hashes = load_program_hashes()
 
@@ -250,18 +294,34 @@ class StepHandler:
                 teardown_program_hash = get_step_program_hash(
                     Step.TEARDOWN, program_hashes
                 )
+                mpt_diff_program_hash = get_step_program_hash(
+                    Step.MPT_DIFF, program_hashes
+                )
+
+                # Build keth_segment_program_hashes dict
+                keth_segment_program_hashes = {
+                    "init": init_program_hash,
+                    "body": body_program_hash,
+                    "teardown": teardown_program_hash,
+                    "mpt_diff": mpt_diff_program_hash,
+                }
+
+                # Add mpt_diff program hash if we have mpt_diff outputs
+                if mpt_diff_output_data:
+                    mpt_diff_program_hash = get_step_program_hash(
+                        Step.MPT_DIFF, program_hashes
+                    )
+                    keth_segment_program_hashes["mpt_diff"] = mpt_diff_program_hash
 
                 # Construct aggregator input
                 aggregator_input = {
                     "keth_segment_outputs": [init_output]
                     + body_output_data
                     + [teardown_output],
-                    "keth_segment_program_hashes": {
-                        "init": init_program_hash,
-                        "body": body_program_hash,
-                        "teardown": teardown_program_hash,
-                    },
+                    "keth_segment_program_hashes": keth_segment_program_hashes,
                     "n_body_chunks": len(body_output_data),
+                    "n_mpt_diff_chunks": len(mpt_diff_output_data),
+                    "mpt_diff_segment_outputs": mpt_diff_output_data,
                 }
 
                 return aggregator_input
@@ -274,6 +334,7 @@ class StepHandler:
         block_number: int,
         start_index: Optional[int] = None,
         chunk_size: Optional[int] = None,
+        branch_index: Optional[int] = None,
         file_type: str = "prover_input_info",
         cairo_pie: bool = False,
     ) -> str:
@@ -287,6 +348,8 @@ class StepHandler:
             base_name = f"{block_number}_teardown"
         elif step == Step.AGGREGATOR:
             base_name = f"{block_number}_aggregator"
+        elif step == Step.MPT_DIFF and branch_index is not None:
+            base_name = f"{block_number}_mpt_diff_{branch_index}"
         else:
             base_name = f"{block_number}"
 
@@ -298,7 +361,10 @@ class StepHandler:
 
     @staticmethod
     def get_proof_filename(
-        step: Step, start_index: Optional[int] = None, chunk_size: Optional[int] = None
+        step: Step,
+        start_index: Optional[int] = None,
+        chunk_size: Optional[int] = None,
+        branch_index: Optional[int] = None,
     ) -> str:
         """Generate proof filename based on step."""
         match step:
@@ -310,6 +376,8 @@ class StepHandler:
                 return f"proof_body_{start_index}_{chunk_size}.json"
             case Step.AGGREGATOR:
                 return "proof_aggregator.json"
+            case Step.MPT_DIFF:
+                return f"proof_mpt_diff_{branch_index}.json"
             case _:
                 return "proof.json"
 
@@ -363,6 +431,8 @@ def find_step_outputs(
         pattern = f"*{block_number}_teardown*.run_output.txt"
     elif step == Step.BODY:
         pattern = f"*{block_number}_body_*.run_output.txt"
+    elif step == Step.MPT_DIFF:
+        pattern = f"*{block_number}_mpt_diff_*.run_output.txt"
     else:
         return []
 
@@ -428,6 +498,7 @@ def get_default_program(step: Step) -> Path:
         Step.BODY: "build/body_compiled.json",
         Step.TEARDOWN: "build/teardown_compiled.json",
         Step.AGGREGATOR: "build/aggregator_compiled.json",
+        Step.MPT_DIFF: "build/mpt_diff_compiled.json",
     }
     return Path(step_to_program[step])
 
@@ -458,6 +529,16 @@ def validate_body_params(
         if chunk_size <= 0:
             typer.echo("Error: len must be positive")
             raise typer.Exit(1)
+
+
+def validate_mpt_diff_params(branch_index: Optional[int]) -> None:
+    """Validate that mpt_diff step parameters are provided correctly."""
+    if branch_index is None:
+        typer.echo("Error: --branch-index parameter is required for mpt_diff step")
+        raise typer.Exit(1)
+    if branch_index < 0 or branch_index > 15:
+        typer.echo("Error: branch-index must be between 0 and 15")
+        raise typer.Exit(1)
 
 
 def load_program_hashes() -> Dict[str, int]:
@@ -554,6 +635,11 @@ def trace(
         "--len",
         help="Number of transactions to process in this chunk for body step",
     ),
+    branch_index: Optional[int] = typer.Option(
+        None,
+        "--branch-index",
+        help="Branch index to process (0-15) for mpt_diff step",
+    ),
     output_trace_components: bool = typer.Option(
         False,
         "--output-trace-components",
@@ -570,7 +656,7 @@ def trace(
     Serializes generated prover inputs to the specified output directory.
     """
     validate_block_number(block_number)
-    StepHandler.validate_step_params(step, start_index, chunk_size)
+    StepHandler.validate_step_params(step, start_index, chunk_size, branch_index)
 
     # Create context with automatic resolution
     ctx = KethContext.create(
@@ -588,14 +674,14 @@ def trace(
         trace_path.parent.mkdir(parents=True, exist_ok=True)
 
     output_filename = StepHandler.get_output_filename(
-        step, block_number, start_index, chunk_size, cairo_pie=cairo_pie
+        step, block_number, start_index, chunk_size, branch_index, cairo_pie=cairo_pie
     )
     output_path = trace_path / output_filename
 
     @handle_command_error("generating trace")
     def _generate_trace():
         program_input = StepHandler.load_program_input(
-            step, ctx.zkpi_path, start_index, chunk_size
+            step, ctx.zkpi_path, start_index, chunk_size, branch_index
         )
 
         run_generate_trace(
@@ -750,6 +836,11 @@ def e2e(
         "--len",
         help="Number of transactions to process in this chunk for body step",
     ),
+    branch_index: Optional[int] = typer.Option(
+        None,
+        "--branch-index",
+        help="Branch index to process (0-15) for mpt_diff step",
+    ),
     serde_cairo: bool = typer.Option(
         False,
         "--serde-cairo",
@@ -763,7 +854,7 @@ def e2e(
     without writing intermediate trace files to disk.
     """
     validate_block_number(block_number)
-    StepHandler.validate_step_params(step, start_index, chunk_size)
+    StepHandler.validate_step_params(step, start_index, chunk_size, branch_index)
 
     # Create context with automatic resolution
     ctx = KethContext.create(
@@ -775,13 +866,15 @@ def e2e(
     )
 
     # Determine proof path
-    proof_filename = StepHandler.get_proof_filename(step, start_index, chunk_size)
+    proof_filename = StepHandler.get_proof_filename(
+        step, start_index, chunk_size, branch_index
+    )
     proof_path = ctx.proving_run_dir / proof_filename
 
     @handle_command_error("in pipeline")
     def _run_pipeline():
         program_input = StepHandler.load_program_input(
-            step, ctx.zkpi_path, start_index, chunk_size
+            step, ctx.zkpi_path, start_index, chunk_size, branch_index
         )
 
         run_end_to_end(
@@ -875,25 +968,29 @@ def generate_ar_inputs(
     steps_to_generate = []
 
     # Step 1: Generate init trace
-    steps_to_generate.append(("init", Step.INIT, None, None))
+    steps_to_generate.append(("init", Step.INIT, None, None, None))
 
     # Step 2: Generate body traces in chunks
     for start_index in range(0, total_transactions, body_chunk_size):
         chunk_size = min(body_chunk_size, total_transactions - start_index)
-        steps_to_generate.append(("body", Step.BODY, start_index, chunk_size))
+        steps_to_generate.append(("body", Step.BODY, start_index, chunk_size, None))
 
     # Step 3: Generate teardown trace
-    steps_to_generate.append(("teardown", Step.TEARDOWN, None, None))
+    steps_to_generate.append(("teardown", Step.TEARDOWN, None, None, None))
 
-    # Step 4: Generate aggregator trace
-    steps_to_generate.append(("aggregator", Step.AGGREGATOR, None, None))
+    # Step 4: Generate mpt_diff traces (16 branches)
+    for branch_index in range(16):
+        steps_to_generate.append(("mpt_diff", Step.MPT_DIFF, None, None, branch_index))
+
+    # Step 5: Generate aggregator trace
+    steps_to_generate.append(("aggregator", Step.AGGREGATOR, None, None, None))
 
     total_steps = len(steps_to_generate)
     console.print(f"[blue]Total steps to generate: {total_steps}[/]")
 
     @handle_command_error("generating AR inputs")
     def _generate_all_traces():
-        for i, (step_name, step, start_index, chunk_size) in enumerate(
+        for i, (step_name, step, start_index, chunk_size, branch_index) in enumerate(
             steps_to_generate, 1
         ):
             # Get the appropriate compiled program
@@ -908,18 +1005,25 @@ def generate_ar_inputs(
 
             # Generate output filename with consistent naming
             output_filename = StepHandler.get_output_filename(
-                step, block_number, start_index, chunk_size, cairo_pie=cairo_pie
+                step,
+                block_number,
+                start_index,
+                chunk_size,
+                branch_index,
+                cairo_pie=cairo_pie,
             )
             output_path = ctx.proving_run_dir / output_filename
 
             # Load program input
             program_input = StepHandler.load_program_input(
-                step, ctx.zkpi_path, start_index, chunk_size
+                step, ctx.zkpi_path, start_index, chunk_size, branch_index
             )
 
             step_description = step_name
             if step == Step.BODY:
                 step_description = f"body [{start_index}:{start_index + chunk_size}]"
+            elif step == Step.MPT_DIFF:
+                step_description = f"mpt_diff [branch {branch_index}]"
 
             with console.status(
                 f"[bold green]Generating {step_description} trace ({i}/{total_steps})..."
