@@ -115,14 +115,12 @@ def aggregator_inputs(
     keth_hashes = program_input["keth_segment_program_hashes"]
     num_body_chunks = program_input["n_body_chunks"]
     mpt_diff_outputs_list = program_input["mpt_diff_segment_outputs"]
-    num_mpt_diff_chunks = program_input["n_mpt_diff_chunks"]
     left_mpt = program_input["left_mpt"]
     right_mpt = program_input["right_mpt"]
     node_store = program_input["node_store"]
 
     # Assign hints to Cairo local variables
     ids.n_body_chunks = num_body_chunks
-    ids.n_mpt_diff_chunks = num_mpt_diff_chunks
     ids.init_program_hash = keth_hashes["init"]
     ids.body_program_hash = keth_hashes["body"]
     ids.teardown_program_hash = keth_hashes["teardown"]
@@ -148,7 +146,7 @@ def aggregator_inputs(
 
     if mpt_diff_outputs_list:
         mpt_diff_output_pointers = segments.add()
-        for i in range(num_mpt_diff_chunks):
+        for i in range(16):
             mpt_diff_output_ptr = segments.gen_arg(mpt_diff_outputs_list[i])
             memory[mpt_diff_output_pointers + i] = mpt_diff_output_ptr
         ids.serialized_mpt_diff_outputs = mpt_diff_output_pointers

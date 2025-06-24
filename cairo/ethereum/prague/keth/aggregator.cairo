@@ -66,13 +66,16 @@ struct KethMptDiffOutput {
 //     "keth_segment_outputs": [ [init_out], [body1_out], ..., [bodyN_out], [teardown_out] ],
 //     "keth_segment_program_hashes": { "init": H_init, "body": H_body, "teardown": H_teardown },
 //     "n_body_chunks": N,
+//     "mpt_diff_segment_outputs": [ [mpt_diff1_out], ..., [mpt_diff16_out] ],
+//     "left_mpt": left_mpt,
+//     "right_mpt": right_mpt,
+//     "node_store": node_store,
 // }
 func aggregator{output_ptr: felt*, range_check_ptr}() {
     alloc_locals;
 
     // Number of body chunks executed.
     local n_body_chunks: felt;
-    local n_mpt_diff_chunks: felt;
 
     // Program hashes of the Keth segments.
     local init_program_hash: felt;
@@ -95,10 +98,6 @@ func aggregator{output_ptr: felt*, range_check_ptr}() {
 
     with_attr error_message("AssertionError: Must have at least one body chunk") {
         assert_not_equal(n_body_chunks, 0);
-    }
-
-    with_attr error_message("AssertionError: Must have at least one mpt_diff chunk") {
-        assert_not_equal(n_mpt_diff_chunks, 0);
     }
 
     let init_output: KethInitOutput* = cast(serialized_init_output, KethInitOutput*);
@@ -138,15 +137,10 @@ func aggregator{output_ptr: felt*, range_check_ptr}() {
     check_mpt_diff_chunk_links{left_mpt=left_mpt, right_mpt=right_mpt}(
         mpt_diff_outputs_ptr_array=serialized_mpt_diff_outputs,
         current_chunk_index=0,
-        n_mpt_diff_chunks=n_mpt_diff_chunks,
+        n_mpt_diff_chunks=16,
         teardown_state_diff_commitment=teardown_output.state_diff_commitment,
         teardown_storage_diff_commitment=teardown_output.storage_diff_commitment,
     );
-
-    // 6. Verify all 16 branches were processed (0-15)
-    with_attr error_message("AssertionError: Must process exactly 16 MPT branches") {
-        assert n_mpt_diff_chunks = 16;
-    }
 
     // --- Construct Output ---
     // Write the output in the format expected by ApplicativeBootloader's memcpy check.
@@ -178,7 +172,7 @@ func aggregator{output_ptr: felt*, range_check_ptr}() {
         output_ptr=output_ptr,
         program_hash=mpt_diff_program_hash,
         serialized_mpt_diff_outputs_array=serialized_mpt_diff_outputs,
-        n_mpt_diff_chunks=n_mpt_diff_chunks,
+        n_mpt_diff_chunks=16,
         current_chunk_index=0,
     );
 
@@ -257,7 +251,7 @@ func check_mpt_diff_chunk_links{
 
     // Verify continuity between current and next chunk. The first chunk should start from an empty list.
     if (current_chunk_index == 0) {
-        // TODO: on first iteration, verify we have an empty state commitment (empty hash)
+        // TODO: hardcode expected hash
         let (empty_hash) = blake2s_hash_many(0, cast(0, felt*));
         assert current_mpt_diff_output.input_trie_account_diff_commitment = empty_hash;
         assert current_mpt_diff_output.input_trie_storage_diff_commitment = empty_hash;
@@ -272,8 +266,10 @@ func check_mpt_diff_chunk_links{
         tempvar range_check_ptr = range_check_ptr;
     }
 
-    // Return once we have checked all chunks
+    // Return once we have checked all chunks. We must ensure it matches the STF commitments.
     if (current_chunk_index == n_mpt_diff_chunks - 1) {
+        assert current_mpt_diff_output.trie_account_diff_commitment = teardown_state_diff_commitment;
+        assert current_mpt_diff_output.trie_storage_diff_commitment = teardown_storage_diff_commitment;
         return ();
     }
 
@@ -323,15 +319,12 @@ func write_body_segment_outputs(
 ) -> felt* {
     alloc_locals;
 
-    // Base case: all body chunks written
     if (current_chunk_index == n_body_chunks) {
         return output_ptr;
     }
 
-    // Get pointer to the current body chunk's serialized output
     local current_body_output_ptr: felt* = serialized_body_outputs_array[current_chunk_index];
 
-    // Write the current body segment's output
     let updated_output_ptr = write_segment_output(
         output_ptr=output_ptr,
         program_hash=program_hash,
@@ -339,7 +332,6 @@ func write_body_segment_outputs(
         output_data_size=KethBodyOutput.SIZE,
     );
 
-    // Recursive call for the next body chunk
     return write_body_segment_outputs(
         output_ptr=updated_output_ptr,
         program_hash=program_hash,
@@ -360,17 +352,14 @@ func write_mpt_diff_segment_outputs(
 ) -> felt* {
     alloc_locals;
 
-    // Base case: all mpt_diff chunks written
     if (current_chunk_index == n_mpt_diff_chunks) {
         return output_ptr;
     }
 
-    // Get pointer to the current mpt_diff chunk's serialized output
     local current_mpt_diff_output_ptr: felt* = serialized_mpt_diff_outputs_array[
         current_chunk_index
     ];
 
-    // Write the current mpt_diff segment's output
     let updated_output_ptr = write_segment_output(
         output_ptr=output_ptr,
         program_hash=program_hash,
@@ -378,7 +367,6 @@ func write_mpt_diff_segment_outputs(
         output_data_size=9,
     );
 
-    // Recursive call for the next mpt_diff chunk
     return write_mpt_diff_segment_outputs(
         output_ptr=updated_output_ptr,
         program_hash=program_hash,

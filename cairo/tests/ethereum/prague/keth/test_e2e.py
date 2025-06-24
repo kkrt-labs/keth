@@ -139,7 +139,8 @@ class TestE2E:
         assert init_teardown_commitment_low == teardown_init_commitment_low
         assert init_teardown_commitment_high == teardown_init_commitment_high
 
-        # execute the mpt_diffs. we verify the sequence of inputs during execution.
+        # execute the mpt_diffs. we verify the sequence of inputs during this execution AND
+        # aggregator run.
         mpt_diff_data = execute_mpt_diffs(zkpi_path, cairo_run)
 
         # ensure that both teardown and mpt_diffs have the same final commitments.
@@ -289,6 +290,17 @@ class TestTeardown:
 
 
 class MptDiffData:
+    """
+    Data class to store the mpt_diff data.
+
+    * left_mpt: The left mpt.
+    * right_mpt: The right mpt.
+    * node_store: The node store.
+    * final_account_diff_commitment: The final account diff commitment.
+    * final_storage_diff_commitment: The final storage diff commitment.
+    * segment_outputs: The segment outputs.
+    """
+
     left_mpt: Optional[Union[InternalNode, Extended]]
     right_mpt: Optional[Union[InternalNode, Extended]]
     node_store: Mapping[Hash32, Bytes]
@@ -298,6 +310,12 @@ class MptDiffData:
 
 
 def execute_mpt_diffs(zkpi_path, cairo_run) -> MptDiffData:
+    """
+    Executes the mpt_diffs for all branches and returns the data.
+    Asserts good behavior of sequentiality of execution.
+    Outputs the final account and storage diff commitments, along with the individual segment
+    outputs.
+    """
     tries = EthereumTrieTransitionDB.from_json(zkpi_path)
 
     mpt_diff_data = MptDiffData()
@@ -310,7 +328,7 @@ def execute_mpt_diffs(zkpi_path, cairo_run) -> MptDiffData:
     prev_storage_diff_commitment = compute_commitment([])
 
     for i in range(16):
-        # TODO: verify the branch hashes at some point.
+        # TODO: left / right branch hashes are verified in the aggregator. Could also add test here.
         program_input = load_mpt_diff_input(
             zkpi_path=zkpi_path,
             branch_index=i,
@@ -319,10 +337,10 @@ def execute_mpt_diffs(zkpi_path, cairo_run) -> MptDiffData:
             input_trie_account_diff_commitment,
             input_trie_storage_diff_commitment,
             branch_index,
-            left_hash_low,
-            left_hash_high,
-            right_hash_low,
-            right_hash_high,
+            _left_hash_low,
+            _left_hash_high,
+            _right_hash_low,
+            _right_hash_high,
             account_diff_commitment,
             storage_diff_commitment,
         ) = mpt_diff_output = cairo_run(

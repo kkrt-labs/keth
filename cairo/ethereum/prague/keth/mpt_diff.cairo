@@ -64,8 +64,6 @@ func mpt_diff{
     // Index of the sub-MPT branch we want to iterate over;
     local branch_index: felt;
 
-    // Fill-in the program inputs through the hints.
-    // TODO add eventually split inputs
     %{ mpt_diff_inputs %}
 
     // Hash the inputs to make cryptographic commitments for later stages.
@@ -87,17 +85,11 @@ func mpt_diff{
         node_store=node_store
     }(pre_state_root_node, post_state_root, branch_index);
 
-    // Extract hashes from the branch nodes
-    // If the node is stored as bytes of length 32, it's already a hash
-    // Otherwise, we need to compute the hash
+    // Expected to always be bytes - which is the case with proper inputs.
     let left_mpt_hash = Bytes__hash__(pre_state_root_node.value.bytes);
     let right_mpt_hash = Bytes__hash__(post_state_root.value.bytes);
 
-    // Get right and left nodes, encoded, as in the trie structure.
-    // If they're not -> encode them. The purpose is to output them so that we can compare the
-    // aggregator and ensure it output the right one.
-
-    // The left - right path should always be the same
+    // The left - right path should always be the same - as we're exploring similar tries.
     with_attr error_message("Left - right path should always be the same") {
         let bytes_eq = Bytes__eq__(left_path, right_path);
         assert bytes_eq.value = 1;

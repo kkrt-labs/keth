@@ -59,7 +59,7 @@ class TestMptDiff:
             # TODO: verify the branch hashes at some point.
             program_input = load_mpt_diff_input(
                 zkpi_path=zkpi_path,
-                branch_index=branch_index,
+                branch_index=i,
                 previous_outputs_path=None,
             )
 
