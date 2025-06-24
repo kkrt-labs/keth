@@ -825,7 +825,7 @@ pub fn run_end_to_end(
         prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path, true, false)?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
-    let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
+    let mut cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &run_config,
         &mut hint_processor,
@@ -841,6 +841,12 @@ pub fn run_end_to_end(
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
+
+    // Save the output of the program
+    let mut output_buffer = String::new();
+    cairo_runner.vm.write_output(&mut output_buffer).map_err(to_pyerr)?;
+    let run_output_path = proof_path.with_file_name("run_output.txt");
+    std::fs::write(run_output_path, output_buffer)?;
 
     let mut runner_input_info = cairo_runner.get_prover_input_info().map_err(to_pyerr)?;
     let cairo_input = adapter(&mut runner_input_info).map_err(to_pyerr)?;

@@ -541,6 +541,64 @@ class TestTraceCommand(TestKethCLIBase):
         call_args = mock_trace.call_args
         assert call_args[1]["cairo_pie"] is True
 
+    def test_trace_command_generates_run_output_file(
+        self, temp_data_dir, mock_all_programs
+    ):
+        """Test that trace command generates run_output.txt file."""
+        programs, patch_get_default_program = mock_all_programs
+
+        # Mock the actual file system writes to simulate the Rust function behavior
+        written_files = []
+        original_write = open
+
+        def mock_write_side_effect(*args, **kwargs):
+            # Capture write operations to track run_output.txt creation
+            if (
+                len(args) >= 2
+                and isinstance(args[0], (str, Path))
+                and "run_output" in str(args[0])
+            ):
+                written_files.append(str(args[0]))
+            return original_write(*args, **kwargs)
+
+        with (
+            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch("builtins.open", side_effect=mock_write_side_effect),
+            patch("pathlib.Path.write_text"),
+            patch_get_default_program(),
+        ):
+            # Configure the mock to simulate run_output.txt creation
+            def trace_side_effect(*args, **kwargs):
+                output_path = kwargs.get("output_path")
+                if output_path:
+                    # Simulate the run_output.txt file creation that happens in Rust
+                    run_output_path = Path(str(output_path)).with_name(
+                        f"{Path(str(output_path)).stem}.run_output.txt"
+                    )
+                    written_files.append(str(run_output_path))
+
+            mock_trace.side_effect = trace_side_effect
+
+            result = self.runner.invoke(
+                app,
+                [
+                    "trace",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "--data-dir",
+                    str(temp_data_dir),
+                ],
+            )
+
+        self.helper.assert_success_with_message(result, "Trace generated successfully")
+        mock_trace.assert_called_once()
+
+        # Verify run_output.txt file creation was simulated
+        run_output_files = [f for f in written_files if "run_output.txt" in f]
+        assert (
+            len(run_output_files) > 0
+        ), f"Expected run_output.txt file to be created, but found: {written_files}"
+
 
 @pytest.mark.integration
 class TestProveCommand(TestKethCLIBase):
@@ -647,6 +705,156 @@ class TestE2ECommand(TestKethCLIBase):
         call_args = mock_e2e.call_args
         proof_path = Path(call_args[0][3])  # positional argument
         assert proof_path.name == "proof_body_0_1.json"
+
+    def test_e2e_command_generates_run_output_file(
+        self, temp_data_dir, mock_all_programs
+    ):
+        """Test that e2e command generates run_output.txt file."""
+        programs, patch_get_default_program = mock_all_programs
+
+        # Mock the actual file system writes to simulate the Rust function behavior
+        written_files = []
+
+        def mock_e2e_side_effect(*args, **kwargs):
+            # Simulate the run_output.txt file creation that happens in run_end_to_end
+            proof_path = Path(args[3])  # proof_path is 4th positional argument
+            run_output_path = proof_path.with_name("run_output.txt")
+            written_files.append(str(run_output_path))
+
+        with (
+            patch(
+                "scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect
+            ) as mock_e2e,
+            patch_get_default_program(),
+        ):
+            result = self.runner.invoke(
+                app,
+                [
+                    "e2e",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "-s",
+                    "main",
+                    "--data-dir",
+                    str(temp_data_dir),
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "Pipeline completed successfully"
+        )
+        mock_e2e.assert_called_once()
+
+        # Verify run_output.txt file creation was simulated
+        run_output_files = [f for f in written_files if "run_output.txt" in f]
+        assert (
+            len(run_output_files) == 1
+        ), f"Expected exactly one run_output.txt file to be created, but found: {written_files}"
+        assert "run_output.txt" in run_output_files[0]
+
+    def test_e2e_command_with_verification_generates_run_output_file(
+        self, temp_data_dir, mock_all_programs
+    ):
+        """Test that e2e command with verification still generates run_output.txt file."""
+        programs, patch_get_default_program = mock_all_programs
+
+        # Mock the actual file system writes to simulate the Rust function behavior
+        written_files = []
+
+        def mock_e2e_side_effect(*args, **kwargs):
+            # Simulate the run_output.txt file creation that happens in run_end_to_end
+            proof_path = Path(args[3])  # proof_path is 4th positional argument
+            run_output_path = proof_path.with_name("run_output.txt")
+            written_files.append(str(run_output_path))
+
+        with (
+            patch(
+                "scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect
+            ) as mock_e2e,
+            patch_get_default_program(),
+        ):
+            result = self.runner.invoke(
+                app,
+                [
+                    "e2e",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "-s",
+                    "main",
+                    "--verify",
+                    "--data-dir",
+                    str(temp_data_dir),
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "Pipeline completed successfully"
+        )
+        mock_e2e.assert_called_once()
+
+        # Verify run_output.txt file creation was simulated
+        run_output_files = [f for f in written_files if "run_output.txt" in f]
+        assert (
+            len(run_output_files) == 1
+        ), f"Expected exactly one run_output.txt file to be created, but found: {written_files}"
+        assert "run_output.txt" in run_output_files[0]
+
+        # Verify that verification was enabled
+        call_args = mock_e2e.call_args
+        assert call_args[0][5]  # verify_proof parameter
+
+    def test_e2e_command_run_output_file_path_generation(
+        self, temp_data_dir, mock_all_programs
+    ):
+        """Test that e2e command generates run_output.txt with correct path relative to proof path."""
+        programs, patch_get_default_program = mock_all_programs
+
+        written_files = []
+        proof_paths = []
+
+        def mock_e2e_side_effect(*args, **kwargs):
+            proof_path = Path(args[3])  # proof_path is 4th positional argument
+            proof_paths.append(str(proof_path))
+            run_output_path = proof_path.with_name("run_output.txt")
+            written_files.append(str(run_output_path))
+
+        with (
+            patch("scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect),
+            patch_get_default_program(),
+        ):
+            # Test body step to ensure filename is generated correctly
+            result = self.runner.invoke(
+                app,
+                [
+                    "e2e",
+                    "-b",
+                    str(TEST_BLOCK_NUMBER),
+                    "-s",
+                    "body",
+                    "--start-index",
+                    "0",
+                    "--len",
+                    "5",
+                    "--data-dir",
+                    str(temp_data_dir),
+                ],
+            )
+
+        self.helper.assert_success_with_message(
+            result, "Pipeline completed successfully"
+        )
+
+        # Verify that the proof path and run_output path are correctly related
+        assert len(proof_paths) == 1
+        assert len(written_files) == 1
+
+        proof_path = Path(proof_paths[0])
+        run_output_path = Path(written_files[0])
+
+        # The run_output.txt should be in the same directory as the proof file
+        assert proof_path.parent == run_output_path.parent
+        assert run_output_path.name == "run_output.txt"
+        assert proof_path.name == "proof_body_0_5.json"
 
 
 @pytest.mark.integration
