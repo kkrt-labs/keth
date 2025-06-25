@@ -15,7 +15,9 @@ from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 from ethereum.prague.fork import Block, BlockChain, state_transition
 from ethereum.utils.bytes import Bytes32_to_Bytes
+from cairo_core.bytes import Bytes, BytesStruct
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
+from mpt.types import StorageDiffEntry, AddressAccountDiffEntry
 
 from mpt.hash_diff import (
     hash_state_storage_diff,
@@ -73,12 +75,25 @@ func main{
     let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
         pre_state_root_bytes
     );
+    let (buffer) = alloc();
+    tempvar path = Bytes(new BytesStruct(buffer, 0));
+
+    let (main_trie_end: AddressAccountDiffEntry*) = alloc();
+    local main_trie_start: AddressAccountDiffEntry* = main_trie_end;
+    let (storage_tries_end: StorageDiffEntry*) = alloc();
+    let storage_tries_start = storage_tries_end;
+
     let (account_diff, storage_diff) = compute_diff_entrypoint(
         node_store=node_store,
         address_preimages=address_preimages,
         storage_key_preimages=storage_key_preimages,
         left=pre_state_root_node,
         right=post_state_root,
+        start_path=path,
+        main_trie_start=main_trie_start,
+        main_trie_end=main_trie_end,
+        storage_tries_start=storage_tries_start,
+        storage_tries_end=storage_tries_end,
     );
 
     // # Compute commitments for the state diffs and the trie diffs.

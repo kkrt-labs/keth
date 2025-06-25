@@ -33,10 +33,6 @@ class TestHashTrieDiff:
             "hash_account_diff_segment",
             account_diff,
         )
-        if len(account_diff) == 0:
-            assert cairo_result == 0
-            return
-
         hashes_buffer = [diff.hash_cairo() for diff in account_diff]
         final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash
@@ -49,10 +45,6 @@ class TestHashTrieDiff:
             "hash_storage_diff_segment",
             storage_diff,
         )
-        if len(storage_diff) == 0:
-            assert cairo_result == 0
-            return
-
         hashes_buffer = [diff.hash_cairo() for diff in storage_diff]
         final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash
@@ -70,10 +62,6 @@ class TestHashStateDiff:
             "test_hash_state_diff",
             state_diff,
         )
-        if len(state_diff) == 0:
-            assert cairo_result == 0
-            return
-
         # Eliminate non-diff entries from the python expected result
         state_diff_filtered = [
             diff for diff in state_diff if diff.prev_value != diff.new_value
@@ -92,10 +80,6 @@ class TestHashStateDiff:
             "test_hash_storage_diff",
             storage_diff,
         )
-
-        if len(storage_diff) == 0:
-            assert cairo_result == 0
-            return
 
         # Eliminate non-diff entries from the python expected result
         storage_diff_filtered = [

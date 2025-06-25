@@ -41,9 +41,10 @@ def compile_cairo(
 
     # Compute program hash
     program_hash = compute_program_hash_chain(program=program, use_poseidon=True)
-    logger.info(f"Computed program hash for {output_path.name}: 0x{program_hash:x}")
+    output_name = Path(output_path).name
+    logger.info(f"Computed program hash for {output_name}: 0x{program_hash:x}")
 
-    return output_path.name, program_hash
+    return output_name, program_hash
 
 
 def save_program_hashes(program_hashes, output_dir):
@@ -126,6 +127,10 @@ def compile_keth():
         (
             Path("cairo/ethereum/prague/keth/aggregator_main.cairo"),
             Path("build/aggregator_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/prague/keth/mpt_diff_main.cairo"),
+            Path("build/mpt_diff_compiled.json"),
         ),
     ]
 

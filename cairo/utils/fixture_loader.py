@@ -610,3 +610,56 @@ def process_block_transactions(
     )
 
     return transactions
+
+
+def load_mpt_diff_input(
+    zkpi_path: Path,
+    branch_index: int,
+) -> Dict[str, Any]:
+    """
+    Load program input for the mpt_diff step.
+
+    Args:
+        zkpi_path: Path to the ZKPI fixture file
+        branch_index: Branch index to process (0-15)
+        previous_outputs_path: Path to previous branch outputs (for branches > 0)
+
+    Returns:
+        Dictionary containing the mpt_diff program input
+    """
+    from mpt.ethereum_tries import EthereumTrieTransitionDB
+    from mpt.trie_diff import StateDiff
+
+    # Load the teardown input as base
+    teardown_input = load_teardown_input(zkpi_path)
+
+    # Load tries data
+    tries = EthereumTrieTransitionDB.from_json(zkpi_path)
+
+    # Initialize diff lists
+    account_diffs = []
+    storage_diffs = []
+
+    # For branches > 0, load previous diffs
+    if branch_index > 0:
+        for i in range(branch_index):
+            input_to_step = StateDiff.from_tries_and_branch_index(tries, i)
+            local_account_diffs, local_storage_diffs = input_to_step.get_diff_segments()
+            account_diffs.extend(local_account_diffs)
+            storage_diffs.extend(local_storage_diffs)
+
+        # Sort diffs as expected by the program
+        account_diffs = sorted(
+            account_diffs, key=lambda x: int.from_bytes(x.key, "little")
+        )
+        storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
+
+    # Construct the program input
+    program_input = {
+        **teardown_input,
+        "branch_index": branch_index,
+        "input_trie_account_diff": account_diffs,
+        "input_trie_storage_diff": storage_diffs,
+    }
+
+    return program_input
