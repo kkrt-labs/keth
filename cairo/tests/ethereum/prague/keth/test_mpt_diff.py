@@ -16,25 +16,6 @@ pytestmark = pytest.mark.cairo_file(
 )
 
 
-def run_mpt_diff_branch(zkpi_path, branch_index, cairo_run):
-    """
-    Runs MPT diff for a single branch and returns the output.
-
-    Args:
-        zkpi_path: Path to the ZKPI fixture
-        branch_index: Branch index to process (0-15)
-        cairo_run: Cairo run function from pytest fixture
-
-    Returns:
-        Tuple of MPT diff outputs
-    """
-    program_input = load_mpt_diff_input(
-        zkpi_path=zkpi_path, branch_index=branch_index, previous_outputs_path=None
-    )
-
-    return cairo_run("test_mpt_diff", verify_squashed_dicts=True, **program_input)
-
-
 @pytest.fixture
 def program_input(zkpi_path):
     return load_zkpi_fixture(zkpi_path)

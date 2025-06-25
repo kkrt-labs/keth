@@ -10,7 +10,7 @@ from starkware.cairo.common.cairo_builtins import (
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
-from cairo_core.bytes_impl import Bytes__hash__
+from cairo_core.bytes_impl import Bytes__hash__, Bytes32__hash__
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes__eq__
 
 from ethereum.prague.state import state_root
@@ -86,7 +86,7 @@ func mpt_diff{
     }(pre_state_root_node, post_state_root, branch_index);
 
     // Expected to always be bytes - which is the case with proper inputs.
-    let left_mpt_hash = Bytes__hash__(pre_state_root_node.value.bytes);
+    let left_mpt_hash = Bytes32__hash__(pre_state_root);
     let right_mpt_hash = Bytes__hash__(post_state_root.value.bytes);
 
     // The left - right path should always be the same - as we're exploring similar tries.

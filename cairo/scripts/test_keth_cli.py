@@ -101,6 +101,7 @@ def mock_all_programs(mock_compiled_program):
         Step.TEARDOWN: mock_compiled_program(Step.TEARDOWN),
         Step.AGGREGATOR: mock_compiled_program(Step.AGGREGATOR),
         Step.MAIN: mock_compiled_program(Step.MAIN),
+        Step.MPT_DIFF: mock_compiled_program(Step.MPT_DIFF),
     }
 
     def mock_get_default_program(step: Step) -> Path:
@@ -158,7 +159,7 @@ def mock_generate_ar_setup(mock_all_programs):
     programs, patch_get_default_program = mock_all_programs
 
     def mock_load_program_input_for_aggregator(
-        step, zkpi_path, start_index=None, chunk_size=None
+        step, zkpi_path, start_index=None, chunk_size=None, branch_index=None
     ):
         """Mock load_program_input that handles the aggregator step properly."""
         if step == Step.AGGREGATOR:
@@ -171,6 +172,18 @@ def mock_generate_ar_setup(mock_all_programs):
                     "teardown": 11111,
                 },
                 "n_body_chunks": 2,
+                "n_mpt_diff_chunks": 0,
+                "mpt_diff_segment_outputs": [],
+                "left_mpt": None,
+                "right_mpt": None,
+                "node_store": {},
+            }
+        elif step == Step.MPT_DIFF:
+            # Mock MPT diff input
+            return {
+                "branch_index": branch_index,
+                "input_trie_account_diff": [],
+                "input_trie_storage_diff": [],
             }
         else:
             # For other steps, use the original implementation
@@ -296,6 +309,7 @@ class TestKethUnits:
             Step.BODY: "build/body_compiled.json",
             Step.TEARDOWN: "build/teardown_compiled.json",
             Step.AGGREGATOR: "build/aggregator_compiled.json",
+            Step.MPT_DIFF: "build/mpt_diff_compiled.json",
         }
 
         for step, expected_path in expected_programs.items():
@@ -816,8 +830,9 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         self.helper.assert_success_with_message(
             result, "All AR inputs generated successfully"
         )
-        # Should call generate_trace multiple times (init + body chunks + teardown + aggregator)
-        assert mock_trace.call_count >= 3
+        # Should call generate_trace multiple times (init + body chunks + teardown + 16 mpt_diff + aggregator)
+        # With 26 transactions and chunk size 5, we have: 1 init + 6 body + 1 teardown + 16 mpt_diff + 1 aggregator = 25 total
+        assert mock_trace.call_count == 25
 
     def test_generate_ar_inputs_command_with_options(
         self, temp_data_dir, mock_generate_ar_setup
@@ -938,6 +953,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
                 or filename.endswith("_teardown")
                 or "_body_" in filename
                 or filename.endswith("_aggregator")
+                or "_mpt_diff_" in filename
             ), f"Unexpected filename pattern: {filename}"
 
     def test_generate_ar_inputs_command_with_cairo_pie(

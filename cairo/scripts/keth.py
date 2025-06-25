@@ -306,12 +306,10 @@ class StepHandler:
                     "mpt_diff": mpt_diff_program_hash,
                 }
 
-                # Add mpt_diff program hash if we have mpt_diff outputs
-                if mpt_diff_output_data:
-                    mpt_diff_program_hash = get_step_program_hash(
-                        Step.MPT_DIFF, program_hashes
-                    )
-                    keth_segment_program_hashes["mpt_diff"] = mpt_diff_program_hash
+                mpt_diff_program_hash = get_step_program_hash(
+                    Step.MPT_DIFF, program_hashes
+                )
+                keth_segment_program_hashes["mpt_diff"] = mpt_diff_program_hash
 
                 # Construct aggregator input
                 aggregator_input = {
