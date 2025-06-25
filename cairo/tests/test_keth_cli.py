@@ -149,7 +149,7 @@ class CLITestHelper:
     def assert_error_with_message(result, expected_message: str):
         """Assert CLI result failed and contains expected error message."""
         assert result.exit_code == 1
-        assert expected_message in result.stdout
+        assert expected_message in result.stdout.replace("\n", "").replace("\r", "")
 
 
 @pytest.fixture
