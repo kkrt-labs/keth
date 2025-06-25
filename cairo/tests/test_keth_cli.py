@@ -1,12 +1,9 @@
-#!/usr/bin/env python3
 """
-Comprehensive test suite for the Keth CLI (Refactored Version).
+Comprehensive test suite for the Keth CLI.
 
 This includes both unit tests (fast) and CLI integration tests.
-Run with: pytest test_keth_cli_refactored.py -v
-Or for quick unit tests only: pytest test_keth_cli_refactored.py -m unit -v
-
-Refactored to reduce code duplication and improve maintainability.
+Run with: uv run pytest -k test_keth_cli.py -v
+Or for quick unit tests only: uv run pytest -k test_keth_cli.py -m unit -v
 """
 
 import json
@@ -18,25 +15,26 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
-from scripts.keth import (
-    PRAGUE_FORK_BLOCK,
+from keth_cli.cli import app
+from keth_cli.config import KethConfig
+from keth_cli.core import (
     KethContext,
-    Step,
-    StepHandler,
-    app,
     get_chain_id_from_zkpi,
-    get_default_program,
     get_next_proving_run_id,
     get_proving_run_dir,
     get_zkpi_path,
     validate_block_number,
-    validate_body_params,
 )
+from keth_cli.exceptions import (
+    InvalidBlockNumberError,
+    InvalidStepParametersError,
+)
+from keth_cli.steps import Step, StepHandler
 from typer.testing import CliRunner
 
 # Test data constants
 TEST_ZKPI_FILE = "test_data/22615247.json"
-TEST_BLOCK_NUMBER = PRAGUE_FORK_BLOCK
+TEST_BLOCK_NUMBER = KethConfig.PRAGUE_FORK_BLOCK
 TEST_CHAIN_ID = 1
 
 
@@ -104,13 +102,14 @@ def mock_all_programs(mock_compiled_program):
         Step.MPT_DIFF: mock_compiled_program(Step.MPT_DIFF),
     }
 
-    def mock_get_default_program(step: Step) -> Path:
+    def mock_get_default_program(step: Step, config: KethConfig) -> Path:
         return programs[step]
 
     @contextmanager
     def patch_get_default_program():
         with patch(
-            "scripts.keth.get_default_program", side_effect=mock_get_default_program
+            "keth_cli.steps.StepHandler.get_default_program",
+            side_effect=mock_get_default_program,
         ):
             yield programs
 
@@ -124,7 +123,7 @@ class MockValidationHelper:
     def mock_typer_exit():
         """Context manager for mocking typer.Exit to raise RuntimeError instead."""
         return patch(
-            "scripts.keth.typer.Exit",
+            "keth_cli.typer.Exit",
             side_effect=RuntimeError("Validation failed"),
         )
 
@@ -159,47 +158,45 @@ def mock_generate_ar_setup(mock_all_programs):
     programs, patch_get_default_program = mock_all_programs
 
     def mock_load_program_input_for_aggregator(
-        step, zkpi_path, start_index=None, chunk_size=None, branch_index=None
+        step, zkpi_path, config, start_index=None, chunk_size=None, branch_index=None
     ):
         """Mock load_program_input that handles the aggregator step properly."""
-        if step == Step.AGGREGATOR:
-            # Return mock aggregator input
-            return {
-                "keth_segment_outputs": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-                "keth_segment_program_hashes": {
-                    "init": 12345,
-                    "body": 67890,
-                    "teardown": 11111,
-                },
-                "n_body_chunks": 2,
-                "n_mpt_diff_chunks": 0,
-                "mpt_diff_segment_outputs": [],
-                "left_mpt": None,
-                "right_mpt": None,
-                "node_store": {},
-            }
-        elif step == Step.MPT_DIFF:
-            # Mock MPT diff input
-            return {
-                "branch_index": branch_index,
-                "input_trie_account_diff": [],
-                "input_trie_storage_diff": [],
-            }
-        else:
-            # For other steps, use the original implementation
-            from scripts.keth import (
-                load_body_input,
-                load_teardown_input,
-                load_zkpi_fixture,
-            )
+        from utils.fixture_loader import (
+            load_body_input,
+            load_teardown_input,
+            load_zkpi_fixture,
+        )
 
-            match step:
-                case Step.BODY:
-                    return load_body_input(zkpi_path, start_index, chunk_size)
-                case Step.TEARDOWN:
-                    return load_teardown_input(zkpi_path)
-                case _:
-                    return load_zkpi_fixture(zkpi_path)
+        match step:
+            case Step.AGGREGATOR:
+                # Return mock aggregator input
+                return {
+                    "keth_segment_outputs": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                    "keth_segment_program_hashes": {
+                        "init": 12345,
+                        "body": 67890,
+                        "teardown": 11111,
+                    },
+                    "n_body_chunks": 2,
+                    "n_mpt_diff_chunks": 0,
+                    "mpt_diff_segment_outputs": [],
+                    "left_mpt": None,
+                    "right_mpt": None,
+                    "node_store": {},
+                }
+            case Step.MPT_DIFF:
+                # Mock MPT diff input
+                return {
+                    "branch_index": branch_index,
+                    "input_trie_account_diff": [],
+                    "input_trie_storage_diff": [],
+                }
+            case Step.BODY:
+                return load_body_input(zkpi_path, start_index, chunk_size)
+            case Step.TEARDOWN:
+                return load_teardown_input(zkpi_path)
+            case _:
+                return load_zkpi_fixture(zkpi_path)
 
     from contextlib import contextmanager
 
@@ -208,7 +205,7 @@ def mock_generate_ar_setup(mock_all_programs):
         with (
             patch_get_default_program(),
             patch(
-                "scripts.keth.StepHandler.load_program_input",
+                "keth_cli.steps.StepHandler.load_program_input",
                 side_effect=mock_load_program_input_for_aggregator,
             ),
         ):
@@ -269,40 +266,67 @@ class TestKethUnits:
 
     def test_body_params_validation(self):
         """Test body step parameter validation."""
-        with patch("scripts.keth.typer.echo"), MockValidationHelper.mock_typer_exit():
+        # Valid body step
+        StepHandler.validate_step_params(Step.BODY, 0, 10)  # Should not raise
 
-            # Valid body step
-            validate_body_params(Step.BODY, 0, 10)  # Should not raise
+        # Invalid cases should raise
+        with pytest.raises(InvalidStepParametersError):
+            StepHandler.validate_step_params(Step.BODY, None, 10)  # Missing start_index
 
-            # Invalid cases should raise
-            with pytest.raises(RuntimeError):
-                validate_body_params(Step.BODY, None, 10)  # Missing start_index
+        with pytest.raises(InvalidStepParametersError):
+            StepHandler.validate_step_params(Step.BODY, 0, None)  # Missing chunk_size
 
-            with pytest.raises(RuntimeError):
-                validate_body_params(Step.BODY, 0, None)  # Missing chunk_size
+        with pytest.raises(InvalidStepParametersError):
+            StepHandler.validate_step_params(Step.BODY, -1, 10)  # Negative start_index
 
-            with pytest.raises(RuntimeError):
-                validate_body_params(Step.BODY, -1, 10)  # Negative start_index
+        with pytest.raises(InvalidStepParametersError):
+            StepHandler.validate_step_params(Step.BODY, 0, 0)  # Zero chunk_size
 
-            with pytest.raises(RuntimeError):
-                validate_body_params(Step.BODY, 0, 0)  # Zero chunk_size
+        # Non-body step should not raise
+        StepHandler.validate_step_params(Step.INIT, None, None)  # Should not raise
 
-            # Non-body step should not validate
-            validate_body_params(Step.INIT, None, None)  # Should not raise
+    def test_mpt_diff_params_validation(self):
+        """Test MPT diff step parameter validation."""
+        from keth_cli.exceptions import InvalidBranchIndexError
+
+        # Valid MPT diff step
+        StepHandler.validate_step_params(
+            Step.MPT_DIFF, None, None, 0
+        )  # Should not raise
+        StepHandler.validate_step_params(
+            Step.MPT_DIFF, None, None, 15
+        )  # Should not raise
+
+        # Invalid cases should raise
+        with pytest.raises(InvalidStepParametersError):
+            StepHandler.validate_step_params(
+                Step.MPT_DIFF, None, None, None
+            )  # Missing branch_index
+
+        with pytest.raises(InvalidBranchIndexError):
+            StepHandler.validate_step_params(
+                Step.MPT_DIFF, None, None, -1
+            )  # Negative branch_index
+
+        with pytest.raises(InvalidBranchIndexError):
+            StepHandler.validate_step_params(
+                Step.MPT_DIFF, None, None, 16
+            )  # Branch index > 15
 
     def test_block_number_validation(self):
         """Test block number validation."""
-        with patch("scripts.keth.typer.echo"), MockValidationHelper.mock_typer_exit():
+        config = KethConfig()
 
-            # Valid block number (after Prague fork)
-            validate_block_number(PRAGUE_FORK_BLOCK)  # Should not raise
+        # Valid block number (after Prague fork)
+        validate_block_number(config.PRAGUE_FORK_BLOCK, config)  # Should not raise
 
-            # Invalid block number (before Prague fork)
-            with pytest.raises(RuntimeError):
-                validate_block_number(PRAGUE_FORK_BLOCK - 1)
+        # Invalid block number (before Prague fork)
+        with pytest.raises(InvalidBlockNumberError):
+            validate_block_number(config.PRAGUE_FORK_BLOCK - 1, config)
 
     def test_get_default_program(self):
         """Test default program path generation."""
+        config = KethConfig()
         expected_programs = {
             Step.MAIN: "build/main_compiled.json",
             Step.INIT: "build/init_compiled.json",
@@ -313,7 +337,7 @@ class TestKethUnits:
         }
 
         for step, expected_path in expected_programs.items():
-            assert get_default_program(step) == Path(expected_path)
+            assert StepHandler.get_default_program(step, config) == Path(expected_path)
 
 
 @pytest.mark.unit
@@ -322,7 +346,9 @@ class TestKethContext:
 
     def test_context_creation_with_chain_id(self, temp_data_dir):
         """Test KethContext creation with explicit chain ID."""
+        config = KethConfig()
         ctx = KethContext.create(
+            config=config,
             data_dir=temp_data_dir,
             block_number=TEST_BLOCK_NUMBER,
             chain_id=TEST_CHAIN_ID,
@@ -336,7 +362,9 @@ class TestKethContext:
 
     def test_context_creation_auto_detect_chain_id(self, temp_data_dir):
         """Test KethContext creation with auto-detected chain ID."""
+        config = KethConfig()
         ctx = KethContext.create(
+            config=config,
             data_dir=temp_data_dir,
             block_number=TEST_BLOCK_NUMBER,
         )
@@ -351,50 +379,71 @@ class TestStepHandler:
 
     def test_output_filename_generation(self):
         """Test output filename generation for different steps."""
+        config = KethConfig()
+
         # Regular step
-        filename = StepHandler.get_output_filename(Step.MAIN, 12345)
+        filename = StepHandler.get_output_filename(Step.MAIN, 12345, config)
         assert filename == "prover_input_info_12345"
 
         # Init step
-        filename = StepHandler.get_output_filename(Step.INIT, 12345)
+        filename = StepHandler.get_output_filename(Step.INIT, 12345, config)
         assert filename == "prover_input_info_12345_init"
 
         # Teardown step
-        filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345)
+        filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345, config)
         assert filename == "prover_input_info_12345_teardown"
 
         # Aggregator step
-        filename = StepHandler.get_output_filename(Step.AGGREGATOR, 12345)
+        filename = StepHandler.get_output_filename(Step.AGGREGATOR, 12345, config)
         assert filename == "prover_input_info_12345_aggregator"
 
         # Body step with indices
-        filename = StepHandler.get_output_filename(Step.BODY, 12345, 0, 5)
+        filename = StepHandler.get_output_filename(Step.BODY, 12345, config, 0, 5)
         assert filename == "prover_input_info_12345_body_0_5"
 
+        # MPT_DIFF step with branch index
+        filename = StepHandler.get_output_filename(
+            Step.MPT_DIFF, 12345, config, branch_index=7
+        )
+        assert filename == "prover_input_info_12345_mpt_diff_7"
+
         # Cairo PIE files
-        filename = StepHandler.get_output_filename(Step.INIT, 12345, cairo_pie=True)
+        filename = StepHandler.get_output_filename(
+            Step.INIT, 12345, config, cairo_pie=True
+        )
         assert filename == "cairo_pie_12345_init.zip"
 
         filename = StepHandler.get_output_filename(
-            Step.BODY, 12345, 0, 5, cairo_pie=True
+            Step.BODY, 12345, config, 0, 5, cairo_pie=True
         )
         assert filename == "cairo_pie_12345_body_0_5.zip"
 
-        filename = StepHandler.get_output_filename(Step.TEARDOWN, 12345, cairo_pie=True)
+        filename = StepHandler.get_output_filename(
+            Step.TEARDOWN, 12345, config, cairo_pie=True
+        )
         assert filename == "cairo_pie_12345_teardown.zip"
+
+        filename = StepHandler.get_output_filename(
+            Step.MPT_DIFF, 12345, config, branch_index=7, cairo_pie=True
+        )
+        assert filename == "cairo_pie_12345_mpt_diff_7.zip"
 
     def test_proof_filename_generation(self):
         """Test proof filename generation for different steps."""
+        config = KethConfig()
         test_cases = [
-            (Step.MAIN, None, None, "proof.json"),
-            (Step.INIT, None, None, "proof_init.json"),
-            (Step.TEARDOWN, None, None, "proof_teardown.json"),
-            (Step.BODY, 0, 5, "proof_body_0_5.json"),
-            (Step.AGGREGATOR, None, None, "proof_aggregator.json"),
+            (Step.MAIN, None, None, None, "proof.json"),
+            (Step.INIT, None, None, None, "proof_init.json"),
+            (Step.TEARDOWN, None, None, None, "proof_teardown.json"),
+            (Step.BODY, 0, 5, None, "proof_body_0_5.json"),
+            (Step.AGGREGATOR, None, None, None, "proof_aggregator.json"),
+            (Step.MPT_DIFF, None, None, 3, "proof_mpt_diff_3.json"),
         ]
 
-        for step, start_index, chunk_size, expected in test_cases:
-            filename = StepHandler.get_proof_filename(step, start_index, chunk_size)
+        for step, start_index, chunk_size, branch_index, expected in test_cases:
+            filename = StepHandler.get_proof_filename(
+                step, config, start_index, chunk_size, branch_index
+            )
             assert filename == expected
 
 
@@ -420,7 +469,10 @@ class TestTraceCommand(TestKethCLIBase):
     def test_trace_command_auto_detect_chain_id(self, temp_data_dir, mock_all_programs):
         """Test that trace command can auto-detect chain ID from ZKPI file."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -474,7 +526,10 @@ class TestTraceCommand(TestKethCLIBase):
     ):
         """Test body step with valid parameters."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -500,7 +555,10 @@ class TestTraceCommand(TestKethCLIBase):
     ):
         """Test trace command with explicitly provided chain ID."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -524,7 +582,7 @@ class TestTraceCommand(TestKethCLIBase):
             [
                 "trace",
                 "-b",
-                str(PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
+                str(KethConfig.PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
                 "--data-dir",
                 str(temp_data_dir),
             ],
@@ -535,7 +593,10 @@ class TestTraceCommand(TestKethCLIBase):
     def test_trace_command_with_cairo_pie(self, temp_data_dir, mock_all_programs):
         """Test trace command with Cairo PIE output."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_generate_trace") as mock_trace:
+        with (
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -555,50 +616,44 @@ class TestTraceCommand(TestKethCLIBase):
         call_args = mock_trace.call_args
         assert call_args[1]["cairo_pie"] is True
 
-    def test_trace_command_generates_run_output_file(
+    def test_trace_command_mpt_diff_step_validation(self, temp_data_dir):
+        """Test that mpt_diff step requires branch-index parameter."""
+        result = self.runner.invoke(
+            app,
+            [
+                "trace",
+                "-b",
+                str(TEST_BLOCK_NUMBER),
+                "-s",
+                "mpt_diff",
+                "--data-dir",
+                str(temp_data_dir),
+            ],
+        )
+
+        self.helper.assert_error_with_message(
+            result, "branch-index parameter is required"
+        )
+
+    def test_trace_command_mpt_diff_step_with_params(
         self, temp_data_dir, mock_all_programs
     ):
-        """Test that trace command generates run_output.txt file."""
+        """Test mpt_diff step with valid parameters."""
         programs, patch_get_default_program = mock_all_programs
-
-        # Mock the actual file system writes to simulate the Rust function behavior
-        written_files = []
-        original_write = open
-
-        def mock_write_side_effect(*args, **kwargs):
-            # Capture write operations to track run_output.txt creation
-            if (
-                len(args) >= 2
-                and isinstance(args[0], (str, Path))
-                and "run_output" in str(args[0])
-            ):
-                written_files.append(str(args[0]))
-            return original_write(*args, **kwargs)
-
         with (
-            patch("scripts.keth.run_generate_trace") as mock_trace,
-            patch("builtins.open", side_effect=mock_write_side_effect),
-            patch("pathlib.Path.write_text"),
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
             patch_get_default_program(),
         ):
-            # Configure the mock to simulate run_output.txt creation
-            def trace_side_effect(*args, **kwargs):
-                output_path = kwargs.get("output_path")
-                if output_path:
-                    # Simulate the run_output.txt file creation that happens in Rust
-                    run_output_path = Path(str(output_path)).with_name(
-                        f"{Path(str(output_path)).stem}.run_output.txt"
-                    )
-                    written_files.append(str(run_output_path))
-
-            mock_trace.side_effect = trace_side_effect
-
             result = self.runner.invoke(
                 app,
                 [
                     "trace",
                     "-b",
                     str(TEST_BLOCK_NUMBER),
+                    "-s",
+                    "mpt_diff",
+                    "--branch-index",
+                    "7",
                     "--data-dir",
                     str(temp_data_dir),
                 ],
@@ -606,12 +661,6 @@ class TestTraceCommand(TestKethCLIBase):
 
         self.helper.assert_success_with_message(result, "Trace generated successfully")
         mock_trace.assert_called_once()
-
-        # Verify run_output.txt file creation was simulated
-        run_output_files = [f for f in written_files if "run_output.txt" in f]
-        assert (
-            len(run_output_files) > 0
-        ), f"Expected run_output.txt file to be created, but found: {written_files}"
 
 
 @pytest.mark.integration
@@ -626,7 +675,7 @@ class TestProveCommand(TestKethCLIBase):
         )
         self.helper.create_mock_file(prover_inputs_path, {"test": "data"})
 
-        with patch("scripts.keth.run_prove") as mock_prove:
+        with patch("keth_cli.orchestration.run_prove") as mock_prove:
             result = self.runner.invoke(
                 app,
                 [
@@ -652,7 +701,7 @@ class TestVerifyCommand(TestKethCLIBase):
         proof_path = tmp_path / "proof.json"
         self.helper.create_mock_file(proof_path, {"test": "proof"})
 
-        with patch("scripts.keth.run_verify") as mock_verify:
+        with patch("keth_cli.orchestration.run_verify") as mock_verify:
             result = self.runner.invoke(
                 app, ["verify", "--proof-path", str(proof_path)]
             )
@@ -668,7 +717,10 @@ class TestE2ECommand(TestKethCLIBase):
     def test_e2e_command_main_step(self, temp_data_dir, mock_all_programs):
         """Test e2e command with main step."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_end_to_end") as mock_e2e:
+        with (
+            patch("keth_cli.orchestration.run_end_to_end") as mock_e2e,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -695,7 +747,10 @@ class TestE2ECommand(TestKethCLIBase):
     def test_e2e_command_body_step_filename(self, temp_data_dir, mock_all_programs):
         """Test that body step generates correct filename with indices."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_end_to_end") as mock_e2e:
+        with (
+            patch("keth_cli.orchestration.run_end_to_end") as mock_e2e,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -720,25 +775,11 @@ class TestE2ECommand(TestKethCLIBase):
         proof_path = Path(call_args[0][3])  # positional argument
         assert proof_path.name == "proof_body_0_1.json"
 
-    def test_e2e_command_generates_run_output_file(
-        self, temp_data_dir, mock_all_programs
-    ):
-        """Test that e2e command generates run_output.txt file."""
+    def test_e2e_command_mpt_diff_step_filename(self, temp_data_dir, mock_all_programs):
+        """Test that mpt_diff step generates correct filename with branch index."""
         programs, patch_get_default_program = mock_all_programs
-
-        # Mock the actual file system writes to simulate the Rust function behavior
-        written_files = []
-
-        def mock_e2e_side_effect(*args, **kwargs):
-            # Simulate the run_output.txt file creation that happens in run_end_to_end
-            proof_path = Path(args[3])  # proof_path is 4th positional argument
-            run_output_path = proof_path.with_name("run_output.txt")
-            written_files.append(str(run_output_path))
-
         with (
-            patch(
-                "scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect
-            ) as mock_e2e,
+            patch("keth_cli.orchestration.run_end_to_end") as mock_e2e,
             patch_get_default_program(),
         ):
             result = self.runner.invoke(
@@ -748,7 +789,9 @@ class TestE2ECommand(TestKethCLIBase):
                     "-b",
                     str(TEST_BLOCK_NUMBER),
                     "-s",
-                    "main",
+                    "mpt_diff",
+                    "--branch-index",
+                    "12",
                     "--data-dir",
                     str(temp_data_dir),
                 ],
@@ -757,118 +800,9 @@ class TestE2ECommand(TestKethCLIBase):
         self.helper.assert_success_with_message(
             result, "Pipeline completed successfully"
         )
-        mock_e2e.assert_called_once()
-
-        # Verify run_output.txt file creation was simulated
-        run_output_files = [f for f in written_files if "run_output.txt" in f]
-        assert (
-            len(run_output_files) == 1
-        ), f"Expected exactly one run_output.txt file to be created, but found: {written_files}"
-        assert "run_output.txt" in run_output_files[0]
-
-    def test_e2e_command_with_verification_generates_run_output_file(
-        self, temp_data_dir, mock_all_programs
-    ):
-        """Test that e2e command with verification still generates run_output.txt file."""
-        programs, patch_get_default_program = mock_all_programs
-
-        # Mock the actual file system writes to simulate the Rust function behavior
-        written_files = []
-
-        def mock_e2e_side_effect(*args, **kwargs):
-            # Simulate the run_output.txt file creation that happens in run_end_to_end
-            proof_path = Path(args[3])  # proof_path is 4th positional argument
-            run_output_path = proof_path.with_name("run_output.txt")
-            written_files.append(str(run_output_path))
-
-        with (
-            patch(
-                "scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect
-            ) as mock_e2e,
-            patch_get_default_program(),
-        ):
-            result = self.runner.invoke(
-                app,
-                [
-                    "e2e",
-                    "-b",
-                    str(TEST_BLOCK_NUMBER),
-                    "-s",
-                    "main",
-                    "--verify",
-                    "--data-dir",
-                    str(temp_data_dir),
-                ],
-            )
-
-        self.helper.assert_success_with_message(
-            result, "Pipeline completed successfully"
-        )
-        mock_e2e.assert_called_once()
-
-        # Verify run_output.txt file creation was simulated
-        run_output_files = [f for f in written_files if "run_output.txt" in f]
-        assert (
-            len(run_output_files) == 1
-        ), f"Expected exactly one run_output.txt file to be created, but found: {written_files}"
-        assert "run_output.txt" in run_output_files[0]
-
-        # Verify that verification was enabled
         call_args = mock_e2e.call_args
-        assert call_args[0][5]  # verify_proof parameter
-
-    def test_e2e_command_run_output_file_path_generation(
-        self, temp_data_dir, mock_all_programs
-    ):
-        """Test that e2e command generates run_output.txt with correct path relative to proof path."""
-        programs, patch_get_default_program = mock_all_programs
-
-        written_files = []
-        proof_paths = []
-
-        def mock_e2e_side_effect(*args, **kwargs):
-            proof_path = Path(args[3])  # proof_path is 4th positional argument
-            proof_paths.append(str(proof_path))
-            run_output_path = proof_path.with_name("run_output.txt")
-            written_files.append(str(run_output_path))
-
-        with (
-            patch("scripts.keth.run_end_to_end", side_effect=mock_e2e_side_effect),
-            patch_get_default_program(),
-        ):
-            # Test body step to ensure filename is generated correctly
-            result = self.runner.invoke(
-                app,
-                [
-                    "e2e",
-                    "-b",
-                    str(TEST_BLOCK_NUMBER),
-                    "-s",
-                    "body",
-                    "--start-index",
-                    "0",
-                    "--len",
-                    "5",
-                    "--data-dir",
-                    str(temp_data_dir),
-                ],
-            )
-
-        self.helper.assert_success_with_message(
-            result, "Pipeline completed successfully"
-        )
-
-        # Verify that the proof path and run_output path are correctly related
-        assert len(proof_paths) == 1
-        assert len(written_files) == 1
-
-        proof_path = Path(proof_paths[0])
-        run_output_path = Path(written_files[0])
-
-        # The run_output.txt should be in the same directory as the proof file
-        assert proof_path.parent == run_output_path.parent
-        assert run_output_path.name == "run_output.txt"
-        assert proof_path.name == "proof_body_0_5.json"
+        proof_path = Path(call_args[0][3])  # positional argument
+        assert proof_path.name == "proof_mpt_diff_12.json"
 
 
 @pytest.mark.integration
@@ -895,7 +829,10 @@ class TestKethWorkflows(TestKethCLIBase):
     def test_trace_then_prove_workflow(self, temp_data_dir, mock_all_programs):
         """Test the complete trace -> prove workflow."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_generate_trace"):
+        with (
+            patch("keth_cli.orchestration.run_generate_trace"),
+            patch_get_default_program(),
+        ):
             trace_result = self.runner.invoke(
                 app,
                 [
@@ -917,7 +854,7 @@ class TestKethWorkflows(TestKethCLIBase):
         )
         prover_inputs_path.touch()  # Create empty file
 
-        with patch("scripts.keth.run_prove"):
+        with patch("keth_cli.orchestration.run_prove"):
             prove_result = self.runner.invoke(
                 app,
                 [
@@ -936,7 +873,10 @@ class TestKethWorkflows(TestKethCLIBase):
     def test_full_e2e_workflow(self, temp_data_dir, mock_all_programs):
         """Test the complete e2e workflow with verification."""
         programs, patch_get_default_program = mock_all_programs
-        with patch("scripts.keth.run_end_to_end") as mock_e2e:
+        with (
+            patch("keth_cli.orchestration.run_end_to_end") as mock_e2e,
+            patch_get_default_program(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -1012,7 +952,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
         with (
-            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
             patch_all_for_generate_ar(),
         ):
             result = self.runner.invoke(
@@ -1039,7 +979,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             result, "All AR inputs generated successfully"
         )
         # Should call generate_trace multiple times (init + body chunks + teardown + 16 mpt_diff + aggregator)
-        # With 26 transactions and chunk size 5, we have: 1 init + 6 body + 1 teardown + 16 mpt_diff + 1 aggregator = 25 total
+        # With 26 transactions and chunk size 5, we have: 1 init + 6 body (0-5, 5-10, 10-15, 15-20, 20-25, 25-26) + 1 teardown + 16 mpt_diff + 1 aggregator = 25 total
         assert mock_trace.call_count == 25
 
     def test_generate_ar_inputs_command_with_options(
@@ -1049,7 +989,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
         with (
-            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
             patch_all_for_generate_ar(),
         ):
             result = self.runner.invoke(
@@ -1071,6 +1011,8 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         self.helper.assert_success_with_message(
             result, "All AR inputs generated successfully"
         )
+        # With 26 transactions and chunk size 3, we have: 1 init + 9 body + 1 teardown + 16 mpt_diff + 1 aggregator = 28 total
+        assert mock_trace.call_count == 28
         # Verify options are passed to the trace generation function
         for call in mock_trace.call_args_list:
             args, kwargs = call
@@ -1082,7 +1024,10 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         """Test that body steps are properly chunked."""
         programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
-        with patch("scripts.keth.run_generate_trace"), patch_all_for_generate_ar():
+        with (
+            patch("keth_cli.orchestration.run_generate_trace"),
+            patch_all_for_generate_ar(),
+        ):
             result = self.runner.invoke(
                 app,
                 [
@@ -1101,11 +1046,15 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         )
 
         # Check that body chunks appear in the output with correct ranges
-        # With 8 transactions and chunk size 2, we should have body chunks [0:2], [2:4], [4:6], [6:8]
+        # With 26 transactions and chunk size 2, we should have body chunks [0:2], [2:4], [4:6], ... [24:26]
         assert "body [0:2]" in result.stdout
         assert "body [2:4]" in result.stdout
         assert "body [4:6]" in result.stdout
-        assert "body [6:8]" in result.stdout
+        assert "body [24:26]" in result.stdout
+
+        # Check that MPT diff branches appear in the output
+        for i in range(16):
+            assert f"mpt_diff branch {str(i)}" in result.stdout
 
     def test_generate_ar_inputs_invalid_block_number(self, temp_data_dir):
         """Test generate_ar_inputs with invalid block number."""
@@ -1114,7 +1063,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
             [
                 "generate-ar-inputs",
                 "-b",
-                str(PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
+                str(KethConfig.PRAGUE_FORK_BLOCK - 1),  # Before Prague fork
                 "--data-dir",
                 str(temp_data_dir),
             ],
@@ -1129,7 +1078,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
         with (
-            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
             patch_all_for_generate_ar(),
         ):
             result = self.runner.invoke(
@@ -1148,6 +1097,8 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         self.helper.assert_success_with_message(
             result, "All AR inputs generated successfully"
         )
+        # With 26 transactions and chunk size 10, we have: 1 init + 3 body + 1 teardown + 16 mpt_diff + 1 aggregator = 22 total
+        assert mock_trace.call_count == 22
 
         # Check that the output files use the correct naming pattern
         for call in mock_trace.call_args_list:
@@ -1171,7 +1122,7 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         programs, patch_all_for_generate_ar = mock_generate_ar_setup
 
         with (
-            patch("scripts.keth.run_generate_trace") as mock_trace,
+            patch("keth_cli.orchestration.run_generate_trace") as mock_trace,
             patch_all_for_generate_ar(),
         ):
             result = self.runner.invoke(
@@ -1191,6 +1142,8 @@ class TestGenerateArPiesCommand(TestKethCLIBase):
         self.helper.assert_success_with_message(
             result, "All AR inputs generated successfully"
         )
+        # With 26 transactions and chunk size 5, we have: 1 init + 6 body + 1 teardown + 16 mpt_diff + 1 aggregator = 25 total
+        assert mock_trace.call_count == 25
 
         # Verify cairo_pie parameter was passed correctly to all calls
         for call in mock_trace.call_args_list:

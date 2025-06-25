@@ -232,7 +232,7 @@ packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 [project.scripts]
 compile = "scripts.compile_cairo:main"
 compile_keth = "scripts.compile_cairo:compile_keth"
-keth = "scripts.keth:app"
+keth = "keth_cli.cli:app"
 prove-cairo = "scripts.prove_cairo:app"
 test-fast = "scripts.test:test_fast"
 test-unit = "scripts.test:test_unit"
