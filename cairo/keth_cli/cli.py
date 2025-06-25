@@ -183,22 +183,22 @@ def trace(
         )
 
     except InvalidBlockNumberError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except ZkpiFileNotFoundError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except InvalidStepParametersError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except InvalidBranchIndexError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except KethError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except Exception as e:
-        typer.secho(f"Error in pipeline: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error in pipeline: {e}[/]")
         logger.exception("Unexpected error")
         raise typer.Exit(1)
 
@@ -244,10 +244,10 @@ def prove(
             serde_cairo=serde_cairo,
         )
     except KethError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except Exception as e:
-        typer.secho(f"Error generating proof: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error generating proof: {e}[/]")
         logger.exception("Unexpected error")
         raise typer.Exit(1)
 
@@ -271,10 +271,10 @@ def verify(
     try:
         run_verify_pipeline(proof_path=proof_path)
     except KethError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except Exception as e:
-        typer.secho(f"Error verifying proof: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error verifying proof: {e}[/]")
         logger.exception("Unexpected error")
         raise typer.Exit(1)
 
@@ -468,22 +468,22 @@ def generate_ar_inputs(
         )
 
     except InvalidBlockNumberError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except ZkpiFileNotFoundError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except CompiledProgramNotFoundError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except MissingSegmentOutputError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except KethError as e:
-        typer.secho(f"Error: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
     except Exception as e:
-        typer.secho(f"Error generating AR inputs: {e}", fg=typer.colors.RED, err=True)
+        console.print(f"[red]Error generating AR inputs: {e}[/]")
         logger.exception("Unexpected error")
         raise typer.Exit(1)
 

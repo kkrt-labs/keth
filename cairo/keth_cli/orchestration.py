@@ -18,6 +18,58 @@ from .steps import Step, StepHandler
 console = Console()
 
 
+def _execute_trace_job(
+    ctx: KethContext,
+    step: Step,
+    compiled_program: Path,
+    output_path: Path,
+    start_index: Optional[int],
+    chunk_size: Optional[int],
+    branch_index: Optional[int],
+    output_trace_components: bool,
+    cairo_pie: bool,
+    status_message: str,
+    show_full_path: bool = True,
+) -> None:
+    """Execute a single trace generation job.
+
+    This helper function encapsulates the common logic for running trace generation,
+    including loading program input and calling run_generate_trace.
+
+    Args:
+        ctx: The Keth context
+        step: The step type to execute
+        compiled_program: Path to the compiled Cairo program
+        output_path: Path where the trace output will be saved
+        start_index: Starting index for body step (optional)
+        chunk_size: Chunk size for body step (optional)
+        branch_index: Branch index for mpt_diff step (optional)
+        output_trace_components: Whether to output trace components
+        cairo_pie: Whether to generate Cairo PIE output
+        status_message: Message to display while generating the trace
+        show_full_path: Whether to show the full path in success message
+    """
+    # Load program input
+    program_input = StepHandler.load_program_input(
+        step, ctx.zkpi_path, ctx.config, start_index, chunk_size, branch_index
+    )
+
+    # Generate trace
+    with console.status(status_message):
+        run_generate_trace(
+            entrypoint="main",
+            program_input=program_input,
+            compiled_program_path=str(compiled_program),
+            output_path=output_path,
+            output_trace_components=output_trace_components,
+            cairo_pie=cairo_pie,
+        )
+
+    # Show success message only if requested
+    if show_full_path:
+        console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
+
+
 @dataclass
 class TraceJob:
     """Represents a trace generation job."""
@@ -64,27 +116,22 @@ def run_trace_pipeline(
     )
     output_path = trace_path / output_filename
 
-    # Load program input
-    with console.status(
-        f"[bold green]Loading program input for {step} step of block {ctx.block_number}..."
-    ):
-        program_input = StepHandler.load_program_input(
-            step, ctx.zkpi_path, ctx.config, start_index, chunk_size, branch_index
-        )
-
-    # Generate trace
-    with console.status(
+    # Execute the trace job
+    status_message = (
         f"[bold green]Generating trace for {step} step of block {ctx.block_number}..."
-    ):
-        run_generate_trace(
-            entrypoint="main",
-            program_input=program_input,
-            compiled_program_path=str(compiled_program),
-            output_path=output_path,
-            output_trace_components=output_trace_components,
-            cairo_pie=cairo_pie,
-        )
-        console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
+    )
+    _execute_trace_job(
+        ctx=ctx,
+        step=step,
+        compiled_program=compiled_program,
+        output_path=output_path,
+        start_index=start_index,
+        chunk_size=chunk_size,
+        branch_index=branch_index,
+        output_trace_components=output_trace_components,
+        cairo_pie=cairo_pie,
+        status_message=status_message,
+    )
 
 
 def run_prove_pipeline(
@@ -258,29 +305,31 @@ def _generate_traces_sequentially(
         )
         output_path = ctx.proving_run_dir / output_filename
 
-        # Load program input
-        program_input = StepHandler.load_program_input(
-            step, ctx.zkpi_path, ctx.config, start_index, chunk_size, branch_index
-        )
-
+        # Build step description for status message
         step_description = step_name
         if step == Step.BODY:
             step_description = f"body [{start_index}:{start_index + chunk_size}]"
         elif step == Step.MPT_DIFF:
             step_description = f"mpt_diff branch {branch_index}"
 
-        with console.status(
+        # Execute the trace job
+        status_message = (
             f"[bold green]Generating {step_description} trace ({i}/{total_steps})..."
-        ):
-            run_generate_trace(
-                entrypoint="main",
-                program_input=program_input,
-                compiled_program_path=str(compiled_program),
-                output_path=output_path,
-                output_trace_components=output_trace_components,
-                cairo_pie=cairo_pie,
-            )
-            console.print(f"[green]✓[/] {step_description} trace: {output_path.name}")
+        )
+        _execute_trace_job(
+            ctx=ctx,
+            step=step,
+            compiled_program=compiled_program,
+            output_path=output_path,
+            start_index=start_index,
+            chunk_size=chunk_size,
+            branch_index=branch_index,
+            output_trace_components=output_trace_components,
+            cairo_pie=cairo_pie,
+            status_message=status_message,
+            show_full_path=False,
+        )
+        console.print(f"[green]✓[/] {step_description} trace: {output_path.name}")
 
     console.print(
         f"[green]✓[/] All AR inputs generated successfully in {ctx.proving_run_dir}"

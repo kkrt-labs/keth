@@ -1,5 +1,6 @@
 """Step management and handling for Keth CLI."""
 
+import glob
 import json
 from enum import Enum
 from pathlib import Path
@@ -299,8 +300,6 @@ def _find_step_outputs(
         pattern = f"*{block_number}_mpt_diff_*.run_output.txt"
     else:
         return []
-
-    import glob
 
     return [Path(p) for p in glob.glob(str(proving_run_dir / pattern))]
 
