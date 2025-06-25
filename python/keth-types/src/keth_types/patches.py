@@ -125,7 +125,12 @@ def apply_patches() -> None:
 
     # Step 2: Dynamic patching of all already loaded modules
     for name, module in sys.modules.items():
-        if name.startswith("ethereum") or name.startswith("mpt"):
+        if (
+            name.startswith("ethereum")
+            or name.startswith("mpt")
+            or name.startswith("keth")
+            or name.startswith("cairo")
+        ):
             for attr_name, attr_value in all_attrs.items():
                 patch_module(module, attr_name, attr_value)
 

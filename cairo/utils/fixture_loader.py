@@ -660,6 +660,9 @@ def load_mpt_diff_input(
         "branch_index": branch_index,
         "input_trie_account_diff": account_diffs,
         "input_trie_storage_diff": storage_diffs,
+        "left_mpt": tries.state_root,
+        "right_mpt": tries.post_state_root,
+        "node_store": tries.nodes,
     }
 
     return program_input
