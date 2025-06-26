@@ -729,7 +729,51 @@ pub fn generate_trace(
     drop(_run_span_guard);
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
-    tracing::info!("Execution resources: {:?}", execution_resources);
+    tracing::info!(
+        n_steps = execution_resources.n_steps,
+        n_memory_holes = execution_resources.n_memory_holes,
+        builtin_output = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::output)
+            .copied()
+            .unwrap_or(0),
+        builtin_range_check = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check)
+            .copied()
+            .unwrap_or(0),
+        builtin_pedersen = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::pedersen)
+            .copied()
+            .unwrap_or(0),
+        builtin_bitwise = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::bitwise)
+            .copied()
+            .unwrap_or(0),
+        builtin_poseidon = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::poseidon)
+            .copied()
+            .unwrap_or(0),
+        builtin_range_check96 = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check96)
+            .copied()
+            .unwrap_or(0),
+        builtin_add_mod = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::add_mod)
+            .copied()
+            .unwrap_or(0),
+        builtin_mul_mod = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::mul_mod)
+            .copied()
+            .unwrap_or(0),
+        "Execution resources"
+    );
 
     // Create output directory if needed
     if let Some(parent) = output_path.parent() {
@@ -840,7 +884,51 @@ pub fn run_end_to_end(
     drop(_run_span_guard);
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
-    tracing::info!("Execution resources: {:?}", execution_resources);
+    tracing::info!(
+        n_steps = execution_resources.n_steps,
+        n_memory_holes = execution_resources.n_memory_holes,
+        builtin_output = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::output)
+            .copied()
+            .unwrap_or(0),
+        builtin_range_check = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check)
+            .copied()
+            .unwrap_or(0),
+        builtin_pedersen = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::pedersen)
+            .copied()
+            .unwrap_or(0),
+        builtin_bitwise = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::bitwise)
+            .copied()
+            .unwrap_or(0),
+        builtin_poseidon = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::poseidon)
+            .copied()
+            .unwrap_or(0),
+        builtin_range_check96 = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check96)
+            .copied()
+            .unwrap_or(0),
+        builtin_add_mod = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::add_mod)
+            .copied()
+            .unwrap_or(0),
+        builtin_mul_mod = execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::mul_mod)
+            .copied()
+            .unwrap_or(0),
+        "Execution resources"
+    );
 
     // Save the output of the program
     let mut output_buffer = String::new();
