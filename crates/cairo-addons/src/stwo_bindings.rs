@@ -33,7 +33,7 @@ pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool)
     #[cfg(feature = "dhat-heap")]
     let _profiler = dhat::Profiler::new_heap();
 
-    let _ = setup_logging();
+    setup_logging().map_err(to_pyerr)?;
     let prover_input =
         read_and_adapt_prover_input_info_file(&prover_input_path).map_err(to_pyerr)?;
     prove_with_stwo(prover_input, proof_path, serde_cairo, false).map_err(to_pyerr)
@@ -42,7 +42,7 @@ pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool)
 /// Python binding to verify a proof
 #[pyfunction]
 pub fn verify(proof_path: PathBuf) -> PyResult<()> {
-    let _ = setup_logging();
+    setup_logging().map_err(to_pyerr)?;
     let proof_str = std::fs::read_to_string(&proof_path)?;
     let proof: CairoProof<Blake2sMerkleHasher> =
         sonic_rs::from_str(&proof_str).map_err(to_pyerr)?;
