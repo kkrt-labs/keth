@@ -1,8 +1,6 @@
 name: keth-NIGHTLY-FUZZING
 
 on:
-  schedule:
-    - cron: 20 0 * * *
   workflow_dispatch: {}
 
 permissions: read-all
