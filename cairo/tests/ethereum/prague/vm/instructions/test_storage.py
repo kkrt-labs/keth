@@ -271,7 +271,8 @@ class TestStorage:
         assert int(res) % DEFAULT_PRIME == int(res_cairo)
 
 
-# see https://github.com/ethereum/execution-specs/blob/6e652281164025f1f4227f6e5b0036c1bbd27347/src/ethereum/prague/vm/instructions/storage.py#L104
+# See refund_counter calculation in sstore function:
+# https://github.com/ethereum/execution-specs/blob/master/src/ethereum/prague/vm/instructions/storage.py#L54
 def _calculate_refund_counter_current_eq_new(
     current_refund_counter: Uint,
     original_value: U256,
