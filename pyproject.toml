@@ -23,7 +23,6 @@ dependencies = [
   "colorama>=0.4.6",
   "pytest-timeout>=2.3.1",
   "pytest-randomly>=3.16.0",
-  "pytest-timeout>=2.3.1",
   "ethereum-execution",
   "garaga-zero",
   "requests-cache>=1.2.1",
