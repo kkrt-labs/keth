@@ -42,7 +42,12 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use stwo_cairo_adapter::adapter::adapter;
+use stwo_cairo_adapter::{
+    builtins::MemorySegmentAddresses,
+    memory::{MemoryBuilder, MemoryConfig, MemoryEntry},
+    vm_import::{adapt_to_stwo_input, RelocatedTraceEntry},
+    ProverInput, PublicSegmentContext,
+};
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
@@ -622,8 +627,8 @@ fn prepare_cairo_execution<'a>(
         proof_mode,
         secure_run: Some(true),
         disable_trace_padding: proof_mode,
-        allow_missing_builtins: Some(true),
-        dynamic_layout_params: Default::default(),
+        allow_missing_builtins: None,
+        dynamic_layout_params: None,
         ..Default::default()
     };
 
@@ -814,7 +819,7 @@ pub fn generate_trace(
         })?;
     } else {
         // Output prover input info
-        let prover_input_info = adapter(&cairo_runner_mut);
+        let prover_input_info = prover_input_from_runner(&cairo_runner_mut);
         std::fs::write(&output_path, sonic_rs::to_string_pretty(&prover_input_info).unwrap())?;
     }
 
@@ -934,7 +939,7 @@ pub fn run_end_to_end(
     let run_output_path = proof_path.with_file_name("run_output.txt");
     std::fs::write(run_output_path, output_buffer)?;
 
-    let cairo_input = adapter(&cairo_runner);
+    let cairo_input = prover_input_from_runner(&cairo_runner);
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }
@@ -1048,4 +1053,40 @@ impl FileWriter {
     fn flush(&mut self) -> io::Result<()> {
         self.buf_writer.flush()
     }
+}
+
+// Note: this should be imported from `cairo-prove` - but due to stwo version conflicts, we
+// re-define it here. Using `adapter(runner) -> ProverInput` is also not working due to bad memory
+// conversions.
+pub fn prover_input_from_runner(runner: &RustCairoRunner) -> ProverInput {
+    let public_input = runner.get_air_public_input().unwrap();
+    let addresses =
+        public_input.public_memory.iter().map(|entry| entry.address as u32).collect::<Vec<_>>();
+    let segments = public_input
+        .memory_segments
+        .iter()
+        .map(|(&k, v)| {
+            (k, MemorySegmentAddresses { begin_addr: v.begin_addr, stop_ptr: v.stop_ptr })
+        })
+        .collect::<HashMap<_, _>>();
+    let trace = runner
+        .relocated_trace
+        .as_ref()
+        .unwrap()
+        .iter()
+        .map(|x| RelocatedTraceEntry { ap: x.ap, fp: x.fp, pc: x.pc })
+        .collect::<Vec<_>>();
+    let mem = runner.relocated_memory.iter().enumerate().filter_map(|(i, x)| {
+        x.as_ref().map(|value| MemoryEntry {
+            address: i as u64,
+            value: unsafe { std::mem::transmute::<[u8; 32], [u32; 8]>(value.to_bytes_le()) },
+        })
+    });
+    let mem = MemoryBuilder::from_iter(MemoryConfig::default(), mem);
+    let main_args = runner.get_program().iter_builtins().copied().collect::<Vec<_>>();
+
+    let main_args_slice: &[BuiltinName] = &main_args;
+    let public_segment_context = PublicSegmentContext::new(main_args_slice);
+
+    adapt_to_stwo_input(&trace, mem, addresses, &segments, public_segment_context).unwrap()
 }
