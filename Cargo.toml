@@ -48,26 +48,18 @@ module_name_repetitions = "allow"
 [workspace.dependencies]
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1"
 thiserror = "1.0"
 url = "2.5"
 reqwest = { version = "0.12", features = ["json", "multipart"] }
-stwo-cairo-adapter = { version = "*", features = ["std"] }
-stwo_cairo_prover = "*"
-stwo_cairo_utils = "*"
-stwo-cairo-serialize = "*"
-cairo-air = "*"
+stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "92232543984e20e984c5a7194561ff1fffa76dae" }
+stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "92232543984e20e984c5a7194561ff1fffa76dae" }
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "92232543984e20e984c5a7194561ff1fffa76dae" }
+stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "92232543984e20e984c5a7194561ff1fffa76dae" }
+stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "92232543984e20e984c5a7194561ff1fffa76dae" }
 cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.1", features = [
   "test_utils",
   "mod_builtin",
 ] }
 
 [patch."https://github.com/lambdaclass/cairo-vm.git"]
-cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "5f97264eac172331e64030d5f1cc97c3ca94a429" }
-
-[patch.crates-io]
-stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
-stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
-cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
-stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
-stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "936ea6b43580b371347974040ed5b4f48166f3bb" }
+cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "3b5196e4469db0c0abb124cbcdc84bfbc8165acd" }

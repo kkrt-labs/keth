@@ -8,10 +8,10 @@ use pyo3::{
     types::{PyModule, PyModuleMethods},
     wrap_pyfunction, Bound, PyResult,
 };
-use stwo_cairo_adapter::{adapter::read_and_adapt_prover_input_info_file, ProverInput};
+use stwo_cairo_adapter::ProverInput;
 use stwo_cairo_prover::{
     prover::{prove_cairo, ChannelHash, ProverParameters},
-    stwo_prover::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
+    stwo::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
 };
 use stwo_cairo_serialize::CairoSerialize;
 use stwo_cairo_utils::file_utils::create_file;
@@ -34,8 +34,8 @@ pub fn prove(prover_input_path: PathBuf, proof_path: PathBuf, serde_cairo: bool)
     let _profiler = dhat::Profiler::new_heap();
 
     let _ = setup_logging();
-    let prover_input =
-        read_and_adapt_prover_input_info_file(&prover_input_path).map_err(to_pyerr)?;
+    let serialized_prover_input = std::fs::read_to_string(&prover_input_path)?;
+    let prover_input = sonic_rs::from_str(&serialized_prover_input).map_err(to_pyerr)?;
     prove_with_stwo(prover_input, proof_path, serde_cairo, false).map_err(to_pyerr)
 }
 
@@ -46,10 +46,9 @@ pub fn verify(proof_path: PathBuf) -> PyResult<()> {
     let proof_str = std::fs::read_to_string(&proof_path)?;
     let proof: CairoProof<Blake2sMerkleHasher> =
         sonic_rs::from_str(&proof_str).map_err(to_pyerr)?;
-    let ProverParameters { channel_hash: _, pcs_config, preprocessed_trace } =
+    let ProverParameters { channel_hash: _, pcs_config: _, preprocessed_trace } =
         get_keth_proof_config();
-    verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config, preprocessed_trace)
-        .map_err(to_pyerr)?;
+    verify_cairo::<Blake2sMerkleChannel>(proof, preprocessed_trace).map_err(to_pyerr)?;
     Ok(())
 }
 
@@ -106,7 +105,7 @@ pub fn prove_with_stwo(
         proof_file.write_all(sonic_rs::to_string_pretty(&proof)?.as_bytes())?;
     }
     if verify {
-        verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config, preprocessed_trace)?;
+        verify_cairo::<Blake2sMerkleChannel>(proof, preprocessed_trace)?;
     }
     Ok(())
 }

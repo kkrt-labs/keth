@@ -381,7 +381,7 @@ except Exception as e:
             .map_err(|e| VmException::from_vm_error(&self.inner, e))
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         self.inner
-            .end_run(false, false, &mut hint_processor)
+            .end_run(false, false, &mut hint_processor, false)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         if self.inner.is_proof_mode() {
@@ -457,7 +457,7 @@ except Exception as e:
     /// This is required after execution to get the final memory layout.
     fn relocate(&mut self) -> PyResult<()> {
         self.inner
-            .relocate(true)
+            .relocate(true, true)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(())
     }
@@ -624,6 +624,7 @@ fn prepare_cairo_execution<'a>(
         disable_trace_padding: proof_mode,
         allow_missing_builtins: Some(true),
         dynamic_layout_params: Default::default(),
+        ..Default::default()
     };
 
     //this entrypoint tells which function to run in the cairo program
@@ -813,11 +814,8 @@ pub fn generate_trace(
         })?;
     } else {
         // Output prover input info
-        let prover_input_info =
-            cairo_runner_mut.get_prover_input_info().expect("Unable to get prover input info");
-        // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
-        let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
-        std::fs::write(&output_path, bytes)?;
+        let prover_input_info = adapter(&cairo_runner_mut);
+        std::fs::write(&output_path, sonic_rs::to_string_pretty(&prover_input_info).unwrap())?;
     }
 
     if output_trace_components {
@@ -936,8 +934,7 @@ pub fn run_end_to_end(
     let run_output_path = proof_path.with_file_name("run_output.txt");
     std::fs::write(run_output_path, output_buffer)?;
 
-    let mut runner_input_info = cairo_runner.get_prover_input_info().map_err(to_pyerr)?;
-    let cairo_input = adapter(&mut runner_input_info).map_err(to_pyerr)?;
+    let cairo_input = adapter(&cairo_runner);
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }
