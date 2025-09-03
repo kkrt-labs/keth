@@ -6,6 +6,7 @@ This CLI provides a simple way to run a compiled Cairo program, generate a proof
 and verify the proof using the STWO prover and verifier.
 """
 
+import json
 import logging
 from pathlib import Path
 
@@ -48,6 +49,13 @@ def run_and_prove(
     arguments: str = typer.Option(
         "",
         help="Serialized arguments as comma-separated felts",
+    ),
+    arguments_file: Path = typer.Option(
+        None,
+        help="Path to file containing serialized arguments",
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
     ),
     output_dir: Path = typer.Option(
         Path("output"),
@@ -95,6 +103,10 @@ def run_and_prove(
         try:
             # Parse arguments if provided
             program_input = []
+            if arguments_file:
+                with open(arguments_file, "r") as f:
+                    program_input = json.load(f)
+
             if arguments:
                 program_input = [
                     int(arg.strip()) for arg in arguments.split(",") if arg.strip()
