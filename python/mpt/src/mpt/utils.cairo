@@ -14,7 +14,7 @@ from ethereum.prague.trie import (
     SubnodesStruct,
     bytes_to_nibble_list,
 )
-from ethereum_rlp.rlp import Extended, ExtendedEnum, ExtendedImpl, decode
+from ethereum_rlp.rlp import Extended, ExtendedEnum, ExtendedImpl, decode, encode
 from ethereum_types.bytes import Bytes, BytesStruct
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le_felt
@@ -184,6 +184,11 @@ func check_branch_node(node: BranchNode) {
         if (x.value.sequence.value.len == 0) {
             raise_ValueError('LTTwoNonNullSubnodes');
         }
+        // Embedded nodes must have RLP encoding size < 32
+        let encoded = encode(x);
+        if (encoded.value.len >= 32) {
+            raise_ValueError('EmbeddedNodeTooLarge');
+        }
     }
 
     // Check that the second subnode is not None and not empty
@@ -200,6 +205,11 @@ func check_branch_node(node: BranchNode) {
     if (cast(y.value.sequence.value, felt) != 0) {
         if (y.value.sequence.value.len == 0) {
             raise_ValueError('LTTwoNonNullSubnodes');
+        }
+        // Embedded nodes must have RLP encoding size < 32
+        let encoded = encode(y);
+        if (encoded.value.len >= 32) {
+            raise_ValueError('EmbeddedNodeTooLarge');
         }
     }
 
@@ -272,6 +282,11 @@ func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode
     if (cast(sequence_variant, felt) != 0) {
         if (sequence_variant.len == 0) {
             raise_ValueError('EmptySubnode');
+        }
+        // Embedded node must have RLP encoding size < 32
+        let encoded = encode(subnode);
+        if (encoded.value.len >= 32) {
+            raise_ValueError('EmbeddedNodeTooLarge');
         }
         return ();
     }
