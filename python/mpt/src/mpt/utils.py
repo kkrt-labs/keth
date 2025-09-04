@@ -91,6 +91,15 @@ def check_branch_node(node: BranchNode) -> None:
     if len(non_null_subnodes) < 2:
         raise ValueError("LTTwoNonNullSubnodes")
 
+    # For each embedded subnode (represented as a list), ensure its RLP encoding is < 32 bytes
+    for subnode in node.subnodes:
+        if subnode in (None, b""):
+            continue
+        if isinstance(subnode, list):
+            encoded = rlp.encode(subnode)
+            if len(encoded) >= 32:
+                raise ValueError("EmbeddedNodeTooLarge")
+
 
 def check_leaf_node(path: Bytes, node: LeafNode) -> None:
     """
@@ -121,3 +130,9 @@ def check_extension_node(node: ExtensionNode, parent: Optional[InternalNode]) ->
 
     if parent is not None and isinstance(parent, ExtensionNode):
         raise ValueError("InvalidParent")
+
+    # If subnode is embedded (represented as a list), ensure its RLP encoding is < 32 bytes
+    if isinstance(node.subnode, list):
+        encoded = rlp.encode(node.subnode)
+        if len(encoded) >= 32:
+            raise ValueError("EmbeddedNodeTooLarge")
